@@ -7,6 +7,13 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="public/css/landing.css">
+    <style>
+        body.landing-active #main-content { display: none; }
+        #ascii-container.fade-out,
+        .ui-overlay.fade-out,
+        #emailOverlay.fade-out { opacity: 0; transition: opacity 0.8s ease; pointer-events: none; }
+    </style>
     <style>
         /* Enhanced Design Tokens */
         :root {
@@ -1530,8 +1537,56 @@
         }
     </style>
 </head>
-<body class="bg-deep-void text-text-primary font-mono font-extralight">
+<body class="bg-deep-void text-text-primary font-mono font-extralight landing-active">
 
+    <div id="ascii-container" class="backdrop">
+        <div class="ascii-layer layer-1" id="layer1"></div>
+        <div class="ascii-layer layer-2" id="layer2"></div>
+        <div class="ascii-layer layer-3" id="layer3"></div>
+    </div>
+
+    <div class="ui-overlay">
+        <div class="title-container">
+            <h1 class="main-title">[DEEP]FRAME</h1>
+            <h2 class="subtitle">Collective Intelligence Network</h2>
+            <p class="tagline">Connect to learn more</p>
+        </div>
+        <button class="enter-button" onclick="showEmailForm()">
+            Initialize Connection
+        </button>
+    </div>
+
+    <div class="email-overlay" id="emailOverlay" data-modal>
+        <div class="email-form-container">
+            <h2 class="email-form-title">Access Request</h2>
+            <p class="email-form-subtitle">Enter your coordinates to join the network</p>
+
+            <form id="emailForm" onsubmit="handleEmailSubmit(event)">
+                <div class="email-input-group">
+                    <label for="emailInput" class="sr-only">Email address</label>
+                    <input id="emailInput"
+                           name="email"
+                           type="email"
+                           aria-label="Email address"
+                           required
+                           class="email-input"
+                           placeholder="consciousness.node@domain.com"
+                           autocomplete="email">
+                </div>
+
+                <div class="form-buttons">
+                    <button type="submit" class="submit-button">
+                        Establish Link
+                    </button>
+                    <button type="button" class="cancel-button" onclick="hideEmailForm()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-content">
     <canvas id="webgl-canvas"></canvas>
 
     <!-- Enhanced Authentication Panel -->
@@ -4341,5 +4396,8 @@
             }
         });
     </script>
+</div>
+<script src="public/js/rainDom.js" type="module"></script>
+<script src="public/js/main.js" type="module"></script>
 </body>
 </html>

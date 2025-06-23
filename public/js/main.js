@@ -25,11 +25,12 @@ function hideEmailForm(){
   document.getElementById('emailForm').reset();
 }
 
-function transitionToIndex(){
-  document.body.classList.add('fade-out');
+function transitionToMain(){
+  document.getElementById('ascii-container').classList.add('fade-out');
+  document.querySelector('.ui-overlay').classList.add('fade-out');
+  document.getElementById('emailOverlay').classList.add('fade-out');
   setTimeout(() => {
-    const indexURL = new URL('index.html', location.href).href;
-    location.replace(indexURL);
+    document.body.classList.remove('landing-active');
   }, 800);
 }
 
@@ -58,7 +59,7 @@ async function handleEmailSubmit(event){
     await submitEmail(email);
     submitButton.textContent = 'Link Established';
     submitButton.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.4))';
-    setTimeout(transitionToIndex, 1000);
+    setTimeout(transitionToMain, 1000);
   }catch(e){
     submitButton.textContent = 'Try Again';
     submitButton.disabled = false;
