@@ -1523,6 +1523,11 @@
         body[data-view="dream"] {
             --current-accent-rgb: 139, 92, 246; /* purple */
         }
+
+        body {
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
     </style>
 </head>
 <body class="bg-deep-void text-text-primary font-mono font-extralight">
@@ -3514,6 +3519,7 @@
 
         // Enhanced Main Application
         document.addEventListener('DOMContentLoaded', () => {
+            document.body.style.opacity = '1';
             // Initialize systems
             const authManager = new AuthenticationManager();
             const searchEngine = new SearchEngine();
