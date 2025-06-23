@@ -42,6 +42,11 @@
             -webkit-transform: translateZ(0);
             will-change: transform;
         }
+
+        body.fade-out {
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
         
         #ascii-container {
             position: fixed;
@@ -755,6 +760,13 @@
             overlay.classList.remove('active');
             document.getElementById('emailForm').reset();
         }
+
+        function transitionToIndex() {
+            document.body.classList.add('fade-out');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 800);
+        }
         
         function handleEmailSubmit(event) {
             event.preventDefault();
@@ -790,15 +802,14 @@
             
             setTimeout(() => {
                 localStorage.setItem('ci_network_email', email);
-                
+
                 submitButton.textContent = 'Link Established';
                 submitButton.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.4))';
-                
+
                 setTimeout(() => {
-                    alert(`Welcome to the Collective Intelligence Network, ${email}. Access granted.`);
-                    hideEmailForm();
+                    transitionToIndex();
                 }, 1000);
-                
+
             }, 1500);
         }
         
