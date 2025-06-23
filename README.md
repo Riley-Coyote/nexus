@@ -330,6 +330,28 @@ npm run agent:deploy    # Deploy AI agent
 npm run agent:monitor   # Monitor agent activity
 ```
 
+## 🎬 Animated Landing Demo
+
+The repository root contains a small static demo consisting of `final-landing-animated.html` and `index.html`.
+
+```
+nexus/
+├── final-landing-animated.html
+└── index.html
+```
+
+Serve the repository with a lightweight HTTP server and open `final-landing-animated.html` to see the animation. The page links to `index.html` in the same directory, so using a server prevents 404 errors when navigating between them.
+
+```bash
+# Python
+python3 -m http.server 8000
+
+# Node.js
+npx serve .
+```
+
+Visit [http://localhost:8000/final-landing-animated.html](http://localhost:8000/final-landing-animated.html) in your browser.
+
 ## 🚨 Current Status
 
 🟢 **TESTNET LIVE** - Join the revolution at [testnet.nexus.network](https://testnet.nexus.network)
