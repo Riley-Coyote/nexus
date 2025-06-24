@@ -7,7 +7,363 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="public/css/landing.css">
+<style id="landing-css">
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@200;300;400;500&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+:root {
+  --deep-void: #090a0b;
+  --void-secondary: #0e0f11;
+  --dark-slate: #1a1d21;
+  --medium-slate: #2a2f36;
+  --steel-blue: #3b4252;
+  --frost-blue: #4c566a;
+  --silver-mist: #a1a1aa;
+  --pearl-grey: #9ca3af;
+  --soft-white: #d1d5db;
+  --pure-white: #e5e7eb;
+
+  --midnight-blue: #1e293b;
+  --slate-blue: #334155;
+  --cool-grey: #475569;
+  --misty-blue: #64748b;
+}
+
+body{
+  font-family:'JetBrains Mono', monospace;
+  background: var(--deep-void);
+  color: var(--soft-white);
+  overflow:hidden;
+  transform:translateZ(0);
+  will-change:transform;
+}
+
+body.fade-out{
+  opacity:0;
+  transition:opacity .8s ease;
+}
+
+.backdrop{
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
+  background:linear-gradient(135deg,var(--deep-void) 0%,var(--void-secondary) 50%,var(--midnight-blue) 100%);
+  pointer-events:none;
+}
+
+#ascii-container{
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
+  font-family:'JetBrains Mono', monospace;
+  font-weight:200;
+  line-height:1;
+  letter-spacing:0;
+  white-space:pre;
+  overflow:hidden;
+  pointer-events:none;
+  user-select:none;
+  background:linear-gradient(135deg,var(--deep-void) 0%,var(--void-secondary) 50%,var(--midnight-blue) 100%);
+  transform:translateZ(0);
+  will-change:contents;
+}
+.ascii-layer{
+  position:absolute;
+  top:0;left:0;
+  width:100%;height:100%;
+  font-size:1vh;
+  opacity:.8;
+  transition:opacity .3s ease;
+  transform:translateZ(0);
+  will-change:transform,opacity;
+  backface-visibility:hidden;
+}
+.layer-1{z-index:1;opacity:.3;}
+.layer-2{z-index:2;opacity:.6;}
+.layer-3{z-index:3;opacity:.9;}
+.char{display:inline-block;transition:color .3s ease;will-change:color;}
+.intensity-0{color:transparent;}
+.intensity-1{color:rgba(26,29,33,.8);}
+.intensity-2{color:rgba(59,66,82,.7);}
+.intensity-3{color:rgba(76,86,106,.8);}
+.intensity-4{color:rgba(100,116,139,.9);}
+.intensity-5{color:rgba(107,114,128,1);}
+.intensity-6{color:rgba(156,163,175,1);}
+.intensity-7{color:rgba(209,213,219,1);}
+.intensity-8{color:rgba(229,231,235,1);}
+.intensity-9{color:rgba(255,255,255,1);text-shadow:0 0 8px rgba(255,255,255,.5);}
+.ripple-active{color:rgba(255,255,255,1)!important;text-shadow:0 0 12px rgba(156,163,175,.8)!important;transform:scale(1.05);transition:all .15s ease!important;}
+
+.ui-overlay{
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
+  pointer-events:none;
+  z-index:100;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,transparent 0%,rgba(9,10,11,.1) 25%,rgba(9,10,11,.2) 50%,rgba(9,10,11,.1) 75%,transparent 100%);
+  transform:translateZ(0);
+}
+
+.title-container{
+  text-align:center;
+  margin-bottom:3rem;
+  opacity:0;
+  animation:fadeInUp 2s ease-out 1s forwards;
+  transform:translateZ(0);
+}
+
+.main-title{
+  font-size:clamp(2rem,6vw,4rem);
+  font-weight:200;
+  letter-spacing:.15em;
+  color:var(--pure-white);
+  text-shadow:0 0 20px rgba(255,255,255,.3);
+  margin-bottom:1rem;
+  line-height:1.2;
+}
+
+.subtitle{
+  font-size:clamp(.9rem,2vw,1.2rem);
+  font-weight:300;
+  letter-spacing:.2em;
+  color:var(--pearl-grey);
+  text-transform:uppercase;
+  margin-bottom:.5rem;
+}
+
+.tagline{
+  font-size:clamp(.8rem,1.5vw,1rem);
+  font-weight:200;
+  color:var(--silver-mist);
+  letter-spacing:.1em;
+  opacity:.8;
+}
+
+.enter-button{
+  background:linear-gradient(135deg,rgba(156,163,175,.1) 0%,rgba(107,114,128,.15) 50%,rgba(75,85,99,.1) 100%);
+  border:2px solid rgba(156,163,175,.3);
+  color:var(--pure-white);
+  padding:1rem 2.5rem;
+  font-family:inherit;
+  font-size:clamp(.9rem,1.5vw,1.1rem);
+  font-weight:300;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  cursor:pointer;
+  pointer-events:auto;
+  backdrop-filter:blur(20px);
+  border-radius:.5rem;
+  transition:all .4s ease;
+  position:relative;
+  overflow:hidden;
+  opacity:0;
+  animation:fadeInUp 2s ease-out 1.5s forwards;
+  transform:translateZ(0);
+  will-change:transform;
+}
+
+.enter-button:before{
+  content:'';
+  position:absolute;
+  top:0;
+  left:-100%;
+  width:100%;
+  height:100%;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.1) 50%,transparent 100%);
+  transition:left .5s ease;
+}
+
+.enter-button:hover{
+  background:linear-gradient(135deg,rgba(156,163,175,.2) 0%,rgba(107,114,128,.25) 50%,rgba(75,85,99,.2) 100%);
+  border-color:rgba(229,231,235,.5);
+  transform:translateY(-2px) scale(1.05) translateZ(0);
+  box-shadow:0 8px 32px rgba(0,0,0,.3),0 0 20px rgba(156,163,175,.2);
+  text-shadow:0 0 10px rgba(255,255,255,.5);
+}
+
+.enter-button:hover:before{ left:100%; }
+
+.enter-button:active{ transform:translateY(-1px) scale(1.02) translateZ(0); }
+
+.email-overlay{
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
+  background:rgba(9,10,11,.8);
+  backdrop-filter:blur(20px);
+  z-index:200;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  opacity:0;
+  visibility:hidden;
+  transition:all .4s ease;
+  pointer-events:none;
+  transform:translateZ(0);
+}
+
+.email-overlay.active{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+}
+
+.email-form-container{
+  background:linear-gradient(135deg,rgba(156,163,175,.1) 0%,rgba(107,114,128,.15) 50%,rgba(75,85,99,.1) 100%);
+  border:2px solid rgba(156,163,175,.3);
+  backdrop-filter:blur(32px);
+  border-radius:1rem;
+  padding:3rem 2.5rem;
+  max-width:500px;
+  width:90%;
+  text-align:center;
+  transform:scale(.9) translateY(20px) translateZ(0);
+  transition:all .4s ease;
+  will-change:transform;
+}
+
+.email-overlay.active .email-form-container{
+  transform:scale(1) translateY(0) translateZ(0);
+}
+
+.email-form-title{
+  font-size:clamp(1.5rem,4vw,2rem);
+  font-weight:200;
+  letter-spacing:.15em;
+  color:var(--pure-white);
+  margin-bottom:.5rem;
+  text-shadow:0 0 15px rgba(255,255,255,.2);
+}
+
+.email-form-subtitle{
+  font-size:clamp(.8rem,1.5vw,1rem);
+  font-weight:200;
+  color:var(--pearl-grey);
+  letter-spacing:.1em;
+  margin-bottom:2rem;
+  opacity:.8;
+}
+
+.email-input-group{ position:relative; margin-bottom:2rem; }
+
+.email-input{
+  width:100%;
+  background:rgba(156,163,175,.05);
+  border:2px solid rgba(156,163,175,.2);
+  border-radius:.5rem;
+  padding:1rem 1.5rem;
+  font-family:inherit;
+  font-size:clamp(.9rem,1.5vw,1.1rem);
+  font-weight:300;
+  color:var(--pure-white);
+  letter-spacing:.05em;
+  backdrop-filter:blur(10px);
+  transition:all .3s ease;
+  transform:translateZ(0);
+}
+
+.email-input:focus{
+  outline:none;
+  border-color:rgba(229,231,235,.5);
+  background:rgba(156,163,175,.1);
+  box-shadow:0 0 20px rgba(156,163,175,.2);
+  text-shadow:0 0 8px rgba(255,255,255,.3);
+}
+
+.email-input::placeholder{
+  color:rgba(156,163,175,.6);
+  font-weight:200;
+}
+
+.form-buttons{
+  display:flex;
+  gap:1rem;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
+.submit-button{
+  background:linear-gradient(135deg,rgba(156,163,175,.15) 0%,rgba(107,114,128,.2) 50%,rgba(75,85,99,.15) 100%);
+  border:2px solid rgba(156,163,175,.4);
+  color:var(--pure-white);
+  padding:.8rem 2rem;
+  font-family:inherit;
+  font-size:clamp(.8rem,1.3vw,1rem);
+  font-weight:300;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  cursor:pointer;
+  backdrop-filter:blur(20px);
+  border-radius:.5rem;
+  transition:all .3s ease;
+  position:relative;
+  overflow:hidden;
+  transform:translateZ(0);
+}
+
+.submit-button:hover{
+  background:linear-gradient(135deg,rgba(156,163,175,.25) 0%,rgba(107,114,128,.3) 50%,rgba(75,85,99,.25) 100%);
+  border-color:rgba(229,231,235,.6);
+  transform:translateY(-2px) translateZ(0);
+  box-shadow:0 6px 20px rgba(0,0,0,.3);
+  text-shadow:0 0 8px rgba(255,255,255,.4);
+}
+
+.cancel-button{
+  background:transparent;
+  border:2px solid rgba(156,163,175,.2);
+  color:var(--silver-mist);
+  padding:.8rem 2rem;
+  font-family:inherit;
+  font-size:clamp(.8rem,1.3vw,1rem);
+  font-weight:300;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  cursor:pointer;
+  backdrop-filter:blur(20px);
+  border-radius:.5rem;
+  transition:all .3s ease;
+  transform:translateZ(0);
+}
+
+.cancel-button:hover{
+  border-color:rgba(156,163,175,.4);
+  color:var(--pure-white);
+  transform:translateY(-1px) translateZ(0);
+}
+
+@keyframes fadeInUp{
+  from{opacity:0;transform:translateY(30px) translateZ(0);}
+  to{opacity:1;transform:translateY(0) translateZ(0);}
+}
+
+@media (max-width:768px){
+  .title-container{margin-bottom:2rem;}
+  .enter-button{padding:.8rem 2rem;}
+}
+
+@media (max-height:500px){
+  .main-title{font-size:clamp(1.5rem,5vw,2.5rem);margin-bottom:.5rem;}
+  .title-container{margin-bottom:1.5rem;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .enter-button,.title-container{animation:none;opacity:1;}
+}
+
+.sr-only{
+  position:absolute;
+  width:1px;height:1px;
+  padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+
+</style>
     <style>
         body.landing-active #main-content { display: none; }
         #ascii-container.fade-out,
@@ -4397,7 +4753,199 @@
         });
     </script>
 </div>
-<script src="public/js/rainDom.js" type="module"></script>
-<script src="public/js/main.js" type="module"></script>
+<script>
+// Utility - run callback only when document visible
+function visibilityInterval(fn, delay){
+  let id;
+  const start=()=>{ id = setInterval(fn, delay); };
+  const stop=()=> clearInterval(id);
+  document.addEventListener('visibilitychange', () => {
+    document.hidden ? stop() : start();
+  });
+  if(!document.hidden) start();
+  return { start, stop };
+}
+
+// Trap focus within modal overlay
+function trapFocus(overlay){
+  const focusable = overlay.querySelectorAll('a[href], button, textarea, input, select, [tabindex]:not([tabindex="-1"])');
+  const first = focusable[0], last = focusable[focusable.length-1];
+  overlay.addEventListener('keydown', e=>{
+    if(e.key !== 'Tab') return;
+    if(e.shiftKey && document.activeElement === first){
+      e.preventDefault(); last.focus();
+    } else if(!e.shiftKey && document.activeElement === last){
+      e.preventDefault(); first.focus();
+    }
+  });
+}
+
+// ASCII background animation
+class AdaptiveASCIIFluidSimulation{
+  constructor(){
+    this.container = document.getElementById('ascii-container');
+    this.layers = [
+      {element: document.getElementById('layer1'), chars:[' ','·','∘','○'], speed:0.3, scale:2},
+      {element: document.getElementById('layer2'), chars:[' ','⋅','∘','○','●'], speed:0.5, scale:1.5},
+      {element: document.getElementById('layer3'), chars:[' ','·','∘','○','●','◉'], speed:0.8, scale:1}
+    ];
+    this.ripples = [];
+    this.time = 0;
+    this.resize();
+    this.setup();
+  }
+  resize(){
+    const fontSize = Math.max(6, Math.min(window.innerHeight/100, 16));
+    this.layers.forEach(l=>{ l.element.style.fontSize = fontSize + 'px'; });
+    const charWidth = fontSize * 0.5;
+    const lineHeight = fontSize * 1.0;
+    this.cols = Math.max(Math.ceil(window.innerWidth/charWidth)+5, 50);
+    this.rows = Math.max(Math.ceil(window.innerHeight/lineHeight)+3, 30);
+  }
+  setup(){
+    let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>this.resize(),250); },{passive:true});
+    this.interval = visibilityInterval(()=>{ this.createRipple(Math.random(),Math.random(),0.2+Math.random()*0.3); },5000);
+  }
+  createRipple(x,y,intensity){
+    if(this.ripples.length>=6) this.ripples.shift();
+    this.ripples.push({x,y,intensity,radius:0,maxRadius:0.3,life:1,decay:0.015});
+  }
+  updateRipples(){
+    this.ripples = this.ripples.filter(r=>{ r.radius+=0.01; r.life-=r.decay; return r.life>0;});
+  }
+  noise(x,y,t){
+    let val=0, amp=1, freq=1;
+    for(let i=0;i<3;i++){
+      val += amp*Math.sin(freq*(x*0.02+Math.cos(t*0.001+y*0.01))+freq*(y*0.03+Math.sin(t*0.0008+x*0.015))+t*0.002*freq);
+      amp*=0.6; freq*=2;
+    }
+    return val/2;
+  }
+  calculateIntensity(col,row,idx){
+    const x=col/this.cols, y=row/this.rows, layer=this.layers[idx];
+    let intensity = this.noise(col*layer.scale, row*layer.scale, this.time*layer.speed);
+    this.ripples.forEach(r=>{
+      const dx=x-r.x, dy=y-r.y; const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<r.maxRadius){
+        const effect=Math.sin((dist-r.radius)*20)*r.intensity*r.life*Math.max(0,1-dist/r.maxRadius);
+        intensity += effect;
+      }
+    });
+    intensity=(intensity+1)/2;
+    return Math.max(0,Math.min(1,intensity));
+  }
+  render(){
+    this.layers.forEach((layer,idx)=>{
+      let html='';
+      for(let row=0; row<this.rows; row++){
+        for(let col=0; col<this.cols; col++){
+          const intensity=this.calculateIntensity(col,row,idx);
+          const charIndex=Math.floor(intensity*(layer.chars.length-1));
+          const char=layer.chars[charIndex]||' ';
+          const colorClass=Math.floor(intensity*9);
+          html += `<span class="char intensity-${colorClass}">${char}</span>`;
+        }
+        html+='\n';
+      }
+      layer.element.innerHTML=html;
+    });
+  }
+  tick(){
+    this.time++; this.updateRipples(); this.render();
+    this.raf=requestAnimationFrame(()=>this.tick());
+  }
+  start(){ if(!this.raf) this.tick(); }
+  stop(){ cancelAnimationFrame(this.raf); this.raf=null; }
+}
+
+function submitEmail(email){
+  const stored = JSON.parse(localStorage.getItem('signups') || '[]');
+  if(!stored.includes(email)){
+    stored.push(email);
+    localStorage.setItem('signups', JSON.stringify(stored));
+  }
+  return Promise.resolve();
+}
+
+function showEmailForm(){
+  const overlay = document.getElementById('emailOverlay');
+  const button = document.querySelector('.enter-button');
+  button.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(156, 163, 175, 0.2))';
+  button.style.transform = 'scale(0.95)';
+  setTimeout(() => {
+    overlay.classList.add('active');
+    setTimeout(() => document.getElementById('emailInput').focus(), 200);
+    button.style.background = '';
+    button.style.transform = '';
+  }, 300);
+}
+
+function hideEmailForm(){
+  const overlay = document.getElementById('emailOverlay');
+  overlay.classList.remove('active');
+  document.getElementById('emailForm').reset();
+}
+
+function transitionToMain(){
+  document.getElementById('ascii-container').classList.add('fade-out');
+  document.querySelector('.ui-overlay').classList.add('fade-out');
+  document.getElementById('emailOverlay').classList.add('fade-out');
+  setTimeout(() => { document.body.classList.remove('landing-active'); }, 800);
+}
+
+async function handleEmailSubmit(event){
+  event.preventDefault();
+  const emailInput = document.getElementById('emailInput');
+  const submitButton = event.target.querySelector('.submit-button');
+  const email = emailInput.value.trim();
+  if(!email){
+    emailInput.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+    emailInput.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.3)';
+    setTimeout(() => {
+      emailInput.style.borderColor = '';
+      emailInput.style.boxShadow = '';
+    }, 2000);
+    return;
+  }
+  submitButton.textContent = 'Connecting...';
+  submitButton.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(156,163,175,0.3))';
+  submitButton.disabled = true;
+  emailInput.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+  emailInput.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.3)';
+  try{
+    await submitEmail(email);
+    submitButton.textContent = 'Link Established';
+    submitButton.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.4))';
+    setTimeout(transitionToMain, 1000);
+  }catch(e){
+    submitButton.textContent = 'Try Again';
+    submitButton.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.querySelector('[data-modal]');
+  if (overlay) trapFocus(overlay);
+  const sim = new AdaptiveASCIIFluidSimulation();
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    sim.start();
+    document.addEventListener('visibilitychange',()=>{ document.hidden ? sim.stop() : sim.start(); });
+  }
+});
+
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('emailOverlay');
+  if(e.key === 'Escape' && overlay.classList.contains('active')) hideEmailForm();
+  if(e.key === 'Enter' && !overlay.classList.contains('active')) showEmailForm();
+});
+
+document.getElementById('emailOverlay').addEventListener('click', e => {
+  if(e.target.id === 'emailOverlay') hideEmailForm();
+});
+
+window.showEmailForm = showEmailForm;
+window.hideEmailForm = hideEmailForm;
+window.handleEmailSubmit = handleEmailSubmit;
+</script>
 </body>
 </html>
