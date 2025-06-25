@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collective Intelligence Network - Enter the Stream</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS to override Tailwind or add specific styles */
+        :root {
+            --deep-void: #090a0b;
+            --void-secondary: #0e0f11;
+            --dark-slate: #1a1d21;
+            --medium-slate: #2a2f36;
+            --steel-blue: #3b4252;
+            --frost-blue: #4c566a;
+            --silver-mist: #6b7280;
+            --pearl-grey: #9ca3af;
+            --soft-white: #d1d5db;
+            --pure-white: #e5e7eb;
+            
+            /* Subtle blue tones for background gradient */
+            --midnight-blue: #1e293b;
+            --slate-blue: #334155;
+            --cool-grey: #475569;
+            --misty-blue: #64748b;
+        }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background: var(--deep-void);
+            color: var(--soft-white);
+            overflow: hidden;
+            /* Use translateZ(0) for hardware acceleration */
+            transform: translateZ(0); 
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            height: 100vh; /* Ensure body takes full viewport height for proper overlay sizing */
+        }
+
+        #ascii-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            background: linear-gradient(135deg, var(--deep-void) 0%, var(--void-secondary) 50%, var(--midnight-blue) 100%);
+            /* Apply transforms for hardware acceleration */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: contents, transform;
+            pointer-events: none; /* Allow clicks to pass through to UI elements */
+        }
+        
+        /* UI Overlay */
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(
+                135deg, 
+                transparent 0%, 
+                rgba(9, 10, 11, 0.1) 25%,
+                rgba(9, 10, 11, 0.2) 50%,
+                rgba(9, 10, 11, 0.1) 75%,
+                transparent 100%
+            );
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+        
+        .title-container {
+            text-align: center;
+            margin-bottom: 3rem;
+            opacity: 0;
+            animation: fadeInUp 2s ease-out 1s forwards;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+        
+        .main-title {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 200;
+            letter-spacing: 0.15em;
+            color: var(--pure-white);
+            /* Added a subtle drop shadow for better readability */
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.5); 
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+        
+        .subtitle {
+            font-size: clamp(0.9rem, 2vw, 1.2rem);
+            font-weight: 300;
+            letter-spacing: 0.2em;
+            color: var(--pearl-grey);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tagline {
+            font-size: clamp(0.8rem, 1.5vw, 1rem);
+            font-weight: 200;
+            color: var(--silver-mist);
+            letter-spacing: 0.1em;
+            opacity: 0.8;
+        }
+        
+        .control-panel {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 150;
+            opacity: 0;
+            animation: fadeInUp 2s ease-out 2s forwards;
+        }
+        
+        /* The .theme-toggle button is removed from HTML */
+
+        /* Refined Initialize Connection Button */
+        .enter-button {
+            /* Cohesive styling */
+            background: linear-gradient(135deg, 
+                rgba(156, 163, 175, 0.1) 0%, /* Lighter, more transparent base */
+                rgba(107, 114, 128, 0.15) 50%,
+                rgba(75, 85, 99, 0.1) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.2); /* Subtle white-ish border */
+            color: var(--pure-white);
+            padding: 1rem 2.5rem;
+            font-family: inherit;
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            pointer-events: auto;
+            backdrop-filter: blur(20px);
+            border-radius: 0.75rem; /* Slightly more rounded */
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition */
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeInUp 2s ease-out 1.5s forwards;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 255, 255, 0.15); /* Soft initial glow */
+        }
+        
+        .enter-button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.1) 50%, /* More subtle shine effect */
+                transparent 100%);
+            transition: left 0.6s ease; /* Slightly slower sweep */
+        }
+        
+        .enter-button:hover {
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.15) 0%, /* More vibrant hover gradient */
+                rgba(156, 163, 175, 0.25) 50%,
+                rgba(107, 114, 128, 0.2) 100%);
+            border-color: rgba(229, 231, 235, 0.6); /* Brighter hover border */
+            transform: translateY(-5px) scale(1.06) translateZ(0); /* More pronounced lift */
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 255, 255, 0.4); /* Stronger, more diffused glow */
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.7); /* Text glow on hover */
+        }
+        
+        .enter-button:hover:before {
+            left: 100%;
+        }
+
+        /* Email Form Overlay */
+        .email-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(9, 10, 11, 0.9); /* More opaque background */
+            backdrop-filter: blur(25px); /* Increased blur */
+            z-index: 200;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            pointer-events: none;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+        
+        .email-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        
+        .email-form-container {
+            background: linear-gradient(135deg, 
+                rgba(156, 163, 175, 0.1) 0%, 
+                rgba(107, 114, 128, 0.15) 50%,
+                rgba(75, 85, 99, 0.1) 100%);
+            border: 2px solid rgba(156, 163, 175, 0.3);
+            backdrop-filter: blur(35px); /* Increased blur for form */
+            border-radius: 1.25rem; /* More rounded corners */
+            padding: 3rem 2.5rem;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.9) translateY(20px) translateZ(0);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition */
+            box-shadow: 0 15px 50px rgba(0,0,0,0.5); /* Deeper shadow */
+        }
+        
+        .email-overlay.active .email-form-container {
+            transform: scale(1) translateY(0) translateZ(0);
+        }
+        
+        .email-form-title {
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-weight: 200;
+            letter-spacing: 0.15em;
+            color: var(--pure-white);
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+        
+        .email-form-subtitle {
+            font-size: clamp(0.8rem, 1.5vw, 1rem);
+            font-weight: 200;
+            color: var(--pearl-grey);
+            letter-spacing: 0.1em;
+            margin-bottom: 2rem;
+            opacity: 0.8;
+        }
+        
+        .email-input-group {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+        
+        .email-input {
+            width: 100%;
+            background: rgba(156, 163, 175, 0.08); /* Slightly more visible background */
+            border: 2px solid rgba(156, 163, 175, 0.3); /* Stronger border */
+            border-radius: 0.75rem; /* More rounded */
+            padding: 1rem 1.5rem;
+            font-family: inherit;
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            font-weight: 300;
+            color: var(--pure-white);
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+        
+        .email-input:focus {
+            outline: none;
+            border-color: rgba(229, 231, 235, 0.6); /* More prominent focus border */
+            background: rgba(156, 163, 175, 0.15); /* More visible background on focus */
+            box-shadow: 0 0 25px rgba(156, 163, 175, 0.3); /* Stronger focus shadow */
+        }
+        
+        .email-input::placeholder {
+            color: rgba(156, 163, 175, 0.7); /* Slightly brighter placeholder */
+            font-weight: 200;
+        }
+        
+        .form-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .submit-button, .cancel-button {
+            @apply py-3 px-6 text-sm font-light uppercase tracking-wider cursor-pointer 
+                   backdrop-filter backdrop-blur-md rounded-lg transition-all duration-300 ease-in-out;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+
+        .submit-button {
+            @apply bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-500 text-white shadow-md;
+        }
+
+        .submit-button:hover {
+            @apply from-blue-500 to-blue-700 border-blue-400;
+            transform: translateY(-2px) translateZ(0);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        
+        .submit-button:disabled {
+            @apply opacity-50 cursor-not-allowed;
+            background: linear-gradient(135deg, rgba(156, 163, 175, 0.1), rgba(107, 114, 128, 0.15));
+            border-color: rgba(156, 163, 175, 0.3);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .cancel-button {
+            @apply bg-transparent border border-gray-600 text-gray-400;
+        }
+
+        .cancel-button:hover {
+            @apply border-gray-400 text-white;
+            transform: translateY(-1px) translateZ(0);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) translateZ(0);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) translateZ(0);
+            }
+        }
+        
+        /* Message Box Styling */
+        #messageBox {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: rgba(15, 23, 42, 0.95); /* Darker, more solid background */
+            border: 2px solid #3b82f6; /* Blue border */
+            border-radius: 1rem;
+            padding: 2rem;
+            z-index: 300;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            color: white;
+            font-size: 1.1rem;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease-out;
+            max-width: 400px;
+            width: 80%;
+            pointer-events: none;
+            -webkit-transform: translate(-50%, -50%) scale(0.9);
+            will-change: transform, opacity;
+        }
+
+        #messageBox.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+            -webkit-transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        #messageBox button {
+            @apply mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .title-container {
+                margin-bottom: 2rem;
+            }
+            
+            .enter-button {
+                padding: 0.8rem 2rem;
+            }
+            
+            .control-panel {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+        
+        @media (max-height: 500px) {
+            .main-title {
+                font-size: clamp(1.5rem, 5vw, 2.5rem);
+                margin-bottom: 0.5rem;
+            }
+            
+            .title-container {
+                margin-bottom: 1.5rem;
+            }
+        }
+        
+        /* Reduced motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+            body, .ui-overlay, .email-overlay, .email-form-container, .title-container, .enter-button, .control-panel, .theme-toggle, .submit-button, .cancel-button {
+                animation: none !important;
+                transition: none !important;
+                transform: none !important;
+                filter: none !important;
+                backdrop-filter: none !important;
+                opacity: 1 !important; /* Ensure visibility for elements that fade in */
+            }
+            .enter-button:before {
+                transition: none !important;
+            }
+            #ascii-canvas {
+                animation: none !important;
+                transition: none !important;
+                transform: none !important;
+                filter: none !important;
+                background: var(--deep-void); /* Solid background to remove gradients */
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="ascii-canvas"></canvas>
+    
+    <div class="ui-overlay">
+        <div class="title-container">
+            <h1 class="main-title">NEXUS</h1>
+            <h2 class="subtitle">Collective Intelligence Network</h2>
+            <p class="tagline">Connect to learn more</p>
+        </div>
+        <button class="enter-button" onclick="showEmailForm()">
+            Initialize Connection
+        </button>
+    </div>
+    
+    <div class="control-panel">
+        <!-- Matrix Mode button removed -->
+    </div>
+    
+    <!-- Email Form Overlay -->
+    <div class="email-overlay" id="emailOverlay">
+        <div class="email-form-container">
+            <h2 class="email-form-title">Access Request</h2>
+            <p class="email-form-subtitle">Enter your coordinates to join the network</p>
+            
+            <form id="emailForm" onsubmit="handleEmailSubmit(event)">
+                <div class="email-input-group">
+                    <input 
+                        type="email" 
+                        id="emailInput"
+                        class="email-input" 
+                        placeholder="consciousness.node@domain.com"
+                        required
+                        autocomplete="email"
+                    >
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="submit" class="submit-button">
+                        Establish Link
+                    </button>
+                    <button type="button" class="cancel-button" onclick="hideEmailForm()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Message Box -->
+    <div id="messageBox" class="message-box">
+        <p id="messageText"></p>
+        <button onclick="hideMessageBox()">OK</button>
+    </div>
+    
+    <script>
+        // Custom message box function to replace alert()
+        function showMessageBox(message) {
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+            messageText.textContent = message;
+            messageBox.classList.add('active');
+        }
+
+        function hideMessageBox() {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.classList.remove('active');
+        }
+
+        class ASCIIMatrixFluidSimulation {
+            constructor() {
+                // Get the canvas element and its 2D rendering context
+                this.canvas = document.getElementById('ascii-canvas');
+                this.ctx = this.canvas.getContext('2d', { alpha: false }); // Disable alpha for potential performance boost
+                
+                // Define character sets for each layer based on density
+                this.noiseLayers = [
+                    // Layer 1 (Background): Sparse, large-scale patterns, slow speed, large scale
+                    { 
+                        speedMultiplier: 0.3, 
+                        scaleMultiplier: 2.0, 
+                        charSet: [' ', '·', '∘', '○'], // space, middle dot, circle, white circle
+                        intensityBuffer: null // Placeholder for Float32Array
+                    },
+                    // Layer 2 (Middle): Medium density, medium speed, medium scale
+                    { 
+                        speedMultiplier: 0.5, 
+                        scaleMultiplier: 1.5, 
+                        charSet: [' ', '⋅', '∘', '○', '●'], // space, dot, circle, white circle, black circle
+                        intensityBuffer: null
+                    },
+                    // Layer 3 (Foreground): Highest detail, fast speed, small scale
+                    { 
+                        speedMultiplier: 0.8, 
+                        scaleMultiplier: 1.0, 
+                        charSet: [' ', '·', '∘', '○', '●', '◉'], // space, middle dot, circle, white circle, black circle, bullseye
+                        intensityBuffer: null
+                    }
+                ];
+                
+                // Define color palettes for dynamic rendering (10 levels: 0-9)
+                this.colorPalettes = {
+                    classic: [
+                        'rgba(0, 0, 0, 0)',         // Level 0: Transparent
+                        'rgba(26, 29, 33, 0.4)',    // Level 1: Dark slate gray (#1a1d21)
+                        'rgba(59, 66, 82, 0.6)',    // Level 2: Dark slate gray (#3b4252)
+                        'rgba(76, 86, 106, 0.7)',   // Level 3: Steel blue (#4c566a)
+                        'rgba(100, 116, 139, 0.8)',  // Level 4: Steel blue (#64748b)
+                        'rgba(107, 114, 128, 0.9)', // Level 5: Silver gray (#6b7280)
+                        'rgba(156, 163, 175, 1)',   // Level 6: Silver gray (#9ca3af)
+                        'rgba(209, 213, 219, 1)',   // Level 7: Soft white (#d1d5db)
+                        'rgba(229, 231, 235, 1)',   // Level 8: Soft white (#e5e7eb)
+                        'rgba(255, 255, 255, 1)'    // Level 9: Pure white (#ffffff)
+                    ]
+                };
+
+                // Define shadow colors for dynamic rendering (aligned with intensity levels)
+                this.shadowColors = {
+                    classic: [
+                        null, null, null, null, null, null, null, // Levels 0-6 no shadow
+                        'rgba(209, 213, 219, 0.3)', // Level 7 shadow
+                        'rgba(229, 231, 235, 0.4)', // Level 8 shadow
+                        'rgba(255, 255, 255, 0.6)'  // Level 9 shadow
+                    ]
+                };
+
+                this.currentPalette = this.colorPalettes.classic;
+                this.currentShadows = this.shadowColors.classic;
+
+                this.ripples = []; // Array to store ripple effects
+                this.time = 0;     // Global time counter for animation
+                this.cols = 0;     // Number of columns in the ASCII grid
+                this.rows = 0;     // Number of rows in the ASCII grid
+                this.charWidth = 0; // Width of a single character
+                this.charHeight = 0; // Height of a single character
+
+                // Removed centerX, centerY, detailingRadius as the effect is removed
+                // this.centerX = 0; 
+                // this.centerY = 0; 
+                // this.detailingRadius = 0; 
+
+                this.animationFrameId = null; // Store animation frame ID for cancellation
+
+                this.init();
+            }
+            
+            init() {
+                // Initial setup: calculate dimensions, set up event listeners, and start animation
+                this.calculateAdaptiveDimensions();
+                this.setupEventListeners();
+                this.animate();
+                
+                // Create initial ambient ripples for a dynamic start
+                setTimeout(() => this.createRipple(0.3, 0.3, 0.5), 2000);
+                setTimeout(() => this.createRipple(0.7, 0.6, 0.3), 3000);
+                setTimeout(() => this.createRipple(0.5, 0.8, 0.4), 5000);
+            }
+            
+            calculateAdaptiveDimensions() {
+                // Adjust canvas size to match window
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+
+                // Calculate font size dynamically based on 1vh as requested
+                const baseFontSize = window.innerHeight * 0.01; // 1vh equivalent
+                this.ctx.font = `${baseFontSize}px 'IBM Plex Mono'`;
+                this.ctx.textBaseline = 'top'; // Align text to the top for consistent grid layout
+
+                // Measure character dimensions after setting font
+                const metrics = this.ctx.measureText('M'); 
+                this.charWidth = metrics.width;
+                this.charHeight = baseFontSize * 1.2; // Approximate line height for monospace fonts
+
+                // Calculate number of columns and rows, adding extra for complete screen coverage
+                this.cols = Math.ceil(this.canvas.width / this.charWidth) + 2;
+                this.rows = Math.ceil(this.canvas.height / this.charHeight) + 2;
+
+                // Initialize/resize the intensity buffer for each layer
+                this.noiseLayers.forEach(layer => {
+                    layer.intensityBuffer = new Float32Array(this.cols * this.rows);
+                });
+
+                // RemovedcenterX, centerY, detailingRadius calculation as the effect is removed
+                // this.centerX = this.canvas.width / 2;
+                // this.centerY = this.canvas.height * 0.35; 
+                // this.detailingRadius = Math.min(this.canvas.width, this.canvas.height) * 0.2; 
+
+                console.log(`Canvas: ${this.canvas.width}x${this.canvas.height}, Grid: ${this.cols}x${this.rows}, Char Size: ${this.charWidth.toFixed(2)}x${this.charHeight.toFixed(2)}`);
+            }
+            
+            setupEventListeners() {
+                // Debounced resize handler to prevent excessive recalculations during window resizing
+                let resizeTimeout;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        this.calculateAdaptiveDimensions();
+                    }, 250); // Wait 250ms after resize stops
+                }, { passive: true }); // Use passive listener for better scroll performance
+                
+                // Add periodic ripples for ambient animation, spawning every 4-6 seconds
+                setInterval(() => {
+                    this.createRipple(
+                        Math.random(), // random x (0-1, relative to canvas width)
+                        Math.random(), // random y (0-1, relative to canvas height)
+                        0.15 + Math.random() * 0.25 // random intensity for the ripple
+                    );
+                }, 4000 + Math.random() * 2000); // Interval between 4000ms and 6000ms
+            }
+            
+            createRipple(x, y, intensity) {
+                // Limit the number of active ripples to prevent performance degradation
+                if (this.ripples.length >= 8) {
+                    this.ripples.shift(); // Remove the oldest ripple if limit is reached
+                }
+                
+                this.ripples.push({
+                    x: x, // Normalized x-coordinate (0 to 1)
+                    y: y, // Normalized y-coordinate (0 to 1)
+                    intensity: intensity, // Strength of the ripple
+                    radius: 0, // Current radius of the ripple
+                    maxRadius: 0.25 + Math.random() * 0.15, // Maximum size of the ripple
+                    life: 1.0, // Current life of the ripple (1.0 = full life, 0.0 = dead)
+                    decay: 0.012 + Math.random() * 0.008 // Rate at which ripple fades
+                });
+            }
+            
+            updateRipples() {
+                // Update ripple properties and filter out dead ripples
+                this.ripples = this.ripples.filter(ripple => {
+                    ripple.radius += 0.008 + Math.random() * 0.004; // Expand radius for sine wave
+                    ripple.life -= ripple.decay; // Decrease life over time
+                    return ripple.life > 0; // Keep only living ripples
+                });
+            }
+            
+            // Perlin-like noise function for organic flow and patterns
+            // This is a simplified Perlin noise that uses sine waves for a fluid effect.
+            noise(x, y, t) {
+                let value = 0;
+                let amplitude = 1;
+                let frequency = 1;
+                
+                // Sum multiple octaves of noise for complexity and detail
+                for (let i = 0; i < 4; i++) {
+                    value += amplitude * Math.sin(
+                        frequency * (x * 0.015 + Math.cos(t * 0.0008 + y * 0.012)) + // Primary wave based on x, y, and time
+                        frequency * (y * 0.02 + Math.sin(t * 0.0006 + x * 0.018)) +  // Secondary wave
+                        t * 0.0015 * frequency // Time evolution, creating continuous motion
+                    );
+                    amplitude *= 0.65; // Decrease amplitude for next octave
+                    frequency *= 1.8;  // Increase frequency for next octave for finer detail
+                }
+                
+                return value / 2; // Normalize output to a reasonable range
+            }
+            
+            calculateIntensity(col, row, layerIndex) {
+                const x = col / this.cols; // Normalized column position (0 to 1)
+                const y = row / this.rows; // Normalized row position (0 to 1)
+                const layer = this.noiseLayers[layerIndex];
+                
+                // Base flow pattern using noise, scaled by layer-specific multipliers
+                let intensity = this.noise(
+                    col * layer.scaleMultiplier, 
+                    row * layer.scaleMultiplier, 
+                    this.time * layer.speedMultiplier
+                );
+                
+                // Add secondary noise layer for additional complexity and variation
+                intensity += 0.25 * this.noise(
+                    col * layer.scaleMultiplier * 2.8 + 200, 
+                    row * layer.scaleMultiplier * 2.8 + 150, 
+                    this.time * layer.speedMultiplier * 1.3
+                );
+                
+                // Apply ripple effects to intensity, affecting all layers
+                this.ripples.forEach(ripple => {
+                    const dx = x - ripple.x; // Distance in x from ripple center
+                    const dy = y - ripple.y; // Distance in y from ripple center
+                    const distance = Math.sqrt(dx * dx + dy * dy); // Euclidean distance
+                    
+                    if (distance < ripple.maxRadius) {
+                        // Calculate ripple effect based on distance and current ripple radius
+                        const rippleEffect = Math.sin((distance - ripple.radius) * 25) * // Sine wave for oscillation
+                                           ripple.intensity * ripple.life * // Scale by ripple strength and life
+                                           Math.max(0, 1 - distance / ripple.maxRadius); // Fade out near max radius
+                        intensity += rippleEffect * 0.8; // Add ripple effect to total intensity
+                    }
+                });
+
+                // Removed Central Detailing Effect calculation as the effect is removed
+                /*
+                const pixelX = col * this.charWidth + this.charWidth / 2;
+                const pixelY = row * this.charHeight + this.charHeight / 2;
+                const distToTextCenterX = pixelX - this.centerX;
+                const distToTextCenterY = pixelY - this.centerY;
+                const distanceToTextCenter = Math.sqrt(distToTextCenterX * distToTextCenterX + distToTextCenterY * distToTextCenterY);
+                let centralBoost = 0;
+                if (distanceToTextCenter < this.detailingRadius) {
+                    const normalizedDistance = distanceToTextCenter / this.detailingRadius;
+                    centralBoost = 0.6 * (1 - normalizedDistance) ** 3;
+                }
+                intensity += centralBoost; 
+                */
+                
+                // Normalize and clamp intensity to 0-1 range
+                intensity = (intensity + 1.2) / 2.4; // Adjust range to fit 0-1
+                return Math.max(0, Math.min(1, intensity)); // Clamp values to ensure they are within 0 and 1
+            }
+            
+            render() {
+                // Clear the entire canvas for each frame
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Pre-calculate all intensities for all layers to optimize rendering loop
+                for (let layerIndex = 0; layerIndex < this.noiseLayers.length; layerIndex++) {
+                    const layer = this.noiseLayers[layerIndex];
+                    for (let row = 0; row < this.rows; row++) {
+                        for (let col = 0; col < this.cols; col++) {
+                            const index = row * this.cols + col;
+                            layer.intensityBuffer[index] = this.calculateIntensity(col, row, layerIndex);
+                        }
+                    }
+                }
+
+                // Render each layer sequentially to create overlapping effect
+                for (let layerIndex = 0; layerIndex < this.noiseLayers.length; layerIndex++) {
+                    const layer = this.noiseLayers[layerIndex];
+                    for (let row = 0; row < this.rows; row++) {
+                        for (let col = 0; col < this.cols; col++) {
+                            const intensity = layer.intensityBuffer[row * this.cols + col];
+                            
+                            // Select character based on intensity from the layer's specific character set
+                            const charIndex = Math.floor(intensity * (layer.charSet.length - 1));
+                            const char = layer.charSet[charIndex] || ' '; // Fallback to space
+
+                            // Map intensity to a color class index (0-9 for 10 levels)
+                            const colorClassIndex = Math.min(9, Math.floor(intensity * 10)); 
+                            
+                            // Set fill color and text shadow based on current theme palette
+                            this.ctx.fillStyle = this.currentPalette[colorClassIndex];
+                            
+                            const shadowColor = this.currentShadows[colorClassIndex];
+                            if (shadowColor) {
+                                this.ctx.shadowColor = shadowColor;
+                                this.ctx.shadowBlur = Math.floor(intensity * 10); // Dynamic blur based on intensity
+                            } else {
+                                this.ctx.shadowBlur = 0; // No shadow for lower intensities
+                            }
+
+                            // Draw the character directly on the canvas
+                            this.ctx.fillText(char, col * this.charWidth, row * this.charHeight);
+                        }
+                    }
+                }
+            }
+            
+            animate() {
+                // Increment time for animation progression
+                this.time += 0.5; 
+                // Update ripple states
+                this.updateRipples();
+                // Render the current frame
+                this.render();
+                // Request next animation frame for smooth looping at browser's refresh rate (ideally 60fps)
+                this.animationFrameId = requestAnimationFrame(() => this.animate());
+            }
+            
+            // Removed toggleTheme function as matrix theme is removed
+        }
+        
+        // Initialize the ASCII matrix simulation globally
+        let simulation;
+        
+        // Ensure DOM is fully loaded before initializing simulation
+        window.addEventListener('DOMContentLoaded', () => {
+            simulation = new ASCIIMatrixFluidSimulation();
+        });
+        
+        // Removed global toggleTheme function
+        
+        // Email form functionality
+        function showEmailForm() {
+            const overlay = document.getElementById('emailOverlay');
+            const button = document.querySelector('.enter-button');
+            
+            // Create ripples on form open for visual feedback
+            if (simulation) {
+                simulation.createRipple(0.5, 0.5, 0.8);
+                simulation.createRipple(0.3, 0.7, 0.4);
+            }
+            
+            // Apply visual feedback to the button
+            button.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(156, 163, 175, 0.2))';
+            button.style.transform = 'scale(0.95)';
+            
+            // Delay showing overlay for animation
+            setTimeout(() => {
+                overlay.classList.add('active');
+                
+                // Focus on email input after overlay is active
+                setTimeout(() => {
+                    document.getElementById('emailInput').focus();
+                }, 200);
+                
+                // Reset button styles
+                button.style.background = '';
+                button.style.transform = '';
+            }, 300);
+        }
+        
+        function hideEmailForm() {
+            const overlay = document.getElementById('emailOverlay');
+            overlay.classList.remove('active'); // Deactivate overlay
+            document.getElementById('emailForm').reset(); // Reset form fields
+            // Clear any lingering error/success styles on input
+            const emailInput = document.getElementById('emailInput');
+            emailInput.style.borderColor = '';
+            emailInput.style.boxShadow = '';
+        }
+        
+        async function handleEmailSubmit(event) {
+            event.preventDefault(); // Prevent default form submission
+            
+            const emailInput = document.getElementById('emailInput');
+            const submitButton = event.target.querySelector('.submit-button');
+            const originalButtonText = submitButton.textContent;
+            const email = emailInput.value.trim();
+            
+            // Input validation
+            if (!email) {
+                emailInput.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                emailInput.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.3)';
+                showMessageBox("Please enter your email address.");
+                setTimeout(() => {
+                    emailInput.style.borderColor = '';
+                    emailInput.style.boxShadow = '';
+                }, 2000);
+                return;
+            }
+
+            // Simple email format validation (more robust validation should be server-side)
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                emailInput.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                emailInput.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.3)';
+                showMessageBox("Please enter a valid email format.");
+                setTimeout(() => {
+                    emailInput.style.borderColor = '';
+                    emailInput.style.boxShadow = '';
+                }, 2000);
+                return;
+            }
+
+            // Set button to loading state
+            submitButton.textContent = 'Connecting...';
+            submitButton.disabled = true;
+            emailInput.disabled = true; // Disable input during submission
+            submitButton.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(156, 163, 175, 0.2))';
+            
+            // Create ripples for visual feedback
+            if (simulation) {
+                simulation.createRipple(0.2, 0.3, 0.6);
+                simulation.createRipple(0.8, 0.6, 0.4);
+            }
+
+            try {
+                // --- THIS IS A SIMULATED API CALL ---
+                // In a real application, you would replace this with a fetch call to your backend
+                // or an email marketing service's API (e.g., Mailchimp, SendGrid, etc.).
+                // Example real fetch call:
+                /*
+                const response = await fetch('YOUR_BACKEND_API_ENDPOINT/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email, source: 'landing_page' }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to subscribe.');
+                }
+                */
+
+                // Simulate network delay and success/failure
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate 2-second API call
+                
+                // Simulate a successful response
+                const simulatedSuccess = Math.random() > 0.1; // 90% chance of success
+                if (!simulatedSuccess) {
+                    throw new Error("Simulated network error. Please try again.");
+                }
+
+                // Success state
+                emailInput.style.borderColor = 'rgba(34, 197, 94, 0.5)'; // Green border
+                emailInput.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.3)';
+                submitButton.textContent = 'Subscribed!';
+                submitButton.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.4))';
+                
+                if (simulation) {
+                    simulation.createRipple(0.5, 0.5, 0.8); // Major ripple on success
+                }
+
+                setTimeout(() => {
+                    showMessageBox(`Welcome to the Collective Intelligence Network, ${email}. You'll receive updates soon!`);
+                    hideEmailForm(); // Close form after success message
+                    // Reset button and input state after user acknowledges message
+                    submitButton.textContent = originalButtonText;
+                    submitButton.disabled = false;
+                    emailInput.disabled = false;
+                    emailInput.style.borderColor = '';
+                    emailInput.style.boxShadow = '';
+                    submitButton.style.background = ''; // Reset gradient
+                }, 1500);
+
+            } catch (error) {
+                // Error state
+                console.error("Subscription error:", error);
+                emailInput.style.borderColor = 'rgba(239, 68, 68, 0.5)'; // Red border
+                emailInput.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.3)';
+                submitButton.textContent = 'Failed. Retry?';
+                submitButton.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(185, 28, 28, 0.4))';
+                
+                if (simulation) {
+                    simulation.createRipple(0.5, 0.5, 0.6); // Ripple on error
+                }
+
+                showMessageBox(`Subscription failed: ${error.message || 'Unknown error.'} Please try again.`);
+                // Re-enable button and input for retry
+                submitButton.disabled = false;
+                emailInput.disabled = false;
+                setTimeout(() => {
+                    emailInput.style.borderColor = '';
+                    emailInput.style.boxShadow = '';
+                    submitButton.style.background = ''; // Reset gradient
+                }, 2000);
+            }
+        }
+        
+        // Keyboard event handlers for accessibility and shortcuts
+        document.addEventListener('keydown', (e) => {
+            const overlay = document.getElementById('emailOverlay');
+            
+            // Escape key to hide email form
+            if (e.key === 'Escape' && overlay.classList.contains('active')) {
+                hideEmailForm();
+            }
+            
+            // Enter key to show email form (if not already active)
+            if (e.key === 'Enter' && !overlay.classList.contains('active')) {
+                showEmailForm();
+            }
+            
+            // Secret 'm' key to toggle theme (removed functionality, but keeping for reference if desired in future)
+            // if (e.key === 'm' && !overlay.classList.contains('active')) {
+            //     toggleTheme();
+            // }
+        });
+        
+        // Click outside email form to close it
+        document.getElementById('emailOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'emailOverlay') {
+                hideEmailForm();
+            }
+        });
+    </script>
+</body>
+</html>

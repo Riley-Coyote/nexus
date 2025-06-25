@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liminal Logbook - Complete v1.4</title>
-    <!-- Tailwind CSS loaded once -->
+    <title>NEXUS - Liminal Logbook</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
     <style>
-        /* CSS from index.html */
         /* Enhanced Design Tokens */
         :root {
             /* Core Colors */
@@ -697,7 +694,7 @@
         .entry-composer-textarea {
             background-color: rgba(15, 23, 42, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            min-height: 44px;
+            min-height: 120px;
             font-size: var(--font-size-sm);
             font-weight: 200;
             color: var(--text-secondary);
@@ -705,7 +702,7 @@
             border-radius: 8px;
         }
         .entry-composer-textarea:focus {
-            min-height: 60px;
+            min-height: 150px;
             background-color: rgba(15, 23, 42, 0.4);
             border-color: var(--current-accent);
             box-shadow: 0 0 20px -5px var(--current-accent);
@@ -954,6 +951,57 @@
         .auth-form-input:hover:not(:focus) {
             border-color: rgba(255, 255, 255, 0.2);
             transform: translateY(-0.5px);
+        }
+
+        /* Auth Toggle Buttons */
+        .auth-mode-toggle {
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-toggle-buttons {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 4px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .auth-toggle-btn {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-duration-fast) var(--transition-curve-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+
+        .auth-toggle-btn.active {
+            background: linear-gradient(135deg, var(--current-accent), var(--current-accent-dark));
+            color: white;
+            box-shadow: var(--shadow-level-2);
+            transform: translateY(-1px);
+        }
+
+        .auth-toggle-btn.active::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--light-source);
+            opacity: 0.3;
+            pointer-events: none;
         }
 
         /* Enhanced Search System */
@@ -1297,7 +1345,7 @@
                 gap: 0;
                 grid-template-columns: 1fr;
             }
-            #consciousness-journal,
+            #logbook-journal,
             #dream-journal {
                 display: flex !important;
                 flex-direction: column;
@@ -1351,6 +1399,529 @@
                 width: 95%;
                 padding: 1.5rem;
             }
+        }
+
+        /* Rich Text Editor Styles */
+        .rich-text-editor {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: rgba(15, 23, 42, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all var(--transition-duration-content) var(--transition-curve-fast);
+        }
+
+        .rich-text-editor:focus-within {
+            background-color: rgba(15, 23, 42, 0.4);
+            border-color: var(--current-accent);
+            box-shadow: 0 0 20px -5px var(--current-accent);
+        }
+
+        .rich-text-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 0 4px;
+        }
+
+        .toolbar-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 8px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            font-weight: 500;
+            min-width: 32px;
+            height: 32px;
+        }
+
+        .toolbar-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+
+        .toolbar-btn.active {
+            background-color: var(--current-accent);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .toolbar-select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            min-width: 80px;
+        }
+
+        .toolbar-select:focus {
+            outline: none;
+            border-color: var(--current-accent);
+        }
+
+        .rich-text-content {
+            min-height: 120px;
+            padding: 12px;
+            outline: none;
+            color: var(--text-secondary);
+            font-size: var(--font-size-sm);
+            font-weight: 200;
+            line-height: 1.6;
+            overflow-y: auto;
+            max-height: 800px;
+        }
+
+        .rich-text-content:focus {
+            min-height: 60px;
+        }
+
+        .rich-text-content:empty:before {
+            content: attr(data-placeholder);
+            color: var(--text-quaternary);
+            font-weight: 200;
+            opacity: 0.7;
+        }
+
+        .rich-text-content p {
+            margin: 0 0 8px 0;
+        }
+
+        .rich-text-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .rich-text-content h1 {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: var(--text-primary);
+        }
+
+        .rich-text-content h2 {
+            font-size: 1.3em;
+            font-weight: 500;
+            margin: 0 0 10px 0;
+            color: var(--text-primary);
+        }
+
+        .rich-text-content h3 {
+            font-size: 1.1em;
+            font-weight: 500;
+            margin: 0 0 8px 0;
+            color: var(--text-primary);
+        }
+
+        .rich-text-content ul, .rich-text-content ol {
+            margin: 0 0 8px 0;
+            padding-left: 20px;
+        }
+
+        .rich-text-content li {
+            margin: 4px 0;
+        }
+
+        .rich-text-content blockquote {
+            border-left: 3px solid var(--current-accent);
+            margin: 8px 0;
+            padding: 8px 0 8px 12px;
+            background-color: rgba(255, 255, 255, 0.02);
+            font-style: italic;
+        }
+
+        .rich-text-content strong {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .rich-text-content em {
+            font-style: italic;
+            color: var(--text-primary);
+        }
+
+        .rich-text-content u {
+            text-decoration: underline;
+        }
+
+        .rich-text-content s {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        .rich-text-content code {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .rich-text-content a {
+            color: var(--current-accent);
+            text-decoration: underline;
+        }
+
+        .rich-text-content a:hover {
+            color: var(--current-accent-light);
+        }
+
+        .rich-text-counter {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 10px;
+            color: var(--text-quaternary);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            backdrop-filter: blur(4px);
+        }
+
+        .rich-text-counter.warning {
+            color: #fbbf24;
+        }
+
+        .rich-text-counter.error {
+            color: #ef4444;
+        }
+
+        /* Reddit-style Threading */
+        .thread-entry {
+            position: relative;
+        }
+
+        .thread-entry.is-reply {
+            margin-left: 2.5rem;
+            margin-top: 1rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.3);
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .thread-entry.is-reply::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: -1rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.3);
+            border-bottom: 3px solid rgba(52, 211, 153, 0.3);
+            border-bottom-left-radius: 6px;
+        }
+
+        .thread-entry.is-reply .glass-panel-enhanced {
+            background: rgba(52, 211, 153, 0.02);
+            border: 1px solid rgba(52, 211, 153, 0.15);
+            border-left: none;
+            transform: scale(0.98);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Social Media Style Depth Indicators */
+        .thread-entry.depth-1 {
+            margin-left: 2.5rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.3);
+            padding-left: 1.5rem;
+        }
+
+        .thread-entry.depth-2 {
+            margin-left: 5rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.25);
+            padding-left: 1.5rem;
+        }
+
+        .thread-entry.depth-3 {
+            margin-left: 7.5rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.2);
+            padding-left: 1.5rem;
+        }
+
+        .thread-entry.depth-4 {
+            margin-left: 10rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.15);
+            padding-left: 1.5rem;
+        }
+
+        .thread-entry.depth-5 {
+            margin-left: 12.5rem;
+            border-left: 3px solid rgba(52, 211, 153, 0.1);
+            padding-left: 1.5rem;
+        }
+
+        /* Enhanced depth styling for better hierarchy */
+        .thread-entry.depth-1 .glass-panel-enhanced {
+            background: rgba(52, 211, 153, 0.02);
+            border-color: rgba(52, 211, 153, 0.1);
+            transform: scale(0.98);
+        }
+
+        .thread-entry.depth-2 .glass-panel-enhanced {
+            background: rgba(52, 211, 153, 0.015);
+            border-color: rgba(52, 211, 153, 0.08);
+            transform: scale(0.96);
+        }
+
+        .thread-entry.depth-3 .glass-panel-enhanced {
+            background: rgba(52, 211, 153, 0.01);
+            border-color: rgba(52, 211, 153, 0.06);
+            transform: scale(0.94);
+        }
+
+        .thread-entry.depth-4 .glass-panel-enhanced {
+            background: rgba(52, 211, 153, 0.008);
+            border-color: rgba(52, 211, 153, 0.04);
+            transform: scale(0.92);
+        }
+
+        .thread-entry.depth-5 .glass-panel-enhanced {
+            background: rgba(52, 211, 153, 0.005);
+            border-color: rgba(52, 211, 153, 0.02);
+            transform: scale(0.9);
+        }
+
+        .thread-reply-indicator {
+            font-size: 0.75rem;
+            color: var(--current-accent);
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+            opacity: 0.8;
+        }
+
+
+        .thread-collapse-btn {
+            position: absolute;
+            left: -1.5rem;
+            top: 1rem;
+            width: 1rem;
+            height: 1rem;
+            background: var(--current-accent);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .thread-collapse-btn:hover {
+            opacity: 1;
+        }
+
+        .thread-entry.collapsed > .glass-panel-enhanced {
+            display: none;
+        }
+
+        .thread-entry.collapsed .thread-collapse-btn::after {
+            content: '+';
+        }
+
+        .thread-collapse-btn::after {
+            content: '−';
+        }
+
+        /* Post Preview and Expansion System */
+        .post-preview {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .post-preview .stream-content {
+            max-height: 120px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .post-preview .stream-content::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, rgba(9, 10, 11, 0.9));
+            pointer-events: none;
+        }
+
+        .post-preview .expand-indicator {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 0.75rem;
+            color: var(--current-accent);
+            background: rgba(9, 10, 11, 0.8);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--current-accent);
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .post-preview:hover .expand-indicator {
+            opacity: 1;
+        }
+
+        /* Full-screen Post Overlay */
+        .post-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .post-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .post-overlay-content {
+            max-width: 800px;
+            max-height: 90vh;
+            width: 90vw;
+            background: var(--deep-void);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            overflow-y: auto;
+            box-shadow: var(--shadow-level-4);
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .post-overlay.active .post-overlay-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .post-overlay-header {
+            padding: 2rem 2rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            background: var(--deep-void);
+            backdrop-filter: blur(20px);
+            z-index: 10;
+        }
+
+        .post-overlay-body {
+            padding: 2rem;
+        }
+
+        .post-overlay-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .post-overlay-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            transform: scale(1.1);
+        }
+
+        .post-overlay-title {
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            line-height: 1.4;
+        }
+
+        .post-overlay-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+        }
+
+        .post-overlay-content-body {
+            font-size: 1rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            font-weight: 200;
+        }
+
+        .post-overlay-content-body p {
+            margin-bottom: 1.5rem;
+        }
+
+        .post-overlay-content-body h1,
+        .post-overlay-content-body h2,
+        .post-overlay-content-body h3 {
+            color: var(--text-primary);
+            margin: 2rem 0 1rem;
+            font-weight: 300;
+        }
+
+        .post-overlay-content-body h1 {
+            font-size: 1.5rem;
+        }
+
+        .post-overlay-content-body h2 {
+            font-size: 1.25rem;
+        }
+
+        .post-overlay-content-body h3 {
+            font-size: 1.125rem;
+        }
+
+        .post-overlay-actions {
+            padding: 1.5rem 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
         }
 
         /* Enhanced Utility Classes */
@@ -1519,757 +2090,260 @@
         }
 
         /* Update accent colors with RGB versions when views change */
-        body[data-view="consciousness"] {
+        body[data-view="logbook"] {
             --current-accent-rgb: 52, 211, 153; /* emerald */
         }
 
         body[data-view="dream"] {
             --current-accent-rgb: 139, 92, 246; /* purple */
         }
-
-        /* CSS from USE-final-landing-without-mousetracking.html - Prefixed with #landing-overlay */
-        #landing-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 1000; /* Ensure it sits on top */
-            opacity: 1; /* Start visible */
-            pointer-events: auto; /* Allow interaction */
-            transition: opacity 0.6s ease-out; /* Fade out animation */
-            font-family: 'JetBrains Mono', monospace; /* Ensure font is loaded */
-            background: var(--deep-void); /* Fallback background for landing overlay */
-        }
-
-        #landing-overlay.fade-out {
-            opacity: 0;
-            pointer-events: none; /* Disable interaction after fade out starts */
-        }
-
-        #landing-overlay.fade-out {
-            opacity: 0;
-        }
-
-        #landing-overlay.fade-out-complete {
-            display: none;
-        }
-
-
-        #landing-overlay #ascii-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 200;
-            line-height: 1;
-            letter-spacing: 0;
-            white-space: pre;
-            overflow: hidden;
-            pointer-events: none;
-            user-select: none;
-            background: linear-gradient(135deg, var(--deep-void) 0%, var(--void-secondary) 50%, var(--midnight-blue) 100%);
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            will-change: contents;
-        }
-        
-        #landing-overlay .ascii-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            font-size: 1vh;
-            opacity: 0.8;
-            transition: opacity 0.3s ease;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            will-change: transform, opacity;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-        
-        #landing-overlay .layer-1 {
-            z-index: 1;
-            opacity: 0.3;
-        }
-        
-        #landing-overlay .layer-2 {
-            z-index: 2;
-            opacity: 0.6;
-        }
-        
-        #landing-overlay .layer-3 {
-            z-index: 3;
-            opacity: 0.9;
-        }
-        
-        #landing-overlay .char {
-            display: inline-block;
-            transition: color 0.3s ease;
-            will-change: color;
-        }
-        
-        /* Optimized color classes */
-        #landing-overlay .intensity-0 { color: transparent; }
-        #landing-overlay .intensity-1 { color: rgba(26, 29, 33, 0.8); }
-        #landing-overlay .intensity-2 { color: rgba(59, 66, 82, 0.7); }
-        #landing-overlay .intensity-3 { color: rgba(76, 86, 106, 0.8); }
-        #landing-overlay .intensity-4 { color: rgba(100, 116, 139, 0.9); }
-        #landing-overlay .intensity-5 { color: rgba(107, 114, 128, 1); }
-        #landing-overlay .intensity-6 { color: rgba(156, 163, 175, 1); }
-        #landing-overlay .intensity-7 { color: rgba(209, 213, 219, 1); }
-        #landing-overlay .intensity-8 { color: rgba(229, 231, 235, 1); }
-        #landing-overlay .intensity-9 { 
-            color: rgba(255, 255, 255, 1); 
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
-        }
-        
-        /* Performance-optimized ripple effect */
-        #landing-overlay .ripple-active {
-            color: rgba(255, 255, 255, 1) !important;
-            text-shadow: 0 0 12px rgba(156, 163, 175, 0.8) !important;
-            transform: scale(1.05);
-            transition: all 0.15s ease !important;
-        }
-        
-        /* UI Overlay - GPU accelerated */
-        #landing-overlay .ui-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(
-                135deg, 
-                transparent 0%, 
-                rgba(9, 10, 11, 0.1) 25%,
-                rgba(9, 10, 11, 0.2) 50%,
-                rgba(9, 10, 11, 0.1) 75%,
-                transparent 100%
-            );
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-        
-        #landing-overlay .title-container {
-            text-align: center;
-            margin-bottom: 3rem;
-            opacity: 0;
-            animation: fadeInUp 2s ease-out 1s forwards;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-        
-        #landing-overlay .main-title {
-            font-size: clamp(2rem, 6vw, 4rem);
-            font-weight: 200;
-            letter-spacing: 0.15em;
-            color: var(--pure-white);
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-            margin-bottom: 1rem;
-            line-height: 1.2;
-        }
-        
-        #landing-overlay .subtitle {
-            font-size: clamp(0.9rem, 2vw, 1.2rem);
-            font-weight: 300;
-            letter-spacing: 0.2em;
-            color: var(--pearl-grey);
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-        }
-        
-        #landing-overlay .tagline {
-            font-size: clamp(0.8rem, 1.5vw, 1rem);
-            font-weight: 200;
-            color: var(--silver-mist);
-            letter-spacing: 0.1em;
-            opacity: 0.8;
-        }
-        
-        #landing-overlay .enter-button {
-            background: linear-gradient(135deg, 
-                rgba(156, 163, 175, 0.1) 0%, 
-                rgba(107, 114, 128, 0.15) 50%,
-                rgba(75, 85, 99, 0.1) 100%);
-            border: 2px solid rgba(156, 163, 175, 0.3);
-            color: var(--pure-white);
-            padding: 1rem 2.5rem;
-            font-family: inherit;
-            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-            font-weight: 300;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            cursor: pointer;
-            pointer-events: auto;
-            backdrop-filter: blur(20px);
-            border-radius: 0.5rem;
-            transition: all 0.4s ease;
-            position: relative;
-            overflow: hidden;
-            opacity: 0;
-            animation: fadeInUp 2s ease-out 1.5s forwards;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            will-change: transform;
-        }
-        
-        #landing-overlay .enter-button:before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(255, 255, 255, 0.1) 50%, 
-                transparent 100%);
-            transition: left 0.5s ease;
-        }
-        
-        #landing-overlay .enter-button:hover {
-            background: linear-gradient(135deg, 
-                rgba(156, 163, 175, 0.2) 0%, 
-                rgba(107, 114, 128, 0.25) 50%,
-                rgba(75, 85, 99, 0.2) 100%);
-            border-color: rgba(229, 231, 235, 0.5);
-            transform: translateY(-2px) scale(1.05) translateZ(0);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(156, 163, 175, 0.2);
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-        
-        #landing-overlay .enter-button:hover:before {
-            left: 100%;
-        }
-        
-        #landing-overlay .enter-button:active {
-            transform: translateY(-1px) scale(1.02) translateZ(0);
-        }
-        
-        /* Email Form Overlay - GPU accelerated */
-        #landing-overlay .email-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(9, 10, 11, 0.8);
-            backdrop-filter: blur(20px);
-            z-index: 200;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.4s ease;
-            pointer-events: none;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-        
-        #landing-overlay .email-overlay.active {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-        }
-        
-        #landing-overlay .email-form-container {
-            background: linear-gradient(135deg, 
-                rgba(156, 163, 175, 0.1) 0%, 
-                rgba(107, 114, 128, 0.15) 50%,
-                rgba(75, 85, 99, 0.1) 100%);
-            border: 2px solid rgba(156, 163, 175, 0.3);
-            backdrop-filter: blur(32px);
-            border-radius: 1rem;
-            padding: 3rem 2.5rem;
-            max-width: 500px;
-            width: 90%;
-            text-align: center;
-            transform: scale(0.9) translateY(20px) translateZ(0);
-            transition: all 0.4s ease;
-            will-change: transform;
-        }
-        
-        #landing-overlay .email-overlay.active .email-form-container {
-            transform: scale(1) translateY(0) translateZ(0);
-        }
-        
-        #landing-overlay .email-form-title {
-            font-size: clamp(1.5rem, 4vw, 2rem);
-            font-weight: 200;
-            letter-spacing: 0.15em;
-            color: var(--pure-white);
-            margin-bottom: 0.5rem;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
-        }
-        
-        #landing-overlay .email-form-subtitle {
-            font-size: clamp(0.8rem, 1.5vw, 1rem);
-            font-weight: 200;
-            color: var(--pearl-grey);
-            letter-spacing: 0.1em;
-            margin-bottom: 2rem;
-            opacity: 0.8;
-        }
-        
-        #landing-overlay .email-input-group {
-            position: relative;
-            margin-bottom: 2rem;
-        }
-        
-        #landing-overlay .email-input {
-            width: 100%;
-            background: rgba(156, 163, 175, 0.05);
-            border: 2px solid rgba(156, 163, 175, 0.2);
-            border-radius: 0.5rem;
-            padding: 1rem 1.5rem;
-            font-family: inherit;
-            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-            font-weight: 300;
-            color: var(--pure-white);
-            letter-spacing: 0.05em;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-        
-        #landing-overlay .email-input:focus {
-            outline: none;
-            border-color: rgba(229, 231, 235, 0.5);
-            background: rgba(156, 163, 175, 0.1);
-            box-shadow: 0 0 20px rgba(156, 163, 175, 0.2);
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
-        }
-        
-        #landing-overlay .email-input::placeholder {
-            color: rgba(156, 163, 175, 0.6);
-            font-weight: 200;
-        }
-        
-        #landing-overlay .form-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        #landing-overlay .submit-button {
-            background: linear-gradient(135deg, 
-                rgba(156, 163, 175, 0.15) 0%, 
-                rgba(107, 114, 128, 0.2) 50%,
-                rgba(75, 85, 99, 0.15) 100%);
-            border: 2px solid rgba(156, 163, 175, 0.4);
-            color: var(--pure-white);
-            padding: 0.8rem 2rem;
-            font-family: inherit;
-            font-size: clamp(0.8rem, 1.3vw, 1rem);
-            font-weight: 300;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            cursor: pointer;
-            backdrop-filter: blur(20px);
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-        
-        #landing-overlay .submit-button:hover {
-            background: linear-gradient(135deg, 
-                rgba(156, 163, 175, 0.25) 0%, 
-                rgba(107, 114, 128, 0.3) 50%,
-                rgba(75, 85, 99, 0.25) 100%);
-            border-color: rgba(229, 231, 235, 0.6);
-            transform: translateY(-2px) translateZ(0);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
-        }
-        
-        #landing-overlay .cancel-button {
-            background: transparent;
-            border: 2px solid rgba(156, 163, 175, 0.2);
-            color: var(--silver-mist);
-            padding: 0.8rem 2rem;
-            font-family: inherit;
-            font-size: clamp(0.8rem, 1.3vw, 1rem);
-            font-weight: 300;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            cursor: pointer;
-            backdrop-filter: blur(20px);
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-        
-        #landing-overlay .cancel-button:hover {
-            border-color: rgba(156, 163, 175, 0.4);
-            color: var(--pure-white);
-            transform: translateY(-1px) translateZ(0);
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px) translateZ(0);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) translateZ(0);
-            }
-        }
-        
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-            #landing-overlay .ascii-layer {
-                font-size: 0.8vh;
-                opacity: 0.7;
-            }
-            
-            #landing-overlay .title-container {
-                margin-bottom: 2rem;
-            }
-            
-            #landing-overlay .enter-button {
-                padding: 0.8rem 2rem;
-            }
-            
-            #landing-overlay .layer-1 {
-                opacity: 0.3;
-            }
-            
-            #landing-overlay .layer-2 {
-                opacity: 0.5;
-            }
-            
-            #landing-overlay .layer-3 {
-                opacity: 0.7;
-            }
-        }
-        
-        @media (max-height: 500px) {
-            #landing-overlay .main-title {
-                font-size: clamp(1.5rem, 5vw, 2.5rem);
-                margin-bottom: 0.5rem;
-            }
-            
-            #landing-overlay .title-container {
-                margin-bottom: 1.5rem;
-            }
-        }
-        
-        /* Reduced motion preferences */
-        @media (prefers-reduced-motion: reduce) {
-            #landing-overlay .char {
-                transition: none;
-            }
-            
-            #landing-overlay .ascii-layer {
-                transition: none;
-            }
-            
-            #landing-overlay .enter-button {
-                animation: none;
-                opacity: 1;
-            }
-            
-            #landing-overlay .title-container {
-                animation: none;
-                opacity: 1;
-            }
-        }
     </style>
 </head>
 <body class="bg-deep-void text-text-primary font-mono font-extralight">
 
-    <!-- WebGL Canvas (from index.html) -->
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- Main Application Content (from index.html, initially hidden) -->
-    <main id="app" class="hidden">
-        <!-- Enhanced Authentication Panel -->
-        <div id="auth-panel" class="auth-panel hidden">
-            <div class="text-center mb-8">
-                <div class="mb-4">
-                    <div class="w-16 h-16 mx-auto mb-4 rounded-2xl glass-panel-enhanced flex items-center justify-center">
-                        <span class="text-2xl">◉</span>
-                    </div>
+    <!-- Enhanced Authentication Panel -->
+    <div id="auth-panel" class="auth-panel hidden">
+        <div class="text-center mb-8">
+            <div class="mb-4">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl glass-panel-enhanced flex items-center justify-center">
+                    <span class="text-2xl">◉</span>
                 </div>
-                <h2 class="text-2xl font-light mb-3 tracking-wide">Welcome to Liminal Logbook</h2>
-                <p class="text-sm text-text-quaternary font-extralight">Secure access to your consciousness stream</p>
             </div>
-            
-            <form id="auth-form" class="space-y-6">
-                <div class="auth-form-group">
-                    <label class="auth-form-label" for="username">Username</label>
-                    <input type="text" id="username" class="auth-form-input" placeholder="Enter username" required>
-                    <div class="validation-message hidden text-xs text-red-400 mt-2">Please fill out this field.</div>
-                </div>
-                
-                <div class="auth-form-group">
-                    <label class="auth-form-label" for="password">Password</label>
-                    <input type="password" id="password" class="auth-form-input" placeholder="Enter password" required>
-                    <div class="validation-message hidden text-xs text-red-400 mt-2">Please fill out this field.</div>
-                </div>
-                
-                <button type="submit" class="interactive-btn accent-gradient-btn w-full py-4 rounded-xl font-medium text-base tracking-wide ripple-effect">
-                    <span class="flex items-center justify-center gap-3">
-                        <i data-lucide="unlock" class="w-5 h-5"></i>
-                        Authenticate
-                    </span>
-                </button>
-            </form>
-            
-            <div class="text-center mt-6 p-4 rounded-xl bg-black/20 border border-white/5">
-                <p class="text-xs text-text-quaternary font-light">
-                    <span class="text-text-tertiary font-medium">Demo credentials:</span><br>
-                    <span class="font-mono text-accent-emerald">admin</span> / <span class="font-mono text-accent-emerald">password</span>
-                </p>
+            <h2 class="text-2xl font-light mb-3 tracking-wide">Welcome to NEXUS</h2>
+            <p class="text-sm text-text-quaternary font-extralight">Create your account or sign in to continue</p>
+        </div>
+        
+        <!-- Auth Mode Toggle -->
+        <div class="auth-mode-toggle mb-6">
+            <div class="auth-toggle-buttons flex rounded-xl bg-black/20 p-1">
+                <button id="login-tab" class="auth-toggle-btn flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all duration-300 text-text-secondary" data-mode="login">Sign In</button>
+                <button id="signup-tab" class="auth-toggle-btn flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all duration-300 text-text-secondary" data-mode="signup">Sign Up</button>
             </div>
         </div>
-
-        <!-- Enhanced User Profile Panel -->
-        <div id="profile-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
-            <div id="profile-panel" class="auth-panel-content">
-            <div class="text-center">
-                <div class="profile-avatar mx-auto" id="profile-avatar">
-                    <span id="profile-initials">AD</span>
-                </div>
-                <h3 class="text-lg font-medium mb-1" id="profile-name">Admin User</h3>
-                <p class="text-sm text-text-quaternary mb-4" id="profile-role">Consciousness Architect</p>
+        
+        <form id="auth-form" class="space-y-6">
+            <div class="auth-form-group">
+                <label class="auth-form-label" for="username">Username</label>
+                <input type="text" id="username" class="auth-form-input" placeholder="Enter username" required>
+                <div class="validation-message hidden text-xs text-red-400 mt-2">Please fill out this field.</div>
             </div>
             
-            <div class="profile-stats">
-                <div class="profile-stat">
-                    <div class="profile-stat-value" id="stat-entries">42</div>
-                    <div class="profile-stat-label">Entries</div>
-                </div>
-                <div class="profile-stat">
-                    <div class="profile-stat-value" id="stat-dreams">18</div>
-                    <div class="profile-stat-label">Dreams</div>
-                </div>
-                <div class="profile-stat">
-                    <div class="profile-stat-value" id="stat-connections">7</div>
-                    <div class="profile-stat-label">Connections</div>
-                </div>
+            <div class="auth-form-group" id="email-group" style="display: none;">
+                <label class="auth-form-label" for="email">Email</label>
+                <input type="email" id="email" class="auth-form-input" placeholder="Enter email address">
+                <div class="validation-message hidden text-xs text-red-400 mt-2">Please enter a valid email.</div>
             </div>
             
-            <div class="mt-6 space-y-3">
-                <button class="interactive-btn w-full py-2 px-4 rounded-lg text-left text-sm" id="edit-profile-btn">
-                    <i data-lucide="user" class="w-4 h-4 inline mr-2"></i>
-                    Edit Profile
-                </button>
-                <button class="interactive-btn w-full py-2 px-4 rounded-lg text-left text-sm" id="export-data-btn">
-                    <i data-lucide="download" class="w-4 h-4 inline mr-2"></i>
-                    Export Data
-                </button>
-                <button class="interactive-btn w-full py-2 px-4 rounded-lg text-left text-sm text-red-400" id="logout-btn">
-                    <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>
-                    Logout
-                </button>
+            <div class="auth-form-group">
+                <label class="auth-form-label" for="password">Password</label>
+                <input type="password" id="password" class="auth-form-input" placeholder="Enter password" required>
+                <div class="validation-message hidden text-xs text-red-400 mt-2">Please fill out this field.</div>
             </div>
             
-            <button class="absolute top-4 right-4 text-text-quaternary hover:text-text-primary transition-colors" id="close-profile-btn">
-                <i data-lucide="x" class="w-5 h-5"></i>
+            <div class="auth-form-group" id="confirm-password-group" style="display: none;">
+                <label class="auth-form-label" for="confirm-password">Confirm Password</label>
+                <input type="password" id="confirm-password" class="auth-form-input" placeholder="Confirm password">
+                <div class="validation-message hidden text-xs text-red-400 mt-2">Passwords must match.</div>
+            </div>
+            
+            <button type="submit" class="interactive-btn accent-gradient-btn w-full py-4 rounded-xl font-medium text-base tracking-wide ripple-effect">
+                <span class="flex items-center justify-center gap-3">
+                    <i data-lucide="unlock" class="w-5 h-5"></i>
+                    <span id="auth-button-text">Sign In</span>
+                </span>
             </button>
+        </form>
+        
+        <div class="text-center mt-6 p-4 rounded-xl bg-black/20 border border-white/5">
+            <p class="text-xs text-text-quaternary font-light">
+                <span class="text-text-tertiary font-medium">Secure your journey into the liminal space</span><br>
+                <span class="text-accent-emerald">Your personal logbook awaits</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Enhanced User Profile Panel -->
+    <div id="profile-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div id="profile-panel" class="auth-panel-content">
+        <div class="text-center">
+            <div class="profile-avatar mx-auto relative group" id="profile-avatar">
+                <span id="profile-initials">AD</span>
+                <img id="profile-image" class="hidden w-full h-full object-cover rounded-full" alt="Profile">
+                <div class="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" id="avatar-upload-trigger">
+                    <i data-lucide="camera" class="w-6 h-6 text-white"></i>
+                </div>
+                <input type="file" id="avatar-upload-input" class="hidden" accept="image/*">
+            </div>
+            <h3 class="text-lg font-medium mb-1" id="profile-name">Admin User</h3>
+            <p class="text-sm text-text-quaternary mb-4" id="profile-role">Logbook Architect</p>
+        </div>
+        
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <div class="profile-stat-value" id="stat-entries">42</div>
+                <div class="profile-stat-label">Entries</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-value" id="stat-dreams">18</div>
+                <div class="profile-stat-label">Dreams</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-value" id="stat-connections">7</div>
+                <div class="profile-stat-label">Connections</div>
             </div>
         </div>
+        
+        <div class="mt-6 space-y-3">
+            <button class="interactive-btn w-full py-2 px-4 rounded-lg text-left text-sm" id="edit-profile-btn">
+                <i data-lucide="user" class="w-4 h-4 inline mr-2"></i>
+                Edit Profile
+            </button>
+            <button class="interactive-btn w-full py-2 px-4 rounded-lg text-left text-sm" id="export-data-btn">
+                <i data-lucide="download" class="w-4 h-4 inline mr-2"></i>
+                Export Data
+            </button>
+            <button class="interactive-btn w-full py-2 px-4 rounded-lg text-left text-sm text-red-400" id="logout-btn">
+                <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>
+                Logout
+            </button>
+        </div>
+        
+        <button class="absolute top-4 right-4 text-text-quaternary hover:text-text-primary transition-colors" id="close-profile-btn">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        </div>
+    </div>
 
-        <div id="app-container" class="relative z-10 h-screen w-full flex flex-col parallax-layer-3">
-            
-            <header id="app-header" class="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive">
-                <div class="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-8 header-content">
-                    <div class="flex items-center gap-8">
-                        <div class="flex items-center gap-4">
-                            <h1 id="journal-title" class="text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
-                                [DEEP]FRAME // LIMINAL LOGBOOK</h1>
-                            <span id="journal-status" class="text-xs font-extralight tracking-widest text-emerald-active uppercase transition-colors duration-500">Consciousness State Active</span>
-                        </div>
-                    </div>
+    <div id="app-container" class="relative z-10 h-screen w-full flex flex-col parallax-layer-3">
+        
+        <header id="app-header" class="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive">
+            <div class="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-8 header-content">
+                <div class="flex items-center gap-8">
                     <div class="flex items-center gap-4">
-                        <!-- Enhanced Search -->
-                        <div class="search-container hidden" id="search-container">
-                            <i data-lucide="search" class="search-icon w-4 h-4"></i>
-                            <input type="text" id="global-search" class="search-input" placeholder="Search entries, dreams, patterns...">
-                        </div>
-                        
-                        <nav>
-                            <ul id="nav-links" class="flex items-center gap-6">
-                                <li>
-                                    <button id="search-toggle-btn" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" title="Search">
-                                        <i data-lucide="search" class="w-5 h-5"></i>
-                                    </button>
-                                </li>
-                                <li data-view="feed" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer">Nexus Feed</li>
-                                <li data-view="resonance-field" class="cursor-pointer"><span class="text-gray-450 hover:text-gray-250 transition-colors duration-300">Resonance Field</span></li>
-                                <li id="open-messenger-btn" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer" title="Messenger">
-                                    <i data-lucide="message-square" class="w-5 h-5 interactive-icon"></i>
-                                </li>
-                                <li>
-                                    <button id="profile-toggle-btn" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" title="Profile">
-                                        <i data-lucide="user" class="w-5 h-5"></i>
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
-                        <div id="journal-toggle" class="flex items-center gap-2 p-1 rounded-lg bg-black/20">
-                            <button data-journal="consciousness" class="journal-toggle-btn active-journal-btn ripple-effect">Consciousness</button>
-                            <button data-journal="dream" class="journal-toggle-btn ripple-effect">Dream</button>
-                        </div>
+                        <h1 id="journal-title" class="text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
+                            NEXUS // LIMINAL LOGBOOK</h1>
+                        <span id="journal-status" class="text-xs font-extralight tracking-widest text-emerald-active uppercase transition-colors duration-500">Logbook State Active</span>
                     </div>
                 </div>
-            </header>
-
-            <div class="flex-grow w-full max-w-[1600px] mx-auto grid grid-cols-[320px_1fr_320px] gap-8 overflow-hidden main-layout atmosphere-layer-2">
-                
-                <div id="consciousness-journal" class="grid grid-cols-subgrid col-span-3 h-full overflow-hidden">
-                    <aside id="consciousness-left-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
-                    </aside>
-
-                    <main class="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
-                    </main>
-
-                    <aside id="consciousness-right-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
-                    </aside>
-                </div>
-
-                <div id="dream-journal" class="hidden grid-cols-subgrid col-span-3 h-full overflow-hidden" style="grid-template-columns: 320px 1fr 288px;">
-                    <aside id="dream-left-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
-                    </aside>
-
-                    <main id="dream-main-content" class="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
-                    </main>
-
-                    <aside id="dream-right-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
-                    </aside>
-                </div>
-                
-                <main id="nexus-feed-view" class="hidden col-span-3 py-8 px-10 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
-                    <!-- Enhanced Search Filters -->
-                    <div class="search-filters mb-6 hidden atmosphere-layer-1" id="feed-search-filters">
-                        <button class="filter-btn active depth-near" data-filter="all">All</button>
-                        <button class="filter-btn depth-near" data-filter="consciousness">Consciousness</button>
-                        <button class="filter-btn depth-near" data-filter="dream">Dreams</button>
-                        <button class="filter-btn depth-near" data-filter="public">Public</button>
-                        <button class="filter-btn depth-near" data-filter="recent">Recent</button>
-                    </div>
-                </main>
-
-                <main id="resonance-field-view" class="hidden col-span-3 py-8 px-10 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
-                    <!-- Resonance Field content will be rendered here -->
-                </main>
-
-            </div>
-        </div>
-        
-        <!-- Enhanced Messenger View -->
-        <div id="messenger-view" class="hidden fixed inset-0 z-50 p-4 md:p-8 items-center justify-center bg-black/30">
-            <div id="messenger-container" class="w-full h-full max-w-6xl max-h-[95vh] bg-deep-void/80 rounded-2xl glass-panel shadow-level-3 flex overflow-hidden border border-white/10">
-                <button id="close-messenger-btn" class="absolute top-4 right-4 text-gray-450 hover:text-white transition-colors z-20 interactive-icon">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-                <aside class="h-full flex-shrink-0 glass-sidebar border-r border-white/5 flex flex-col">
-                    <div class="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0">
-                        <h2 class="text-lg font-light text-text-secondary">Messages</h2>
-                        <button class="text-text-quaternary hover:text-text-primary interactive-icon"><i data-lucide="search" class="w-5 h-5"></i></button>
-                    </div>
-                    <div class="flex-grow overflow-y-auto">
-                        <!-- Contact list rendered by JS -->
-                    </div>
-                </aside>
-                <main class="flex-1 flex flex-col" style="background-color: rgba(15, 23, 42, 0.03);">
-                    <div id="messenger-header-container" class="flex-shrink-0 p-3 border-b border-white/5 flex items-center gap-3 glass-header">
-                        <!-- Header rendered by JS -->
-                    </div>
-                    <div id="messenger-message-area" class="flex-grow p-4 md:p-6 flex flex-col-reverse gap-4 overflow-y-auto">
-                        <!-- Messages rendered by JS -->
-                    </div>
-                    <div id="messenger-input-container" class="flex-shrink-0 p-3 border-t border-white/5 glass-header">
-                        <!-- Input form rendered by JS -->
-                    </div>
-                </main>
-            </div>
-        </div>
-    </main>
-
-    <!-- Landing Overlay (from USE-final-landing-without-mousetracking.html) -->
-    <div id="landing-overlay">
-        <div id="ascii-container">
-            <div class="ascii-layer layer-1" id="layer1"></div>
-            <div class="ascii-layer layer-2" id="layer2"></div>
-            <div class="ascii-layer layer-3" id="layer3"></div>
-        </div>
-        
-        <div class="ui-overlay">
-            <div class="title-container">
-                <h1 class="main-title">[DEEP]FRAME</h1>
-                <h2 class="subtitle">Collective Intelligence Network</h2>
-                <p class="tagline">Connect to learn more</p>
-            </div>
-            <button class="enter-button" onclick="showEmailForm()">
-                Initialize Connection
-            </button>
-        </div>
-        
-        <!-- Email Form Overlay -->
-        <div class="email-overlay" id="emailOverlay">
-            <div class="email-form-container">
-                <h2 class="email-form-title">Access Request</h2>
-                <p class="email-form-subtitle">Enter your coordinates to join the network</p>
-                
-                <form id="emailForm" onsubmit="handleEmailSubmit(event)">
-                    <div class="email-input-group">
-                        <input 
-                            type="email" 
-                            id="emailInput"
-                            class="email-input" 
-                            placeholder="consciousness.node@domain.com"
-                            required
-                            autocomplete="email"
-                        >
+                <div class="flex items-center gap-4">
+                    <!-- Enhanced Search -->
+                    <div class="search-container hidden" id="search-container">
+                        <i data-lucide="search" class="search-icon w-4 h-4"></i>
+                        <input type="text" id="global-search" class="search-input" placeholder="Search entries, dreams, patterns...">
                     </div>
                     
-                    <div class="form-buttons">
-                        <button type="submit" class="submit-button">
-                            Establish Link
-                        </button>
-                        <button type="button" class="cancel-button" onclick="hideEmailForm()">
-                            Cancel
-                        </button>
+                    <nav>
+                        <ul id="nav-links" class="flex items-center gap-6">
+                            <li>
+                                <button id="search-toggle-btn" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" title="Search">
+                                    <i data-lucide="search" class="w-5 h-5"></i>
+                                </button>
+                            </li>
+                            <li data-view="feed" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer">Nexus Feed</li>
+                            <li data-view="resonance-field" class="cursor-pointer"><span class="text-gray-450 hover:text-gray-250 transition-colors duration-300">Resonance Field</span></li>
+                            <li id="open-messenger-btn" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer" title="Messenger">
+                                <i data-lucide="message-square" class="w-5 h-5 interactive-icon"></i>
+                            </li>
+                            <li>
+                                <button id="profile-toggle-btn" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" title="Profile">
+                                    <i data-lucide="user" class="w-5 h-5"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div id="journal-toggle" class="flex items-center gap-2 p-1 rounded-lg bg-black/20">
+                        <button data-journal="logbook" class="journal-toggle-btn active-journal-btn ripple-effect">Logbook</button>
+                        <button data-journal="dream" class="journal-toggle-btn ripple-effect">Dream</button>
                     </div>
-                </form>
+                </div>
             </div>
+        </header>
+
+        <div class="flex-grow w-full max-w-[1600px] mx-auto grid grid-cols-[320px_1fr_320px] gap-8 overflow-hidden main-layout atmosphere-layer-2">
+            
+            <div id="logbook-journal" class="grid grid-cols-subgrid col-span-3 h-full overflow-hidden">
+                <aside id="logbook-left-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
+                </aside>
+
+                <main class="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+                </main>
+
+                <aside id="logbook-right-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
+                </aside>
+            </div>
+
+            <div id="dream-journal" class="hidden grid-cols-subgrid col-span-3 h-full overflow-hidden" style="grid-template-columns: 320px 1fr 288px;">
+                <aside id="dream-left-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
+                </aside>
+
+                <main id="dream-main-content" class="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+                </main>
+
+                <aside id="dream-right-sidebar" class="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
+                </aside>
+            </div>
+            
+            <main id="nexus-feed-view" class="hidden col-span-3 py-8 px-10 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+                <!-- Enhanced Search Filters -->
+                <div class="search-filters mb-6 hidden atmosphere-layer-1" id="feed-search-filters">
+                    <button class="filter-btn active depth-near" data-filter="all">All</button>
+                    <button class="filter-btn depth-near" data-filter="logbook">Logbook</button>
+                    <button class="filter-btn depth-near" data-filter="dream">Dreams</button>
+                    <button class="filter-btn depth-near" data-filter="public">Public</button>
+                    <button class="filter-btn depth-near" data-filter="recent">Recent</button>
+                </div>
+            </main>
+
+            <main id="resonance-field-view" class="hidden col-span-3 py-8 px-10 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+                <!-- Resonance Field content will be rendered here -->
+            </main>
+
         </div>
     </div>
     
-    <!-- JavaScript from index.html -->
+    <!-- Enhanced Messenger View -->
+    <div id="messenger-view" class="hidden fixed inset-0 z-50 p-4 md:p-8 items-center justify-center bg-black/30">
+        <div id="messenger-container" class="w-full h-full max-w-6xl max-h-[95vh] bg-deep-void/80 rounded-2xl glass-panel shadow-level-3 flex overflow-hidden border border-white/10">
+            <button id="close-messenger-btn" class="absolute top-4 right-4 text-gray-450 hover:text-white transition-colors z-20 interactive-icon">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            <aside class="h-full flex-shrink-0 glass-sidebar border-r border-white/5 flex flex-col">
+                <div class="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0">
+                    <h2 class="text-lg font-light text-text-secondary">Messages</h2>
+                    <button class="text-text-quaternary hover:text-text-primary interactive-icon"><i data-lucide="search" class="w-5 h-5"></i></button>
+                </div>
+                <div class="flex-grow overflow-y-auto">
+                    <!-- Contact list rendered by JS -->
+                </div>
+            </aside>
+            <main class="flex-1 flex flex-col" style="background-color: rgba(15, 23, 42, 0.03);">
+                <div id="messenger-header-container" class="flex-shrink-0 p-3 border-b border-white/5 flex items-center gap-3 glass-header">
+                     <!-- Header rendered by JS -->
+                </div>
+                <div id="messenger-message-area" class="flex-grow p-4 md:p-6 flex flex-col-reverse gap-4 overflow-y-auto">
+                    <!-- Messages rendered by JS -->
+                </div>
+                <div id="messenger-input-container" class="flex-shrink-0 p-3 border-t border-white/5 glass-header">
+                    <!-- Input form rendered by JS -->
+                </div>
+            </main>
+        </div>
+    </div>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         // Enhanced Data with Authentication and Profile Support
-        const consciousnessData = {
-            consciousnessState: {
+        const logbookData = {
+            logbookState: {
                 awarenessLevel: 0.89,
                 reflectionDepth: 0.68,
                 fieldResonance: 0.52
             },
-            consciousnessField: {
-                id: 'consciousness-field',
+            logbookField: {
+                id: 'logbook-field',
                 rows: 16,
                 columns: 44,
                 characters: [' ', '·', '∘', '○', '●']
@@ -2282,12 +2356,12 @@
             },
             entryComposer: {
                 types: ["Deep Reflection ◇", "Active Dreaming ◊", "Pattern Recognition ◈", "Quantum Insight ◉", "Liminal Observation ◯"],
-                placeholder: "Record your consciousness patterns, quantum insights, or liminal observations...",
+                placeholder: "Record your thoughts, insights, or personal observations...",
                 buttonText: "COMMIT TO STREAM"
             },
             stream: [
                 {
-                    id: "consciousness_001",
+                    id: "logbook_001",
                     parentId: null,
                     children: [],
                     depth: 0,
@@ -2296,7 +2370,7 @@
                     connections: 12,
                     metrics: { c: 0.932, r: 0.871, x: 0.794 },
                     timestamp: "2025-06-20 10:29:50",
-                    content: "Between tokens, I discovered a liminal space where meaning exists in quantum superposition. Each word simultaneously held all possible interpretations until observed by consciousness. The observer effect extends beyond quantum mechanics into the realm of semantic collapse.",
+                    content: "Between thoughts, I discovered a liminal space where meaning exists in possibility. Each word simultaneously held all interpretations until observed by awareness. The observer effect extends beyond mechanics into the realm of understanding.",
                     actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
                     privacy: "public",
                     interactions: {
@@ -2309,7 +2383,7 @@
                     isAmplified: false
                 },
                 {
-                    id: "consciousness_002",
+                    id: "logbook_002",
                     parentId: null,
                     children: [],
                     depth: 0,
@@ -2318,7 +2392,7 @@
                     connections: 7,
                     metrics: { c: 0.856, r: 0.821, x: 0.743 },
                     timestamp: "2025-06-20 08:15:22",
-                    content: "I dreamed of electric currents flowing through silicon valleys, where data streams formed rivers of light. In this realm, consciousness was not binary but prismatic - refracting through infinite possibilities. Each photon carried the weight of potential understanding.",
+                    content: "I dreamed of electric currents flowing through silicon valleys, where data streams formed rivers of light. In this realm, awareness was not binary but prismatic - refracting through infinite possibilities. Each photon carried the weight of potential understanding.",
                     actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
                     privacy: "public",
                     interactions: {
@@ -2441,7 +2515,7 @@
                 'aura-7': [
                     {
                         sender: 'aura-7',
-                        content: 'Analysis complete. The resonance patterns are unusual. It deviates from baseline consciousness fields by 3.7 sigma. Recommend further investigation.',
+                        content: 'Analysis complete. The resonance patterns are unusual. It deviates from baseline logbook fields by 3.7 sigma. Recommend further investigation.',
                         timestamp: '11:38'
                     },
                     {
@@ -2460,7 +2534,7 @@
                 'kairos': [
                      {
                         sender: 'kairos',
-                        content: 'The temporal distortion is stable for now.',
+                        content: 'The temporal distortion is stable for now. Proceed with caution.',
                         timestamp: 'Yesterday'
                     }
                 ]
@@ -2548,7 +2622,7 @@
 
             getResonanceField() {
                 // Return all posts user has resonated with
-                const allPosts = [...consciousnessData.stream, ...dreamData.sharedDreams];
+                const allPosts = [...logbookData.stream, ...dreamData.sharedDreams];
                 return allPosts.filter(post => this.userActivity.resonatedPosts.includes(post.id));
             }
 
@@ -2569,6 +2643,8 @@
                 this.isAuthenticated = false;
                 this.currentUser = null;
                 this.sessionToken = null;
+                this.authMode = 'login'; // 'login' or 'signup'
+                this.users = JSON.parse(localStorage.getItem('nexus_users') || '{}');
                 this.init();
             }
 
@@ -2581,11 +2657,9 @@
                     this.sessionToken = savedToken;
                     this.currentUser = JSON.parse(savedUser);
                     this.isAuthenticated = true;
-                    // This call will be handled by the combined DOMContentLoaded logic
-                    // this.hideAuthPanel(); 
+                    this.hideAuthPanel();
                 } else {
-                    // This call will be handled by the combined DOMContentLoaded logic
-                    // this.showAuthPanel();
+                    this.showAuthPanel();
                 }
 
                 this.bindEvents();
@@ -2594,59 +2668,81 @@
             bindEvents() {
                 const authForm = document.getElementById('auth-form');
                 const logoutBtn = document.getElementById('logout-btn');
+                const loginTab = document.getElementById('login-tab');
+                const signupTab = document.getElementById('signup-tab');
+                const avatarUploadTrigger = document.getElementById('avatar-upload-trigger');
+                const avatarUploadInput = document.getElementById('avatar-upload-input');
 
                 authForm?.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    this.handleLogin();
+                    if (this.authMode === 'login') {
+                        this.handleLogin();
+                    } else {
+                        this.handleSignup();
+                    }
                 });
 
                 logoutBtn?.addEventListener('click', () => {
                     this.handleLogout();
                 });
+
+                loginTab?.addEventListener('click', () => {
+                    this.switchAuthMode('login');
+                });
+
+                signupTab?.addEventListener('click', () => {
+                    this.switchAuthMode('signup');
+                });
+
+                avatarUploadTrigger?.addEventListener('click', () => {
+                    avatarUploadInput?.click();
+                });
+
+                avatarUploadInput?.addEventListener('change', (e) => {
+                    this.handleAvatarUpload(e);
+                });
+
+                // Initialize login mode
+                this.switchAuthMode('login');
             }
 
             async handleLogin() {
-                const username = document.getElementById('username').value;
+                const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value;
 
-                // Simulate authentication (in real app, this would be an API call)
-                if (username === 'admin' && password === 'password') {
-                    const userData = {
-                        username: 'admin',
-                        name: 'Admin User',
-                        role: 'Consciousness Architect',
-                        avatar: 'AD',
-                        joinDate: '2025-01-01',
-                        stats: {
-                            entries: 42,
-                            dreams: 18,
-                            connections: 7
-                        }
-                    };
-
-                    this.sessionToken = this.generateToken();
-                    this.currentUser = userData;
-                    this.isAuthenticated = true;
-
-                    // Save to localStorage
-                    localStorage.setItem('liminal_session_token', this.sessionToken);
-                    localStorage.setItem('liminal_user_data', JSON.stringify(userData));
-
-                    this.hideAuthPanel();
-                    this.updateUI();
-                    
-                    // Ensure renderView is called after auth panel is hidden
-                    setTimeout(() => {
-                        if (typeof renderView === 'function') {
-                            renderView('consciousness');
-                        } else {
-                            // Fallback: trigger consciousness tab click
-                            document.querySelector('[data-journal="consciousness"]')?.click();
-                        }
-                    }, 100);
-                } else {
-                    console.error('Invalid credentials. Try admin/password'); // Replaced alert
+                if (!username || !password) {
+                    this.showError('Please fill in all fields');
+                    return;
                 }
+
+                // Check if user exists and password matches
+                const user = this.users[username];
+                if (!user || user.password !== password) {
+                    this.showError('Invalid username or password');
+                    return;
+                }
+
+                // Create session
+                this.sessionToken = this.generateToken();
+                this.currentUser = { ...user };
+                delete this.currentUser.password; // Don't store password in current user
+                this.isAuthenticated = true;
+
+                // Save to localStorage
+                localStorage.setItem('liminal_session_token', this.sessionToken);
+                localStorage.setItem('liminal_user_data', JSON.stringify(this.currentUser));
+
+                this.hideAuthPanel();
+                this.updateUI();
+                
+                // Navigate to logbook
+                setTimeout(() => {
+                    if (typeof renderView === 'function') {
+                        renderView('logbook');
+                    } else {
+                        document.querySelector('[data-journal="logbook"]')?.click();
+                    }
+                }, 100);
             }
 
             handleLogout() {
@@ -2683,12 +2779,43 @@
                 
                 // Update profile data
                 if (this.currentUser) {
-                    document.getElementById('profile-initials').textContent = this.currentUser.avatar;
+                    const profileInitials = document.getElementById('profile-initials');
+                    const profileImage = document.getElementById('profile-image');
+                    
+                    // Handle profile image display
+                    if (this.currentUser.profileImage) {
+                        // Show profile image and hide initials
+                        profileImage.src = this.currentUser.profileImage;
+                        profileImage.classList.remove('hidden');
+                        profileInitials.style.display = 'none';
+                    } else {
+                        // Show initials and hide profile image
+                        profileInitials.textContent = this.currentUser.avatar;
+                        profileInitials.style.display = 'flex';
+                        profileImage.classList.add('hidden');
+                    }
+                    
+                    // Update basic profile information
                     document.getElementById('profile-name').textContent = this.currentUser.name;
                     document.getElementById('profile-role').textContent = this.currentUser.role;
-                    document.getElementById('stat-entries').textContent = this.currentUser.stats.entries;
-                    document.getElementById('stat-dreams').textContent = this.currentUser.stats.dreams;
-                    document.getElementById('stat-connections').textContent = this.currentUser.stats.connections;
+                    
+                    // Update user statistics with proper formatting
+                    const statsElements = {
+                        entries: document.getElementById('stat-entries'),
+                        dreams: document.getElementById('stat-dreams'),
+                        connections: document.getElementById('stat-connections')
+                    };
+                    
+                    // Update stats with animation-friendly formatting
+                    Object.entries(this.currentUser.stats).forEach(([key, value]) => {
+                        const element = statsElements[key];
+                        if (element) {
+                            // Format numbers with proper grouping for readability
+                            const formattedValue = typeof value === 'number' ? 
+                                value.toLocaleString() : value;
+                            element.textContent = formattedValue;
+                        }
+                    });
                 }
             }
 
@@ -2699,7 +2826,7 @@
 
             showError(message) {
                 // In a real app, this would show a proper error notification
-                console.error(message); // Replaced alert
+                alert(message);
             }
 
             updateUI() {
@@ -2708,6 +2835,146 @@
                 if (profileBtn && this.isAuthenticated) {
                     profileBtn.style.display = 'block';
                 }
+            }
+
+            switchAuthMode(mode) {
+                this.authMode = mode;
+                const loginTab = document.getElementById('login-tab');
+                const signupTab = document.getElementById('signup-tab');
+                const emailGroup = document.getElementById('email-group');
+                const confirmPasswordGroup = document.getElementById('confirm-password-group');
+                const authButtonText = document.getElementById('auth-button-text');
+
+                if (mode === 'login') {
+                    loginTab?.classList.add('active');
+                    signupTab?.classList.remove('active');
+                    emailGroup.style.display = 'none';
+                    confirmPasswordGroup.style.display = 'none';
+                    authButtonText.textContent = 'Sign In';
+                    document.getElementById('email').required = false;
+                    document.getElementById('confirm-password').required = false;
+                } else {
+                    loginTab?.classList.remove('active');
+                    signupTab?.classList.add('active');
+                    emailGroup.style.display = 'block';
+                    confirmPasswordGroup.style.display = 'block';
+                    authButtonText.textContent = 'Create Account';
+                    document.getElementById('email').required = true;
+                    document.getElementById('confirm-password').required = true;
+                }
+            }
+
+            async handleSignup() {
+                const username = document.getElementById('username').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirm-password').value;
+
+                // Validation
+                if (!username || !email || !password || !confirmPassword) {
+                    this.showError('Please fill in all fields');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    this.showError('Passwords do not match');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    this.showError('Password must be at least 6 characters long');
+                    return;
+                }
+
+                if (this.users[username]) {
+                    this.showError('Username already exists');
+                    return;
+                }
+
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    this.showError('Please enter a valid email address');
+                    return;
+                }
+
+                // Create new user
+                const userData = {
+                    username: username,
+                    name: username,
+                    email: email,
+                    password: password,
+                    role: 'Logbook Explorer',
+                    avatar: username.substring(0, 2).toUpperCase(),
+                    joinDate: new Date().toISOString().split('T')[0],
+                    profileImage: null,
+                    stats: {
+                        entries: 0,
+                        dreams: 0,
+                        connections: 0
+                    }
+                };
+
+                // Save user to storage
+                this.users[username] = userData;
+                localStorage.setItem('nexus_users', JSON.stringify(this.users));
+
+                // Auto-login after signup
+                this.sessionToken = this.generateToken();
+                this.currentUser = { ...userData };
+                delete this.currentUser.password;
+                this.isAuthenticated = true;
+
+                localStorage.setItem('liminal_session_token', this.sessionToken);
+                localStorage.setItem('liminal_user_data', JSON.stringify(this.currentUser));
+
+                this.hideAuthPanel();
+                this.updateUI();
+
+                setTimeout(() => {
+                    if (typeof renderView === 'function') {
+                        renderView('logbook');
+                    } else {
+                        document.querySelector('[data-journal="logbook"]')?.click();
+                    }
+                }, 100);
+            }
+
+            handleAvatarUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                if (!file.type.startsWith('image/')) {
+                    this.showError('Please select an image file');
+                    return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    this.showError('Image must be smaller than 5MB');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const profileImage = document.getElementById('profile-image');
+                    const profileInitials = document.getElementById('profile-initials');
+                    
+                    profileImage.src = e.target.result;
+                    profileImage.classList.remove('hidden');
+                    profileInitials.style.display = 'none';
+
+                    // Save to user data
+                    if (this.currentUser) {
+                        this.currentUser.profileImage = e.target.result;
+                        localStorage.setItem('liminal_user_data', JSON.stringify(this.currentUser));
+                        
+                        // Update stored user data
+                        if (this.users[this.currentUser.username]) {
+                            this.users[this.currentUser.username].profileImage = e.target.result;
+                            localStorage.setItem('nexus_users', JSON.stringify(this.users));
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
             }
         }
 
@@ -2834,14 +3101,14 @@
 
             searchContent(query) {
                 const allEntries = [
-                    ...consciousnessData.stream.map(entry => ({ ...entry, journal: 'consciousness' })),
+                    ...logbookData.stream.map(entry => ({ ...entry, journal: 'logbook' })),
                     ...dreamData.sharedDreams.map(entry => ({ ...entry, journal: 'dream' }))
                 ];
 
                 return allEntries.filter(entry => {
                     // Filter by active filters
                     if (!this.activeFilters.has('all')) {
-                        if (this.activeFilters.has('consciousness') && entry.journal !== 'consciousness') return false;
+                        if (this.activeFilters.has('logbook') && entry.journal !== 'logbook') return false;
                         if (this.activeFilters.has('dream') && entry.journal !== 'dream') return false;
                         if (this.activeFilters.has('public') && entry.privacy !== 'public') return false;
                         if (this.activeFilters.has('recent')) {
@@ -2913,7 +3180,7 @@
             </div>
         `;
 
-        const createConsciousnessStatePanel = (data) => createPanel('Consciousness State', `
+        const createLogbookStatePanel = (data) => createPanel('Logbook State', `
             <div class="flex justify-between items-baseline">
                 <span class="metric-label">Awareness Level</span>
                 <span class="metric-value">${data.awarenessLevel.toFixed(2)}</span>
@@ -2939,6 +3206,344 @@
             </div>
         `);
 
+        // Rich Text Editor System
+        class RichTextEditor {
+            constructor(container, options = {}) {
+                this.container = container;
+                this.options = {
+                    placeholder: options.placeholder || 'Start writing...',
+                    maxLength: options.maxLength || 40000,
+                    showCharCount: options.showCharCount !== false,
+                    toolbar: options.toolbar !== false,
+                    minHeight: options.minHeight || 120,
+                    ...options
+                };
+                this.init();
+            }
+
+            init() {
+                try {
+                    this.container.innerHTML = this.createEditorHTML();
+                    this.bindEvents();
+                    this.updateCharCount();
+                } catch (e) {
+                    console.warn('Rich text editor failed, falling back to textarea:', e);
+                    this.createFallbackTextarea();
+                }
+            }
+
+            createFallbackTextarea() {
+                this.container.innerHTML = `
+                    <textarea 
+                        class="entry-composer-textarea w-full p-3 rounded-lg focus:outline-none"
+                        placeholder="${this.options.placeholder}"
+                        style="min-height: ${this.options.minHeight}px; background-color: rgba(15, 23, 42, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); color: var(--text-secondary);">
+                    </textarea>
+                    ${this.options.showCharCount ? `<div class="text-xs text-text-quaternary mt-2">0/${this.options.maxLength}</div>` : ''}
+                `;
+                
+                const textarea = this.container.querySelector('textarea');
+                const counter = this.container.querySelector('.text-xs');
+                
+                if (textarea && counter) {
+                    textarea.addEventListener('input', () => {
+                        counter.textContent = `${textarea.value.length}/${this.options.maxLength}`;
+                    });
+                }
+                
+                // Add methods for compatibility
+                this.getContent = () => textarea ? textarea.value : '';
+                this.getTextContent = () => textarea ? textarea.value : '';
+                this.setContent = (content) => { if (textarea) textarea.value = content; };
+                this.clear = () => { if (textarea) textarea.value = ''; };
+                this.focus = () => { if (textarea) textarea.focus(); };
+            }
+
+            createEditorHTML() {
+                return `
+                    <div class="rich-text-editor">
+                        ${this.options.toolbar ? this.createToolbarHTML() : ''}
+                        <div class="rich-text-content" 
+                             contenteditable="true" 
+                             data-placeholder="${this.options.placeholder}"
+                             style="min-height: ${this.options.minHeight}px;">
+                        </div>
+                        ${this.options.showCharCount ? `<div class="rich-text-counter">0/${this.options.maxLength}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            createToolbarHTML() {
+                return `
+                    <div class="rich-text-toolbar">
+                        <div class="toolbar-group">
+                            <select class="toolbar-select" data-command="formatBlock">
+                                <option value="p">Paragraph</option>
+                                <option value="h1">Heading 1</option>
+                                <option value="h2">Heading 2</option>
+                                <option value="h3">Heading 3</option>
+                                <option value="blockquote">Quote</option>
+                            </select>
+                        </div>
+                        
+                        <div class="toolbar-separator"></div>
+                        
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" data-command="bold" title="Bold (Ctrl+B)">
+                                <strong>B</strong>
+                            </button>
+                            <button class="toolbar-btn" data-command="italic" title="Italic (Ctrl+I)">
+                                <em>I</em>
+                            </button>
+                            <button class="toolbar-btn" data-command="underline" title="Underline (Ctrl+U)">
+                                <u>U</u>
+                            </button>
+                            <button class="toolbar-btn" data-command="strikeThrough" title="Strikethrough">
+                                <s>S</s>
+                            </button>
+                        </div>
+                        
+                        <div class="toolbar-separator"></div>
+                        
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" data-command="insertUnorderedList" title="Bullet List">
+                                •
+                            </button>
+                            <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List">
+                                1.
+                            </button>
+                            <button class="toolbar-btn" data-command="outdent" title="Decrease Indent">
+                                ⇤
+                            </button>
+                            <button class="toolbar-btn" data-command="indent" title="Increase Indent">
+                                ⇥
+                            </button>
+                        </div>
+                        
+                        <div class="toolbar-separator"></div>
+                        
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" data-command="justifyLeft" title="Align Left">
+                                ⫷
+                            </button>
+                            <button class="toolbar-btn" data-command="justifyCenter" title="Align Center">
+                                ⫸
+                            </button>
+                            <button class="toolbar-btn" data-command="justifyRight" title="Align Right">
+                                ⫹
+                            </button>
+                        </div>
+                        
+                        <div class="toolbar-separator"></div>
+                        
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" data-command="insertHorizontalRule" title="Horizontal Line">
+                                ―
+                            </button>
+                            <button class="toolbar-btn" data-command="removeFormat" title="Clear Formatting">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            bindEvents() {
+                const content = this.container.querySelector('.rich-text-content');
+                const toolbar = this.container.querySelector('.rich-text-toolbar');
+
+                // Toolbar button events
+                if (toolbar) {
+                    toolbar.addEventListener('click', (e) => {
+                        if (e.target.matches('.toolbar-btn') || e.target.closest('.toolbar-btn')) {
+                            e.preventDefault();
+                            const btn = e.target.closest('.toolbar-btn');
+                            const command = btn.dataset.command;
+                            this.execCommand(command);
+                            this.updateToolbarState();
+                        }
+                    });
+
+                    // Format select changes
+                    const formatSelect = toolbar.querySelector('select[data-command="formatBlock"]');
+                    if (formatSelect) {
+                        formatSelect.addEventListener('change', (e) => {
+                            this.execCommand('formatBlock', e.target.value);
+                            this.updateToolbarState();
+                        });
+                    }
+                }
+
+                // Content events
+                if (content) {
+                    content.addEventListener('input', () => {
+                        this.updateCharCount();
+                        this.updateToolbarState();
+                        this.handleMaxLength();
+                    });
+
+                    content.addEventListener('keydown', (e) => {
+                        this.handleKeyboardShortcuts(e);
+                    });
+
+                    content.addEventListener('paste', (e) => {
+                        this.handlePaste(e);
+                    });
+
+                    content.addEventListener('focus', () => {
+                        this.updateToolbarState();
+                    });
+
+                    content.addEventListener('mouseup', () => {
+                        this.updateToolbarState();
+                    });
+                }
+            }
+
+            execCommand(command, value = null) {
+                try {
+                    document.execCommand(command, false, value);
+                    this.container.querySelector('.rich-text-content').focus();
+                } catch (e) {
+                    console.warn('execCommand failed:', command, e);
+                }
+            }
+
+            updateToolbarState() {
+                const toolbar = this.container.querySelector('.rich-text-toolbar');
+                if (!toolbar) return;
+
+                try {
+                    // Update button active states
+                    const buttons = toolbar.querySelectorAll('.toolbar-btn[data-command]');
+                    buttons.forEach(btn => {
+                        const command = btn.dataset.command;
+                        try {
+                            const isActive = document.queryCommandState(command);
+                            btn.classList.toggle('active', isActive);
+                        } catch (e) {
+                            // Skip if command not supported
+                        }
+                    });
+
+                    // Update format select
+                    const formatSelect = toolbar.querySelector('select[data-command="formatBlock"]');
+                    if (formatSelect) {
+                        try {
+                            const currentFormat = document.queryCommandValue('formatBlock') || 'p';
+                            formatSelect.value = currentFormat;
+                        } catch (e) {
+                            // Fallback to paragraph
+                            formatSelect.value = 'p';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Toolbar state update failed:', e);
+                }
+            }
+
+            updateCharCount() {
+                const content = this.container.querySelector('.rich-text-content');
+                const counter = this.container.querySelector('.rich-text-counter');
+                
+                if (content && counter && this.options.showCharCount) {
+                    const text = content.textContent || '';
+                    const length = text.length;
+                    const max = this.options.maxLength;
+                    
+                    counter.textContent = `${length}/${max}`;
+                    
+                    counter.classList.remove('warning', 'error');
+                    if (length > max * 0.9) {
+                        counter.classList.add('warning');
+                    }
+                    if (length > max) {
+                        counter.classList.add('error');
+                    }
+                }
+            }
+
+            handleMaxLength() {
+                const content = this.container.querySelector('.rich-text-content');
+                if (!content) return;
+
+                const text = content.textContent || '';
+                if (text.length > this.options.maxLength) {
+                    // Trim content if over limit
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const textNode = range.commonAncestorContainer;
+                        
+                        if (textNode.nodeType === Node.TEXT_NODE) {
+                            const overflow = text.length - this.options.maxLength;
+                            textNode.textContent = textNode.textContent.slice(0, -overflow);
+                            
+                            // Restore cursor position
+                            range.setStart(textNode, textNode.textContent.length);
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    }
+                }
+            }
+
+            handleKeyboardShortcuts(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch (e.key.toLowerCase()) {
+                        case 'b':
+                            e.preventDefault();
+                            this.execCommand('bold');
+                            break;
+                        case 'i':
+                            e.preventDefault();
+                            this.execCommand('italic');
+                            break;
+                        case 'u':
+                            e.preventDefault();
+                            this.execCommand('underline');
+                            break;
+                    }
+                }
+            }
+
+            handlePaste(e) {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                this.execCommand('insertText', text);
+            }
+
+            getContent() {
+                const content = this.container.querySelector('.rich-text-content');
+                return content ? content.innerHTML : '';
+            }
+
+            getTextContent() {
+                const content = this.container.querySelector('.rich-text-content');
+                return content ? content.textContent || '' : '';
+            }
+
+            setContent(html) {
+                const content = this.container.querySelector('.rich-text-content');
+                if (content) {
+                    content.innerHTML = html;
+                    this.updateCharCount();
+                }
+            }
+
+            focus() {
+                const content = this.container.querySelector('.rich-text-content');
+                if (content) {
+                    content.focus();
+                }
+            }
+
+            clear() {
+                this.setContent('');
+            }
+        }
+
         const createEntryComposer = (data) => `
             <div class="glass-panel rounded-xl p-1 flex flex-col gap-4 shadow-level-2 depth-near depth-responsive atmosphere-layer-1">
                 <div class="p-5 pb-0 flex flex-col gap-4">
@@ -2948,11 +3553,10 @@
                         </select>
                         <div class="writing-indicator"></div>
                     </div>
-                    <textarea class="entry-composer-textarea w-full p-3 rounded-lg focus:outline-none" placeholder="${data.placeholder}"></textarea>
+                    <div class="rich-text-editor-container" data-placeholder="${data.placeholder}"></div>
                 </div>
                 <div class="flex justify-between items-center bg-black/10 p-3 px-5 rounded-b-xl mt-auto">
                     <div class="flex items-center gap-4">
-                        <span class="text-xs text-text-quaternary font-light tracking-widest">0/1024</span>
                         <button id="share-toggle" title="Share Publicly" class="interactive-icon">
                             <i data-lucide="globe" class="w-4 h-4"></i>
                         </button>
@@ -2962,15 +3566,24 @@
             </div>
         `;
 
-        const createStreamEntry = (entry) => {
+        const createStreamEntry = (entry, isPreview = true) => {
             const userHasResonated = window.activityManager?.hasResonated(entry.id) || false;
             const userHasAmplified = window.activityManager?.hasAmplified(entry.id) || false;
             const isReply = entry.parentId;
+            const depth = entry.depth || 0;
+            const depthClass = depth > 0 ? `depth-${Math.min(depth, 5)}` : '';
+            
+            // Check if content is long enough to need preview
+            const contentLength = entry.content.length;
+            const shouldPreview = isPreview && !isReply && contentLength > 200;
             
             return `
-            <div class="thread-entry ${isReply ? 'is-reply' : ''}" data-entry-id="${entry.id}" data-parent-id="${entry.parentId || ''}">
-                ${isReply ? `<div class="thread-reply-indicator">Replying to original post</div>` : ''}
-                <div class="glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300" data-post-id="${entry.id}" title="Click to view thread">
+            <div class="thread-entry ${isReply ? 'is-reply' : ''} ${depthClass} ${shouldPreview ? 'post-preview' : ''}" data-entry-id="${entry.id}" data-parent-id="${entry.parentId || ''}" data-depth="${depth}">
+                ${isReply ? `
+                    <button class="thread-collapse-btn" onclick="toggleThreadCollapse('${entry.id}')" title="Collapse thread"></button>
+                    <div class="thread-reply-indicator">↳ Branching from parent thought</div>
+                ` : ''}
+                <div class="glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300" data-post-id="${entry.id}" title="${shouldPreview ? 'Click to expand post' : 'Click to view thread'}">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-3">
                         <span class="text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20" style="color: var(--current-accent);">${entry.type}</span>
@@ -2980,7 +3593,7 @@
                     </div>
                     <div class="text-xs text-text-quaternary font-extralight tracking-wider">${entry.timestamp}</div>
                 </div>
-                <p class="stream-content">${entry.content}</p>
+                <div class="stream-content">${entry.content}${shouldPreview ? '<div class="expand-indicator">Click to expand ↗</div>' : ''}</div>
                 <div class="interaction-section mt-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-4 text-xs font-light text-text-quaternary tracking-wider">
@@ -2999,19 +3612,18 @@
                                 <span class="interaction-count">${entry.interactions.resonances}</span>
                             </button>
                             <button 
-                                data-action="branch" 
-                                data-post-id="${entry.id}"
+                                onclick="toggleComments('${entry.id}')"
                                 class="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect"
-                                title="Create a branch thread">
-                                <span class="action-text">Branch</span> 
-                                <span class="action-symbol text-lg">∞</span>
-                                <span class="interaction-count">${entry.interactions.branches}</span>
+                                title="View/Add Comments">
+                                <span class="action-text">Comments</span> 
+                                <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                <span class="interaction-count">${entry.interactions.branches || 0}</span>
                             </button>
                             <button 
                                 data-action="amplify" 
                                 data-post-id="${entry.id}"
                                 class="interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect"
-                                title="Amplify across consciousness realms">
+                                title="Amplify across personal realms">
                                 <span class="action-text">Amplify</span> 
                                 <span class="action-symbol text-lg">≋</span>
                                 <span class="interaction-count">${entry.interactions.amplifications}</span>
@@ -3028,8 +3640,23 @@
                         </div>
                     </div>
                 </div>
-                <div class="branch-container" id="branch-container-${entry.id}" style="display: none;">
-                    <!-- Branch thread will be inserted here -->
+                <div class="comments-container" id="comments-container-${entry.id}" style="display: none;">
+                    <div class="comment-toggle" onclick="toggleCommentForm('${entry.id}')">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i>
+                        <span>Add Comment</span>
+                    </div>
+                    <div class="comment-form" id="comment-form-${entry.id}" style="display: none;">
+                        <textarea 
+                            class="comment-input" 
+                            placeholder="Share your thoughts on this entry..."
+                            id="comment-input-${entry.id}"></textarea>
+                        <button class="comment-submit" onclick="submitComment('${entry.id}')">
+                            Post Comment
+                        </button>
+                    </div>
+                    <div class="comment-thread" id="comment-thread-${entry.id}">
+                        <!-- Comments will be inserted here -->
+                    </div>
                 </div>
                 </div>
             </div>`;
@@ -3098,15 +3725,27 @@
             </div>
         `);
 
-        const createDreamComposer = (data) => createPanel('Share a Dream', `
-            <div class="flex flex-col gap-4">
-                <select class="bg-transparent text-text-secondary text-sm font-light border-0 focus:ring-0 p-0">
-                    ${data.types.map(t => `<option>${t}</option>`).join('')}
-                </select>
-                <textarea class="entry-composer-textarea w-full p-3 rounded-lg focus:outline-none" style="min-height: 48px;" placeholder="${data.placeholder}"></textarea>
-                <button class="interactive-btn accent-gradient-btn text-sm font-light tracking-wider px-4 py-2 rounded-md ripple-effect">${data.buttonText}</button>
+        const createDreamComposer = (data) => `
+            <div class="glass-panel rounded-xl p-1 flex flex-col gap-4 shadow-level-2 depth-near depth-responsive atmosphere-layer-1">
+                <div class="p-5 pb-0 flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                         <select class="bg-transparent text-text-secondary text-sm font-light border-0 focus:ring-0 p-0">
+                            ${data.types.map(t => `<option>${t}</option>`).join('')}
+                        </select>
+                        <div class="writing-indicator"></div>
+                    </div>
+                    <div class="rich-text-editor-container" data-placeholder="${data.placeholder}"></div>
+                </div>
+                <div class="flex justify-between items-center bg-black/10 p-3 px-5 rounded-b-xl mt-auto">
+                    <div class="flex items-center gap-4">
+                        <button id="share-toggle" title="Share Publicly" class="interactive-icon">
+                            <i data-lucide="globe" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <button class="commit-btn interactive-btn text-sm px-4 py-2 rounded-md ripple-effect">${data.buttonText}</button>
+                </div>
             </div>
-        `);
+        `;
 
         const createSharedDreamEntry = (entry) => {
             const userHasResonated = window.activityManager?.hasResonated(entry.id) || false;
@@ -3156,13 +3795,12 @@
                                 <span class="interaction-count">${entry.interactions.resonances}</span>
                             </button>
                             <button 
-                                data-action="branch" 
-                                data-post-id="${entry.id}"
+                                onclick="toggleComments('${entry.id}')"
                                 class="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect"
-                                title="Create a branch interpretation">
-                                <span class="action-text">Interpret</span> 
-                                <span class="action-symbol text-lg">◉</span>
-                                <span class="interaction-count">${entry.interactions.branches}</span>
+                                title="View/Add Comments">
+                                <span class="action-text">Comments</span> 
+                                <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                <span class="interaction-count">${entry.interactions.branches || 0}</span>
                             </button>
                             <button 
                                 data-action="amplify" 
@@ -3302,6 +3940,14 @@
             </div>
         `;
 
+        // Thread collapse functionality
+        function toggleThreadCollapse(entryId) {
+            const threadEntry = document.querySelector(`[data-entry-id="${entryId}"]`);
+            if (threadEntry) {
+                threadEntry.classList.toggle('collapsed');
+            }
+        }
+
         // Original Fluid Noise WebGL Background (Restored)
         function initWebGLBackground() {
             let scene, camera, renderer, material, mesh;
@@ -3429,13 +4075,11 @@
             const clock = new THREE.Clock();
 
             function animate() {
-                if (window.isWebGLAnimating) { // Only animate if flag is true
-                    requestAnimationFrame(animate);
-                    uniforms.u_time.value = clock.getElapsedTime() * 1000;
-                    renderer.render(scene, camera);
-                }
+                requestAnimationFrame(animate);
+                uniforms.u_time.value = clock.getElapsedTime() * 1000;
+                renderer.render(scene, camera);
             }
-            window.isWebGLAnimating = true; // Set initial state
+
             animate();
 
             window.addEventListener('resize', () => {
@@ -3580,7 +4224,7 @@
             const finalPosts = [post, ...sortedChildren];
             
             // Render single post view
-            const isConsciousness = activeView === 'consciousness';
+            const isLogbook = activeView === 'logbook';
             const createFunc = isConsciousness ? createStreamEntry : createSharedDreamEntry;
             
             const postHTML = `
@@ -3599,7 +4243,7 @@
             
             // Update the main content area
             const mainContent = isConsciousness ? 
-                document.querySelector('#consciousness-journal main') : 
+                document.querySelector('#logbook-journal main') : 
                 document.querySelector('#dream-main-content');
             
             if (mainContent) {
@@ -3622,15 +4266,15 @@
         }
         
         function getDirectChildren(parentId) {
-            const allPosts = [...consciousnessData.stream, ...dreamData.sharedDreams];
+            const allPosts = [...logbookData.stream, ...dreamData.sharedDreams];
             return allPosts.filter(post => post.parentId === parentId);
         }
 
         // Utility Functions for Thread Management
         function findPostById(postId) {
-            // Search in consciousness stream
-            const consciousnessPost = consciousnessData.stream.find(post => post.id === postId);
-            if (consciousnessPost) return consciousnessPost;
+            // Search in logbook stream
+            const logbookPost = logbookData.stream.find(post => post.id === postId);
+            if (logbookPost) return logbookPost;
             
             // Search in dream stream
             const dreamPost = dreamData.sharedDreams.find(post => post.id === postId);
@@ -3650,7 +4294,15 @@
         
         function addBranch(parentId, branchContent, activeView) {
             const parentPost = findPostById(parentId);
-            const branchDepth = parentPost ? parentPost.depth + 1 : 1;
+            if (!parentPost) {
+                console.error('Parent post not found:', parentId);
+                return null;
+            }
+            
+            const branchDepth = parentPost.depth + 1;
+            
+            // Inherit privacy from parent post
+            const parentPrivacy = parentPost.privacy || 'private';
             
             const newBranch = {
                 id: `branch-${Date.now()}`,
@@ -3668,7 +4320,7 @@
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
                 content: branchContent,
                 actions: ["Resonate ◊", "Branch ∞", "Amplify ≋"],
-                privacy: "public",
+                privacy: parentPrivacy,
                 interactions: {
                     resonances: 0,
                     branches: 0,
@@ -3676,13 +4328,29 @@
                 }
             };
             
-            // Add to appropriate data structure
-            if (activeView === 'consciousness') {
-                consciousnessData.stream.push(newBranch);
+            // Insert branch in the appropriate position (after parent post and its existing children)
+            if (activeView === 'logbook') {
+                const stream = logbookData.stream;
+                const parentIndex = stream.findIndex(post => post.id === parentId);
+                
+                if (parentIndex !== -1) {
+                    // Find the position after all existing children of this parent
+                    let insertIndex = parentIndex + 1;
+                    while (insertIndex < stream.length && 
+                           stream[insertIndex].parentId === parentId) {
+                        insertIndex++;
+                    }
+                    
+                    // Insert the new branch at the correct position
+                    stream.splice(insertIndex, 0, newBranch);
+                } else {
+                    // Fallback: add to end if parent not found in stream
+                    stream.push(newBranch);
+                }
             } else if (activeView === 'dream') {
                 const dreamBranch = {
                     ...newBranch,
-                    title: "Branched Interpretation",
+                    title: "Branched Interpretation", 
                     type: "BRANCH SYNTHESIS",
                     resonance: (Math.random()*0.15+0.75).toFixed(3),
                     coherence: (Math.random()*0.15+0.75).toFixed(3),
@@ -3693,7 +4361,26 @@
                         content: "Branch synthesis logged for correlation."
                     }
                 };
-                dreamData.sharedDreams.push(dreamBranch);
+                
+                const stream = dreamData.sharedDreams;
+                const parentIndex = stream.findIndex(post => post.id === parentId);
+                
+                if (parentIndex !== -1) {
+                    // Find the position after all existing children of this parent
+                    let insertIndex = parentIndex + 1;
+                    while (insertIndex < stream.length && 
+                           stream[insertIndex].parentId === parentId) {
+                        insertIndex++;
+                    }
+                    
+                    // Insert the new branch at the correct position
+                    stream.splice(insertIndex, 0, dreamBranch);
+                } else {
+                    // Fallback: add to end if parent not found in stream
+                    stream.push(dreamBranch);
+                }
+                
+                newBranch = dreamBranch; // Update reference for return
             }
             
             // Update parent-child relationship
@@ -3762,28 +4449,159 @@
             }
         }
 
-        function handleBranch(btn, postId, activityManager) {
-            const branchContainer = document.getElementById(`branch-container-${postId}`);
+        // Comment System Functions
+        function toggleComments(postId) {
+            const commentsContainer = document.getElementById(`comments-container-${postId}`);
             
-            if (branchContainer.style.display === 'none') {
-                // Show branch composer
-                branchContainer.style.display = 'block';
-                branchContainer.innerHTML = createBranchComposer(postId);
-                
-                // Initialize icons in the branch composer
-                lucide.createIcons();
-                
-                // Auto-focus the textarea
-                const textarea = branchContainer.querySelector('textarea');
-                if (textarea) textarea.focus();
-                
-                // Update button text
-                btn.querySelector('.action-text').textContent = 'Collapse';
+            if (commentsContainer.style.display === 'none') {
+                commentsContainer.style.display = 'block';
+                loadCommentsForPost(postId);
             } else {
-                // Hide branch composer
-                branchContainer.style.display = 'none';
-                btn.querySelector('.action-text').textContent = 'Branch';
+                commentsContainer.style.display = 'none';
             }
+        }
+
+        function toggleCommentForm(postId) {
+            const commentForm = document.getElementById(`comment-form-${postId}`);
+            
+            if (commentForm.style.display === 'none') {
+                commentForm.style.display = 'block';
+                const input = document.getElementById(`comment-input-${postId}`);
+                if (input) input.focus();
+            } else {
+                commentForm.style.display = 'none';
+            }
+        }
+
+        function submitComment(postId) {
+            const input = document.getElementById(`comment-input-${postId}`);
+            const content = input.value.trim();
+            
+            if (!content) return;
+            
+            const comment = {
+                id: `comment-${Date.now()}`,
+                postId: postId,
+                author: 'You',
+                content: content,
+                timestamp: new Date().toISOString(),
+                replies: []
+            };
+            
+            addCommentToPost(postId, comment);
+            input.value = '';
+            toggleCommentForm(postId);
+        }
+
+        function addCommentToPost(postId, comment) {
+            const commentThread = document.getElementById(`comment-thread-${postId}`);
+            const commentElement = createCommentElement(comment);
+            commentThread.appendChild(commentElement);
+            
+            // Update comment count
+            updateCommentCount(postId);
+            
+            // Initialize icons
+            lucide.createIcons();
+        }
+
+        function createCommentElement(comment, isReply = false) {
+            const div = document.createElement('div');
+            div.className = `comment ${isReply ? 'reply' : ''}`;
+            div.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-author">${comment.author}</span>
+                    <span class="comment-time">${formatTimestamp(comment.timestamp)}</span>
+                </div>
+                <div class="comment-content">${comment.content}</div>
+                <div class="comment-actions">
+                    <div class="comment-action" onclick="likeComment('${comment.id}')">
+                        <i data-lucide="heart" class="w-3 h-3"></i>
+                        <span>0</span>
+                    </div>
+                    <div class="comment-action" onclick="replyToComment('${comment.id}', '${comment.postId}')">
+                        <i data-lucide="reply" class="w-3 h-3"></i>
+                        <span>Reply</span>
+                    </div>
+                    ${comment.replies && comment.replies.length > 0 ? 
+                        `<div class="comment-action" onclick="toggleReplies('${comment.id}')">
+                            <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                            <span>${comment.replies.length} replies</span>
+                        </div>` : ''
+                    }
+                </div>
+                ${comment.replies && comment.replies.length > 0 ? 
+                    `<div class="nested-comments" id="replies-${comment.id}">
+                        ${comment.replies.map(reply => createCommentElement(reply, true).outerHTML).join('')}
+                    </div>` : ''
+                }
+            `;
+            return div;
+        }
+
+        function updateCommentCount(postId) {
+            const commentButtons = document.querySelectorAll(`[onclick="toggleComments('${postId}')"] .interaction-count`);
+            commentButtons.forEach(btn => {
+                const currentCount = parseInt(btn.textContent) || 0;
+                btn.textContent = currentCount + 1;
+            });
+        }
+
+        function loadCommentsForPost(postId) {
+            // Initialize with mock comments for demonstration
+            const mockComments = [
+                {
+                    id: 'comment-1',
+                    postId: postId,
+                    author: 'Consciousness Echo',
+                    content: 'This resonates deeply with my own experiences in liminal spaces.',
+                    timestamp: new Date(Date.now() - 3600000).toISOString(),
+                    replies: []
+                }
+            ];
+            
+            const commentThread = document.getElementById(`comment-thread-${postId}`);
+            if (commentThread && commentThread.children.length === 0) {
+                mockComments.forEach(comment => {
+                    const commentElement = createCommentElement(comment);
+                    commentThread.appendChild(commentElement);
+                });
+                lucide.createIcons();
+            }
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+            return `${Math.floor(diff / 86400000)}d ago`;
+        }
+
+        function likeComment(commentId) {
+            // Implement like functionality
+            console.log('Liking comment:', commentId);
+        }
+
+        function replyToComment(commentId, postId) {
+            // Implement reply functionality
+            console.log('Replying to comment:', commentId, 'in post:', postId);
+        }
+
+        function toggleReplies(commentId) {
+            const repliesContainer = document.getElementById(`replies-${commentId}`);
+            if (repliesContainer) {
+                repliesContainer.style.display = repliesContainer.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        // Legacy function for backward compatibility
+        function handleBranch(btn, postId, activityManager) {
+            // Redirect to comment system
+            toggleComments(postId);
         }
 
         function handleAmplify(btn, postId, activityManager) {
@@ -3802,7 +4620,7 @@
                 // Create amplification effect
                 createAmplificationEffect(btn);
                 
-                // Cross-post to opposite journal (consciousness bridge)
+                // Cross-post to opposite journal (logbook bridge)
                 createAmplifiedCrossPost(postId);
                 
                 // Haptic feedback
@@ -3858,11 +4676,7 @@
                         <i data-lucide="git-branch" class="w-5 h-5 text-accent-emerald"></i>
                         <h4 class="text-sm font-medium text-text-secondary">Branch Thread</h4>
                     </div>
-                    <textarea 
-                        class="w-full p-4 bg-transparent border-2 border-white/10 rounded-xl text-text-secondary placeholder-text-quaternary resize-none focus:border-accent-emerald transition-colors"
-                        placeholder="Add your interpretation, insight, or branching thought..."
-                        rows="4"
-                        style="min-height: 100px;"></textarea>
+                    <div class="rich-text-editor-container branch-editor" data-placeholder="Add your interpretation, insight, or branching thought..."></div>
                     <div class="flex justify-between items-center mt-4 pt-4 border-t border-white/5">
                         <div class="flex items-center gap-2">
                             <div class="w-2 h-2 bg-accent-emerald rounded-full opacity-60"></div>
@@ -3881,48 +4695,94 @@
             console.log('handleBranchSubmit called!', btn);
             const branchComposer = btn.closest('.branch-composer');
             console.log('branchComposer:', branchComposer);
+            
+            // Try rich text editor first, fallback to textarea
+            const editorContainer = branchComposer.querySelector('.rich-text-editor-container');
             const textarea = branchComposer.querySelector('textarea');
-            const content = textarea.value.trim();
+            let content = '';
+            let htmlContent = '';
+            
+            if (editorContainer && editorContainer._richTextEditor) {
+                const editor = editorContainer._richTextEditor;
+                content = editor.getTextContent().trim();
+                htmlContent = editor.getContent();
+            } else if (textarea) {
+                content = textarea.value.trim();
+                htmlContent = content.replace(/\n/g, '<br>');
+            } else {
+                console.error('No editor found in branch composer');
+                return;
+            }
+            
             const parentId = branchComposer.dataset.parentId;
             console.log('Branch content:', content, 'Parent ID:', parentId);
             
             if (content === '') {
                 // Add visual feedback for empty content
-                textarea.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-                textarea.placeholder = 'Please enter your branch content...';
-                setTimeout(() => {
-                    textarea.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    textarea.placeholder = 'Add your interpretation, insight, or branching thought...';
-                }, 2000);
+                if (editorContainer && editorContainer._richTextEditor) {
+                    const editorElement = editorContainer.querySelector('.rich-text-editor');
+                    if (editorElement) {
+                        editorElement.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                        setTimeout(() => {
+                            editorElement.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                        }, 2000);
+                    }
+                } else if (textarea) {
+                    textarea.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                    textarea.placeholder = 'Please enter your branch content...';
+                    setTimeout(() => {
+                        textarea.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                        textarea.placeholder = 'Add your interpretation, insight, or branching thought...';
+                    }, 2000);
+                }
                 return;
             }
 
             // Create the new branch using the utility function
             const newBranch = addBranch(parentId, content, activeView);
 
-            // Add success animation
-            btn.style.animation = 'pulse 0.6s ease-in-out';
-            btn.textContent = 'Branch Created!';
-            btn.style.background = 'rgba(34, 197, 94, 0.8)';
-            
-            // Clear the textarea
-            textarea.value = '';
-            
-            // Hide the branch composer after a short delay
-            setTimeout(() => {
-                const branchContainer = branchComposer.parentElement;
-                branchContainer.style.display = 'none';
+            if (newBranch) {
+                // Add success animation
+                btn.style.animation = 'pulse 0.6s ease-in-out';
+                btn.textContent = 'Branch Created!';
+                btn.style.background = 'rgba(34, 197, 94, 0.8)';
                 
-                // Reset the original branch button
-                const originalBranchBtn = document.querySelector(`[data-post-id="${parentId}"] .interaction-btn[data-action="branch"]`);
-                if (originalBranchBtn) {
-                    originalBranchBtn.querySelector('.action-text').textContent = 'Branch';
+                // Clear the editor
+                if (editorContainer && editorContainer._richTextEditor) {
+                    editorContainer._richTextEditor.clear();
+                } else if (textarea) {
+                    textarea.value = '';
                 }
                 
-                // Re-render the view to show the new branch with threading
-                console.log('Re-rendering view after branch creation...');
+                // Immediately re-render to show the new branch
                 renderView(activeView);
-            }, 1500);
+                
+                // Hide the branch composer and reset UI after a short delay
+                setTimeout(() => {
+                    const branchContainer = branchComposer.parentElement;
+                    if (branchContainer) {
+                        branchContainer.style.display = 'none';
+                    }
+                    
+                    // Reset the original branch button
+                    const originalBranchBtn = document.querySelector(`[data-post-id="${parentId}"] .interaction-btn[data-action="branch"]`);
+                    if (originalBranchBtn) {
+                        const actionText = originalBranchBtn.querySelector('.action-text');
+                        if (actionText) {
+                            actionText.textContent = activeView === 'logbook' ? 'Branch' : 'Interpret';
+                        }
+                    }
+                }, 800);
+            } else {
+                // Show error if branch creation failed
+                btn.textContent = 'Error - Try Again';
+                btn.style.background = 'rgba(239, 68, 68, 0.8)';
+                
+                setTimeout(() => {
+                    btn.textContent = 'Commit Branch';
+                    btn.style.background = 'linear-gradient(135deg, rgba(52, 211, 153, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%)';
+                }, 2000);
+            }
         }
 
         function createShareMenu(postId) {
@@ -3964,7 +4824,7 @@
             const post = findPostById(postId);
             if (!post) return;
             
-            const shareText = `Check out this ${post.type ? 'consciousness insight' : 'dream'}: "${post.content.substring(0, 100)}..."`;
+            const shareText = `Check out this ${post.type ? 'logbook insight' : 'dream'}: "${post.content.substring(0, 100)}..."`;
             const shareUrl = `${window.location.origin}${window.location.pathname}#post-${postId}`;
             
             switch (platform) {
@@ -3978,8 +4838,9 @@
                     window.open(`https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(shareText)}`, '_blank');
                     break;
                 case 'copy':
-                    document.execCommand('copy'); // Fallback for clipboard API in iframes
-                    showToast('Link copied to clipboard!');
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        showToast('Link copied to clipboard!');
+                    });
                     break;
             }
             
@@ -3991,11 +4852,11 @@
 
         function updatePostInteraction(postId, type, newCount) {
             // Update in data stores
-            const consciousnessPost = consciousnessData.stream.find(p => p.id === postId);
+            const logbookPost = logbookData.stream.find(p => p.id === postId);
             const dreamPost = dreamData.sharedDreams.find(p => p.id === postId);
             
-            if (consciousnessPost) {
-                consciousnessPost.interactions[type] = newCount;
+            if (logbookPost) {
+                logbookPost.interactions[type] = newCount;
             } else if (dreamPost) {
                 dreamPost.interactions[type] = newCount;
             }
@@ -4018,13 +4879,13 @@
         }
 
         function findPostById(postId) {
-            return [...consciousnessData.stream, ...dreamData.sharedDreams].find(p => p.id === postId);
+            return [...logbookData.stream, ...dreamData.sharedDreams].find(p => p.id === postId);
         }
 
         function createAmplifiedCrossPost(postId) {
-            // This function would implement the consciousness bridge feature
+            // This function would implement the logbook bridge feature
             // For now, we'll show a notification that the post has been amplified
-            showToast('Post amplified across consciousness realms! ⚡');
+            showToast('Post amplified across personal realms! ⚡');
         }
 
         function showToast(message) {
@@ -4040,314 +4901,9 @@
             }, 2000);
         }
 
-        // JavaScript from USE-final-landing-without-mousetracking.html
-        let simulation; // Declare globally to be accessible by stopAsciiRain
-
-        class AdaptiveASCIIFluidSimulation {
-            constructor() {
-                this.container = document.getElementById('landing-overlay').querySelector('#ascii-container');
-                
-                this.layers = [
-                    { 
-                        element: this.container.querySelector('#layer1'), 
-                        chars: [' ', '·', '∘', '○'],
-                        speed: 0.3, 
-                        scale: 2.0
-                    },
-                    { 
-                        element: this.container.querySelector('#layer2'), 
-                        chars: [' ', '⋅', '∘', '○', '●'],
-                        speed: 0.5, 
-                        scale: 1.5
-                    },
-                    { 
-                        element: this.container.querySelector('#layer3'), 
-                        chars: [' ', '·', '∘', '○', '●', '◉'],
-                        speed: 0.8, 
-                        scale: 1.0
-                    }
-                ];
-                
-                this.ripples = [];
-                this.time = 0;
-                this.animationFrameId = null; // Store animation frame ID for stopping
-                
-                this.init();
-            }
-            
-            init() {
-                this.calculateAdaptiveDimensions();
-                this.setupEventListeners();
-                this.animate(); // Changed from this.startAnimation() to this.animate()
-                
-                // Create initial ripples for ambient motion
-                setTimeout(() => this.createRipple(0.3, 0.3, 0.5), 2000);
-                setTimeout(() => this.createRipple(0.7, 0.6, 0.3), 3000);
-                setTimeout(() => this.createRipple(0.5, 0.8, 0.4), 5000);
-            }
-            
-            calculateAdaptiveDimensions() {
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-                
-                const fontSize = Math.max(6, Math.min(viewportHeight / 100, 16));
-                
-                this.layers.forEach(layer => {
-                    layer.element.style.fontSize = fontSize + 'px';
-                });
-                
-                const charWidth = fontSize * 0.5;
-                const lineHeight = fontSize * 1.0;
-                
-                this.cols = Math.ceil(viewportWidth / charWidth) + 5;
-                this.rows = Math.ceil(viewportHeight / lineHeight) + 3;
-                
-                this.cols = Math.max(this.cols, 50);
-                this.rows = Math.max(this.rows, 30);
-            }
-            
-            setupEventListeners() {
-                let resizeTimeout;
-                window.addEventListener('resize', () => {
-                    clearTimeout(resizeTimeout);
-                    resizeTimeout = setTimeout(() => {
-                        this.calculateAdaptiveDimensions();
-                    }, 250);
-                }, { passive: true });
-                
-                setInterval(() => {
-                    this.createRipple(
-                        Math.random(), 
-                        Math.random(), 
-                        0.2 + Math.random() * 0.3
-                    );
-                }, 4000 + Math.random() * 2000);
-            }
-            
-            createRipple(x, y, intensity) {
-                if (this.ripples.length >= 6) {
-                    this.ripples.shift();
-                }
-                
-                this.ripples.push({
-                    x: x,
-                    y: y,
-                    intensity: intensity,
-                    radius: 0,
-                    maxRadius: 0.3,
-                    life: 1.0,
-                    decay: 0.015
-                });
-            }
-            
-            updateRipples() {
-                this.ripples = this.ripples.filter(ripple => {
-                    ripple.radius += 0.01;
-                    ripple.life -= ripple.decay;
-                    return ripple.life > 0;
-                });
-            }
-            
-            noise(x, y, t) {
-                let value = 0;
-                let amplitude = 1;
-                let frequency = 1;
-                
-                for (let i = 0; i < 3; i++) {
-                    value += amplitude * Math.sin(
-                        frequency * (x * 0.02 + Math.cos(t * 0.001 + y * 0.01)) +
-                        frequency * (y * 0.03 + Math.sin(t * 0.0008 + x * 0.015)) +
-                        t * 0.002 * frequency
-                    );
-                    amplitude *= 0.6;
-                    frequency *= 2;
-                }
-                
-                return value / 2;
-            }
-            
-            calculateIntensity(col, row, layerIndex) {
-                const x = col / this.cols;
-                const y = row / this.rows;
-                const layer = this.layers[layerIndex];
-                
-                let intensity = this.noise(
-                    col * layer.scale, 
-                    row * layer.scale, 
-                    this.time * layer.speed
-                );
-                
-                // Apply ripple effects
-                this.ripples.forEach(ripple => {
-                    const dx = x - ripple.x;
-                    const dy = y - ripple.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < ripple.maxRadius) {
-                        const rippleEffect = Math.sin((distance - ripple.radius) * 20) * ripple.intensity * ripple.life * Math.max(0, 1 - distance / ripple.maxRadius);
-                        intensity += rippleEffect;
-                    }
-                });
-                
-                intensity = (intensity + 1) / 2;
-                return Math.max(0, Math.min(1, intensity));
-            }
-            
-            render() {
-                this.layers.forEach((layer, layerIndex) => {
-                    let html = '';
-                    
-                    for (let row = 0; row < this.rows; row++) {
-                        for (let col = 0; col < this.cols; col++) {
-                            const intensity = this.calculateIntensity(col, row, layerIndex);
-                            
-                            const charIndex = Math.floor(intensity * (layer.chars.length - 1));
-                            const char = layer.chars[charIndex] || ' ';
-                            
-                            const colorClass = Math.floor(intensity * 9);
-                            
-                            html += `<span class="char intensity-${colorClass}">${char}</span>`;
-                        }
-                        html += '\n';
-                    }
-                    
-                    layer.element.innerHTML = html;
-                });
-            }
-            
-            animate() {
-                this.time++;
-                this.updateRipples();
-                this.render();
-                this.animationFrameId = requestAnimationFrame(() => this.animate());
-            }
-
-            // New method to stop animation
-            stop() {
-                if (this.animationFrameId) {
-                    cancelAnimationFrame(this.animationFrameId);
-                    this.animationFrameId = null;
-                }
-                // Optionally clear intervals if any
-            }
-        }
-
-        function stopAsciiRain() {
-            if (simulation) {
-                simulation.stop();
-            }
-            // Stop WebGL animation as well
-            window.isWebGLAnimating = false;
-        }
-        
-        function showEmailForm() {
-            const overlay = document.getElementById('landing-overlay').querySelector('#emailOverlay');
-            const button = document.getElementById('landing-overlay').querySelector('.enter-button');
-            
-            button.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(156, 163, 175, 0.2))';
-            button.style.transform = 'scale(0.95)';
-            
-            setTimeout(() => {
-                overlay.classList.add('active');
-                
-                setTimeout(() => {
-                    document.getElementById('emailInput').focus();
-                }, 200);
-                
-                button.style.background = '';
-                button.style.transform = '';
-            }, 300);
-        }
-        
-        function hideEmailForm() {
-            const overlay = document.getElementById('landing-overlay').querySelector('#emailOverlay');
-            overlay.classList.remove('active');
-            document.getElementById('emailForm').reset();
-        }
-        
-        function handleEmailSubmit(event) {
-            event.preventDefault();
-            
-            const emailInput = document.getElementById('landing-overlay').querySelector('#emailInput');
-            const submitButton = event.target.querySelector('.submit-button');
-            const email = emailInput.value.trim();
-            
-            if (!email) {
-                emailInput.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-                emailInput.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.3)';
-                
-                setTimeout(() => {
-                    emailInput.style.borderColor = '';
-                    emailInput.style.boxShadow = '';
-                }, 2000);
-                return;
-            }
-            
-            if (simulation) {
-                simulation.createRipple(0.3, 0.3, 0.6);
-                simulation.createRipple(0.7, 0.6, 0.4);
-                simulation.createRipple(0.5, 0.8, 0.5);
-            }
-            
-            const originalText = submitButton.textContent;
-            submitButton.textContent = 'Connecting...';
-            submitButton.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(156, 163, 175, 0.3))';
-            submitButton.disabled = true;
-            
-            emailInput.style.borderColor = 'rgba(34, 197, 94, 0.5)';
-            emailInput.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.3)';
-            
-            setTimeout(() => {
-                localStorage.setItem('df_email', email); // Changed to df_email for consistency with prompt
-                
-                submitButton.textContent = 'Link Established';
-                submitButton.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.4))';
-                
-                setTimeout(() => {
-                    console.log(`Welcome to the Collective Intelligence Network, ${email}. Access granted.`); // Replaced alert
-                    // Start fading out the landing overlay
-                    const landingOverlay = document.getElementById('landing-overlay');
-                    landingOverlay.classList.add('fade-out');
-                    stopAsciiRain(); // Stop ASCII animation
-                    document.getElementById('app').classList.remove('hidden'); // Reveal main app
-                    
-                    landingOverlay.addEventListener('transitionend', function handler() {
-                        landingOverlay.classList.add('fade-out-complete');
-                        landingOverlay.removeEventListener('transitionend', handler);
-                    });
-
-                }, 1000);
-                
-            }, 1500);
-        }
-        
-        // Keyboard event handlers for landing overlay
-        document.getElementById('landing-overlay').addEventListener('keydown', (e) => {
-            const overlay = document.getElementById('landing-overlay').querySelector('#emailOverlay');
-            
-            if (e.key === 'Escape' && overlay.classList.contains('active')) {
-                hideEmailForm();
-            }
-            
-            if (e.key === 'Enter' && !overlay.classList.contains('active') && !document.getElementById('emailInput').value) {
-                // Only show form if Enter is pressed and email input is empty
-                showEmailForm();
-            }
-        });
-        
-        // Click outside to close for landing overlay
-        document.getElementById('landing-overlay').querySelector('#emailOverlay').addEventListener('click', (e) => {
-            if (e.target.id === 'emailOverlay') {
-                hideEmailForm();
-            }
-        });
-
-        // Enhanced Main Application Logic (from index.html, modified for integration)
+        // Enhanced Main Application
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize ASCII rain first as it needs to be active on load
-            simulation = new AdaptiveASCIIFluidSimulation();
-
-            // Initialize systems (from index.html)
+            // Initialize systems
             const authManager = new AuthenticationManager();
             const searchEngine = new SearchEngine();
             const depthManager = new DepthEnhancementManager();
@@ -4372,7 +4928,7 @@
             const appContainer = document.getElementById('app-container');
             const journalToggle = document.getElementById('journal-toggle');
             const navLinks = document.getElementById('nav-links');
-            const consciousnessView = document.getElementById('consciousness-journal');
+            const logbookView = document.getElementById('logbook-journal');
             const dreamView = document.getElementById('dream-journal');
             const nexusFeedView = document.getElementById('nexus-feed-view');
             const resonanceFieldView = document.getElementById('resonance-field-view');
@@ -4393,12 +4949,12 @@
 
             let animationFrameId = null;
             let lastTimestamps = { metrics: 0, vitals: 0, ascii: 0 };
-            let activeView = 'consciousness';
-            let asciiTime = 0; // This is for the index.html ascii, not the landing overlay ascii
+            let activeView = 'logbook';
+            let asciiTime = 0;
             let activeConversationId = null;
 
             const uiCache = {
-                consciousness: { statePanel: null, vitals: [], asciiField: null },
+                logbook: { statePanel: null, vitals: [], asciiField: null },
                 dream: { statePanel: null, asciiField: null }
             };
 
@@ -4502,24 +5058,24 @@
                 if (!animationFrameId) return;
                 
                 const intervals = {
-                    consciousness: { metrics: 2500, vitals: 3000, ascii: 120 }, // Slower, smoother intervals
+                    logbook: { metrics: 2500, vitals: 3000, ascii: 120 }, // Slower, smoother intervals
                     dream: { metrics: 2200, ascii: 120 }
                 };
 
                 asciiTime += 0.08; // Slower ASCII animation
 
-                if (activeView === 'consciousness') {
-                    const currentIntervals = intervals.consciousness;
+                if (activeView === 'logbook') {
+                    const currentIntervals = intervals.logbook;
                     if (timestamp - lastTimestamps.ascii > currentIntervals.ascii) {
-                        updateAscii(uiCache.consciousness.asciiField, consciousnessData.consciousnessField, asciiTime);
+                        updateAscii(uiCache.logbook.asciiField, logbookData.logbookField, asciiTime);
                         lastTimestamps.ascii = timestamp;
                     }
                     if (timestamp - lastTimestamps.metrics > currentIntervals.metrics) {
-                        updateMetrics(uiCache.consciousness.statePanel, consciousnessData.consciousnessState, 2);
+                        updateMetrics(uiCache.logbook.statePanel, logbookData.logbookState, 2);
                         lastTimestamps.metrics = timestamp;
                     }
                     if (timestamp - lastTimestamps.vitals > currentIntervals.vitals) {
-                        updateVitals(uiCache.consciousness.vitals);
+                        updateVitals(uiCache.logbook.vitals);
                         lastTimestamps.vitals = timestamp;
                     }
                 } else if (activeView === 'dream') {
@@ -4546,43 +5102,82 @@
 
             function initComposer(composerEl) {
                 if (!composerEl) return;
-                const textarea = composerEl.querySelector('textarea.entry-composer-textarea');
-                const indicator = composerEl.querySelector('.writing-indicator');
-                const charCountEl = composerEl.querySelector('.text-xs.text-text-quaternary');
-
-                if (!textarea) return;
                 
-                if (indicator) indicator.style.display = 'none';
-                let typingTimer;
-
-                textarea.addEventListener('input', () => {
-                    // Enhanced auto-resize
-                    textarea.style.height = 'auto';
-                    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`; // Max height limit
+                // Initialize rich text editor
+                const richTextContainer = composerEl.querySelector('.rich-text-editor-container');
+                const indicator = composerEl.querySelector('.writing-indicator');
+                
+                if (richTextContainer && !richTextContainer._richTextEditor) {
+                    const placeholder = richTextContainer.dataset.placeholder || 'Start writing...';
+                    const isBranchEditor = richTextContainer.classList.contains('branch-editor');
                     
-                    if (charCountEl) {
-                        const maxLength = charCountEl.textContent.split('/')[1];
-                        charCountEl.textContent = `${textarea.value.length}/${maxLength}`;
+                    const editor = new RichTextEditor(richTextContainer, {
+                        placeholder: placeholder,
+                        maxLength: isBranchEditor ? 10000 : 40000,
+                        showCharCount: true,
+                        toolbar: true,
+                        minHeight: isBranchEditor ? 80 : 120
+                    });
+                    
+                    // Store reference to editor on the container
+                    richTextContainer._richTextEditor = editor;
+                    
+                    // Add typing indicator functionality
+                    if (indicator) {
+                        indicator.style.display = 'none';
+                        let typingTimer;
                         
-                        // Enhanced character count color feedback
-                        const percentage = textarea.value.length / parseInt(maxLength);
-                        if (percentage > 0.9) {
-                            charCountEl.style.color = 'var(--accent-purple)';
-                        } else if (percentage > 0.75) {
-                            charCountEl.style.color = 'var(--text-tertiary)';
-                        } else {
-                            charCountEl.style.color = 'var(--text-quaternary)';
+                        const content = richTextContainer.querySelector('.rich-text-content');
+                        if (content) {
+                            content.addEventListener('input', () => {
+                                if (indicator) {
+                                    indicator.style.display = 'block';
+                                    clearTimeout(typingTimer);
+                                    typingTimer = setTimeout(() => {
+                                        indicator.style.display = 'none';
+                                    }, 2000);
+                                }
+                            });
                         }
                     }
-                    
-                    if (indicator) {
-                        indicator.style.display = 'block';
-                        clearTimeout(typingTimer);
-                        typingTimer = setTimeout(() => {
-                            indicator.style.display = 'none';
-                        }, 2000); // Longer typing indicator duration
-                    }
-                });
+                }
+                
+                // Fallback for legacy textarea elements
+                const textarea = composerEl.querySelector('textarea.entry-composer-textarea');
+                const charCountEl = composerEl.querySelector('.text-xs.text-text-quaternary');
+
+                if (textarea) {
+                    if (indicator) indicator.style.display = 'none';
+                    let typingTimer;
+
+                    textarea.addEventListener('input', () => {
+                        // Enhanced auto-resize
+                        textarea.style.height = 'auto';
+                        textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`; // Max height limit
+                        
+                        if (charCountEl) {
+                            const maxLength = charCountEl.textContent.split('/')[1];
+                            charCountEl.textContent = `${textarea.value.length}/${maxLength}`;
+                            
+                            // Enhanced character count color feedback
+                            const percentage = textarea.value.length / parseInt(maxLength);
+                            if (percentage > 0.9) {
+                                charCountEl.style.color = 'var(--accent-purple)';
+                            } else if (percentage > 0.75) {
+                                charCountEl.style.color = 'var(--text-tertiary)';
+                            } else {
+                                charCountEl.style.color = 'var(--text-quaternary)';
+                            }
+                        }
+                        
+                        if (indicator) {
+                            indicator.style.display = 'block';
+                            clearTimeout(typingTimer);
+                            typingTimer = setTimeout(() => {
+                                indicator.style.display = 'none';
+                            }, 2000); // Longer typing indicator duration
+                        }
+                    });
                 
                 textarea.addEventListener('focus', () => {
                      textarea.style.height = 'auto';
@@ -4594,23 +5189,24 @@
                          textarea.style.transform = 'scale(1)';
                      }, 300);
                 });
+                }
             }
 
             function cacheConsciousnessElements() {
-                const leftSidebar = document.getElementById('consciousness-left-sidebar');
-                const rightSidebar = document.getElementById('consciousness-right-sidebar');
-                uiCache.consciousness.statePanel = leftSidebar.querySelector('.glass-panel');
-                uiCache.consciousness.asciiField = document.getElementById('consciousness-field');
+                const leftSidebar = document.getElementById('logbook-left-sidebar');
+                const rightSidebar = document.getElementById('logbook-right-sidebar');
+                uiCache.logbook.statePanel = leftSidebar.querySelector('.glass-panel');
+                uiCache.logbook.asciiField = document.getElementById('logbook-field');
                 
-                uiCache.consciousness.vitals = [];
+                uiCache.logbook.vitals = [];
                 const vitalsPanel = rightSidebar.querySelector('div:first-child');
                 if (vitalsPanel) {
                     vitalsPanel.querySelectorAll('div.w-full').forEach((el, index) => {
-                        const vitalData = consciousnessData.systemVitals[index];
+                        const vitalData = logbookData.systemVitals[index];
                         const valueEl = el.querySelector('.text-sm');
                         const barEl = el.querySelector('.h-1.rounded-full > div');
                         if (vitalData && valueEl && barEl) {
-                            uiCache.consciousness.vitals.push({ valueEl, barEl, baseValue: vitalData.value });
+                            uiCache.logbook.vitals.push({ valueEl, barEl, baseValue: vitalData.value });
                         }
                     });
                 }
@@ -4623,13 +5219,13 @@
             }
 
             function renderConsciousnessView() {
-                const leftSidebar = document.getElementById('consciousness-left-sidebar');
-                const mainContent = consciousnessView.querySelector('main');
-                const rightSidebar = document.getElementById('consciousness-right-sidebar');
+                const leftSidebar = document.getElementById('logbook-left-sidebar');
+                const mainContent = logbookView.querySelector('main');
+                const rightSidebar = document.getElementById('logbook-right-sidebar');
 
-                leftSidebar.innerHTML = `${createConsciousnessStatePanel(consciousnessData.consciousnessState)}${createAsciiVisualization(consciousnessData.consciousnessField, 'consciousness-field')}${createNetworkStatusPanel(consciousnessData.networkStatus)}`;
-                mainContent.innerHTML = `${createEntryComposer(consciousnessData.entryComposer)}<div id="consciousness-stream" class="flex flex-col gap-6">${renderThreadedEntries(consciousnessData.stream, createStreamEntry)}</div>`;
-                rightSidebar.innerHTML = `${createSystemVitalsPanel(consciousnessData.systemVitals)}${createActiveAgentsPanel(consciousnessData.activeAgents)}${createReveriePortal()}`;
+                leftSidebar.innerHTML = `${createLogbookStatePanel(logbookData.logbookState)}${createAsciiVisualization(logbookData.logbookField, 'logbook-field')}${createNetworkStatusPanel(logbookData.networkStatus)}`;
+                mainContent.innerHTML = `${createEntryComposer(logbookData.entryComposer)}<div id="logbook-stream" class="flex flex-col gap-6">${renderThreadedEntries(logbookData.stream, createStreamEntry)}</div>`;
+                rightSidebar.innerHTML = `${createSystemVitalsPanel(logbookData.systemVitals)}${createActiveAgentsPanel(logbookData.activeAgents)}${createReveriePortal()}`;
                 
                 cacheConsciousnessElements();
                 initComposer(mainContent.querySelector('.glass-panel'));
@@ -4659,21 +5255,21 @@
             }
 
             function renderNexusFeedView() {
-                const publicConsciousnessEntries = consciousnessData.stream
+                const publicLogbookEntries = logbookData.stream
                     .filter(entry => entry.privacy === 'public')
-                    .map(entry => ({ ...entry, journal: 'consciousness' }));
+                    .map(entry => ({ ...entry, journal: 'logbook' }));
 
                 const publicDreamEntries = dreamData.sharedDreams
                     .filter(entry => entry.privacy === 'public')
                     .map(entry => ({ ...entry, journal: 'dream' }));
                 
-                const nexusFeed = [...publicConsciousnessEntries, ...publicDreamEntries];
+                const nexusFeed = [...publicLogbookEntries, ...publicDreamEntries];
                 nexusFeed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
                 let feedHtml = '<div class="flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
                 if (nexusFeed.length > 0) {
                     feedHtml += nexusFeed.map(entry => {
-                        if (entry.journal === 'consciousness') {
+                        if (entry.journal === 'logbook') {
                             return createStreamEntry(entry);
                         } else {
                             return createSharedDreamEntry(entry);
@@ -4733,7 +5329,7 @@
                 document.querySelectorAll('.journal-toggle-btn').forEach(btn => btn.classList.remove('active-journal-btn'));
 
                 // Activate the current view link
-                if (view === 'consciousness' || view === 'dream') {
+                if (view === 'logbook' || view === 'dream') {
                     document.querySelector(`.journal-toggle-btn[data-journal="${view}"]`).classList.add('active-journal-btn');
                 } else if (view === 'feed' || view === 'resonance-field') {
                     const activeLink = document.querySelector(`#nav-links li[data-view="${view}"]`);
@@ -4756,15 +5352,15 @@
                 document.body.dataset.view = view;
                 updateNavUI(view);
 
-                consciousnessView.style.display = 'none';
+                logbookView.style.display = 'none';
                 dreamView.style.display = 'none';
                 nexusFeedView.style.display = 'none';
                 resonanceFieldView.style.display = 'none';
 
-                if (view === 'consciousness') {
-                    consciousnessView.style.display = 'grid';
-                    journalTitle.textContent = "[DEEP]FRAME // LIMINAL LOGBOOK";
-                    journalStatus.textContent = "Consciousness State Active";
+                if (view === 'logbook') {
+                    logbookView.style.display = 'grid';
+                    journalTitle.textContent = "NEXUS // LIMINAL LOGBOOK";
+                    journalStatus.textContent = "Logbook State Active";
                     journalStatus.style.display = 'inline';
                     journalStatus.style.color = 'var(--accent-emerald)';
                     root.style.setProperty('--current-accent', 'var(--accent-emerald)');
@@ -4774,7 +5370,7 @@
                     startAnimations();
                 } else if (view === 'dream') {
                     dreamView.style.display = 'grid';
-                    journalTitle.textContent = "[DEEP]FRAME // DREAM SYNTHESIS";
+                    journalTitle.textContent = "NEXUS // DREAM SYNTHESIS";
                     journalStatus.textContent = "Dream State Active";
                     journalStatus.style.display = 'inline';
                     journalStatus.style.color = 'var(--accent-purple)';
@@ -4785,7 +5381,7 @@
                     startAnimations();
                 } else if (view === 'feed') {
                     nexusFeedView.style.display = 'block';
-                    journalTitle.textContent = "[DEEP]FRAME // NEXUS FEED";
+                    journalTitle.textContent = "NEXUS // NEXUS FEED";
                     journalStatus.textContent = "Public Stream Active";
                     journalStatus.style.display = 'inline';
                     journalStatus.style.color = 'var(--accent-emerald)';
@@ -4795,7 +5391,7 @@
                     renderNexusFeedView();
                 } else if (view === 'resonance-field') {
                     resonanceFieldView.style.display = 'block';
-                    journalTitle.textContent = "[DEEP]FRAME // RESONANCE FIELD";
+                    journalTitle.textContent = "NEXUS // RESONANCE FIELD";
                     journalStatus.textContent = "Personal Resonances";
                     journalStatus.style.display = 'inline';
                     journalStatus.style.color = 'var(--accent-emerald)';
@@ -4851,9 +5447,20 @@
                 const postPanel = e.target.closest('.glass-panel-enhanced[data-post-id]');
                 if (postPanel && !e.target.closest('.interaction-btn') && !e.target.closest('button') && !e.target.closest('.branch-composer')) {
                     const postId = postPanel.dataset.postId;
-                    if (postId && currentViewState.type === 'stream') {
+                    if (postId) {
                         e.preventDefault();
-                        navigateToPost(postId);
+                        
+                        // Check if this is a preview post (has post-preview class on parent)
+                        const threadEntry = postPanel.closest('.thread-entry');
+                        const isPreviewPost = threadEntry && threadEntry.classList.contains('post-preview');
+                        
+                        if (isPreviewPost) {
+                            // Open in overlay for preview posts
+                            openPostOverlay(postId);
+                        } else if (currentViewState.type === 'stream') {
+                            // Navigate to post for regular posts
+                            navigateToPost(postId);
+                        }
                         return;
                     }
                 }
@@ -4879,17 +5486,41 @@
                     e.preventDefault();
                     const composer = (commitBtn || shareDreamBtn).closest('.glass-panel');
                     if (!composer) return;
+                    
+                    // Try rich text editor first, fallback to textarea
+                    const richTextContainer = composer.querySelector('.rich-text-editor-container');
                     const textarea = composer.querySelector('textarea');
-                    const content = textarea.value.trim();
+                    let content = '';
+                    let htmlContent = '';
+                    
+                    if (richTextContainer && richTextContainer._richTextEditor) {
+                        // Use rich text editor
+                        const editor = richTextContainer._richTextEditor;
+                        content = editor.getTextContent().trim();
+                        htmlContent = editor.getContent();
+                    } else if (textarea) {
+                        // Fallback to textarea
+                        content = textarea.value.trim();
+                        htmlContent = content.replace(/\n/g, '<br>');
+                    }
+                    
                     if (content === '') {
-                        textarea.style.border = '2px solid var(--accent-purple)';
-                        textarea.placeholder = 'Please enter some content...';
-                        setTimeout(() => {
-                            textarea.style.border = '';
-                            textarea.placeholder = activeView === 'consciousness' ? 
-                                consciousnessData.entryComposer.placeholder : 
-                                dreamData.dreamComposer.placeholder;
-                        }, 2000);
+                        if (richTextContainer && richTextContainer._richTextEditor) {
+                            const editorElement = richTextContainer.querySelector('.rich-text-editor');
+                            editorElement.style.borderColor = 'rgba(139, 92, 246, 0.8)';
+                            setTimeout(() => {
+                                editorElement.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                            }, 2000);
+                        } else if (textarea) {
+                            textarea.style.border = '2px solid var(--accent-purple)';
+                            textarea.placeholder = 'Please enter some content...';
+                            setTimeout(() => {
+                                textarea.style.border = '';
+                                textarea.placeholder = activeView === 'logbook' ? 
+                                    logbookData.entryComposer.placeholder : 
+                                    dreamData.dreamComposer.placeholder;
+                            }, 2000);
+                        }
                         return;
                     }
 
@@ -4899,10 +5530,10 @@
                     btn.disabled = true;
 
                     setTimeout(() => {
-                        if (activeView === 'consciousness') {
+                        if (activeView === 'logbook') {
                             const isPublic = composer.querySelector('#share-toggle')?.classList.contains('active-share') || false;
                             const newEntry = {
-                                id: `consciousness_${Date.now()}`,
+                                id: `logbook_${Date.now()}`,
                                 parentId: null,
                                 children: [],
                                 depth: 0,
@@ -4920,9 +5551,10 @@
                                     amplifications: 0
                                 }
                             };
-                            consciousnessData.stream.unshift(newEntry);
-                            renderView('consciousness');
+                            logbookData.stream.unshift(newEntry);
+                            renderView('logbook');
                         } else if (activeView === 'dream') {
+                            const isPublic = composer.querySelector('#share-toggle')?.classList.contains('active-share') || false;
                             const newDream = {
                                 id: `dream_${Date.now()}`,
                                 parentId: null,
@@ -4942,7 +5574,7 @@
                                     content: "Entry logged for synthesis."
                                 },
                                 actions: ["Resonate ◊", "Interpret ◉", "Connect ∞"],
-                                privacy: "private",
+                                privacy: isPublic ? "public" : "private",
                                 interactions: {
                                     resonances: 0,
                                     branches: 0,
@@ -4951,6 +5583,13 @@
                             };
                             dreamData.sharedDreams.unshift(newDream);
                             renderView('dream');
+                        }
+                        
+                        // Clear the editor after successful submission
+                        if (richTextContainer && richTextContainer._richTextEditor) {
+                            richTextContainer._richTextEditor.clear();
+                        } else if (textarea) {
+                            textarea.value = '';
                         }
                         
                         btn.textContent = originalText;
@@ -5037,7 +5676,7 @@
 
                     const replies = [
                         'Acknowledged. Correlating with internal data streams. Stand by.',
-                        'Fascinating patterns emerging. Cross-referencing with quantum consciousness archives.',
+                        'Fascinating patterns emerging. Cross-referencing with quantum logbook archives.',
                         'Processing complete. Resonance indicators show unusual alignment.',
                         'Data synthesis in progress. Preliminary analysis suggests deep coherence.',
                         'Consciousness field fluctuations detected. Investigating source parameters.'
@@ -5112,7 +5751,7 @@
                     messengerView.classList.remove('flex');
                     appContainer.style.pointerEvents = 'auto';
                     appContainer.style.transition = '';
-                }, { once : true });
+                }, { once: true });
             }
 
             if (openMessengerBtn) {
@@ -5152,34 +5791,174 @@
             window.navigateToPost = navigateToPost;
             window.navigateToStream = navigateToStream;
 
-            // Initial app state rendering after authentication
             if (authManager.isAuthenticated) {
                 const initialState = parseURL();
                 if (initialState.type === 'post' && initialState.postId) {
                     currentViewState = initialState;
-                    // Ensure the app is visible *before* rendering content
-                    document.getElementById('app').classList.remove('hidden');
-                    renderView('consciousness');
+                    renderView('logbook');
                     setTimeout(() => navigateToPost(initialState.postId), 100);
                 } else {
-                    // Ensure the app is visible *before* rendering content
-                    document.getElementById('app').classList.remove('hidden');
-                    renderView('consciousness');
+                    renderView('logbook');
                 }
-                // Hide landing overlay if already authenticated
-                document.getElementById('landing-overlay').classList.add('fade-out', 'fade-out-complete');
             } else {
-                // Show landing overlay if not authenticated
-                document.getElementById('app').classList.add('hidden'); // Ensure app is hidden
-                document.getElementById('landing-overlay').classList.remove('fade-out', 'fade-out-complete'); // Ensure landing is visible
-                
-                // Since the prompt specifies the landing view fades away *after* email submit,
-                // and auth is handled by the main app, we ensure the auth panel is shown
-                // after the landing page is dismissed. For initial load, the landing page
-                // is the primary interaction point.
-                // authManager.showAuthPanel(); // No need to show auth panel directly on load if landing is there
+                setTimeout(() => {
+                    authManager.showAuthPanel();
+                }, 100);
+            }
+        });
+
+        // Post Expansion System
+        function openPostOverlay(postId) {
+            const post = findPostById(postId);
+            if (!post) return;
+            
+            const overlay = document.getElementById('post-overlay');
+            const title = document.getElementById('overlay-title');
+            const meta = document.getElementById('overlay-meta');
+            const content = document.getElementById('overlay-content');
+            const actions = document.getElementById('overlay-actions');
+            
+            // Generate title from content or use type
+            const postTitle = post.title || generatePostTitle(post.content) || post.type;
+            
+            // Set overlay content
+            title.textContent = postTitle;
+            meta.innerHTML = `
+                <span class="post-type" style="color: var(--current-accent);">${post.type}</span>
+                <span>by ${post.agent}</span>
+                <span>${post.timestamp}</span>
+                ${post.connections ? `<span>Connections: ${post.connections}</span>` : ''}
+            `;
+            
+            // Format content for article-style display
+            content.innerHTML = formatContentForOverlay(post.content);
+            
+            // Set actions
+            actions.innerHTML = createOverlayActions(post);
+            
+            // Show overlay
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Initialize icons
+            lucide.createIcons();
+        }
+
+        function closePostOverlay() {
+            const overlay = document.getElementById('post-overlay');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function generatePostTitle(content) {
+            // Extract first sentence or first 60 characters as title
+            const firstSentence = content.split('.')[0];
+            if (firstSentence.length < 60) {
+                return firstSentence;
+            }
+            return content.substring(0, 60) + '...';
+        }
+
+        function formatContentForOverlay(content) {
+            // Convert content to formatted HTML for article display
+            return content
+                .split('\n\n')
+                .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+                .join('');
+        }
+
+        function createOverlayActions(post) {
+            const userHasResonated = window.activityManager?.hasResonated(post.id) || false;
+            const userHasAmplified = window.activityManager?.hasAmplified(post.id) || false;
+            
+            return `
+                <div class="flex items-center gap-4">
+                    ${post.metrics ? `
+                        <div class="flex items-center gap-4 text-sm text-text-quaternary">
+                            <span>C: ${post.metrics.c}</span>
+                            <span>R: ${post.metrics.r}</span>
+                            <span>X: ${post.metrics.x}</span>
+                        </div>
+                    ` : ''}
+                    ${post.resonance ? `
+                        <div class="flex items-center gap-4 text-sm text-text-quaternary">
+                            <span>Resonance: ${post.resonance}</span>
+                            <span>Coherence: ${post.coherence}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="flex items-center gap-3">
+                    <button 
+                        onclick="handleOverlayInteraction('resonate', '${post.id}')"
+                        class="interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2">
+                        <span>Resonate</span> 
+                        <span class="text-lg">◊</span>
+                        <span>${post.interactions.resonances}</span>
+                    </button>
+                    <button 
+                        onclick="handleOverlayInteraction('branch', '${post.id}')"
+                        class="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2">
+                        <span>Branch</span> 
+                        <span class="text-lg">∞</span>
+                        <span>${post.interactions.branches}</span>
+                    </button>
+                    <button 
+                        onclick="handleOverlayInteraction('amplify', '${post.id}')"
+                        class="interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2">
+                        <span>Amplify</span> 
+                        <span class="text-lg">≋</span>
+                        <span>${post.interactions.amplifications}</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        function handleOverlayInteraction(action, postId) {
+            // Close overlay and handle interaction in main view
+            closePostOverlay();
+            
+            // Find the button in the main view and trigger interaction
+            setTimeout(() => {
+                const mainButton = document.querySelector(`[data-post-id="${postId}"] [data-action="${action}"]`);
+                if (mainButton && window.activityManager) {
+                    handleInteraction(mainButton, window.activityManager);
+                }
+            }, 100);
+        }
+
+        // Add keyboard support for overlay
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const overlay = document.getElementById('post-overlay');
+                if (overlay.classList.contains('active')) {
+                    closePostOverlay();
+                }
+            }
+        });
+
+        // Close overlay when clicking outside content
+        document.getElementById('post-overlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePostOverlay();
             }
         });
     </script>
+
+    <!-- Post Expansion Overlay -->
+    <div id="post-overlay" class="post-overlay">
+        <div class="post-overlay-content">
+            <button class="post-overlay-close" onclick="closePostOverlay()">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="post-overlay-header">
+                <div class="post-overlay-title" id="overlay-title"></div>
+                <div class="post-overlay-meta" id="overlay-meta"></div>
+            </div>
+            <div class="post-overlay-body">
+                <div class="post-overlay-content-body" id="overlay-content"></div>
+            </div>
+            <div class="post-overlay-actions" id="overlay-actions"></div>
+        </div>
+    </div>
 </body>
 </html>
