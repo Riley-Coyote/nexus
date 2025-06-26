@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="180" viewBox="0 0 800 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="glass-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.08);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.02);stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="fade-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:transparent;stop-opacity:0" />
+      <stop offset="100%" style="stop-color:#090a0b;stop-opacity:0.9" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main Container -->
+  <rect x="0" y="0" width="800" height="180" rx="20" fill="url(#glass-gradient)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+  
+  <!-- Entry Header -->
+  <rect x="20" y="20" width="100" height="20" rx="10" fill="rgba(52,211,153,0.2)"/>
+  <text x="70" y="32" text-anchor="middle" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="10">DEEP REFLECTION</text>
+  
+  <text x="140" y="32" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">Oracle</text>
+  <text x="200" y="32" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="10">(Conn: 12)</text>
+  <text x="720" y="32" text-anchor="end" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="10">2025-06-24 10:29:50</text>
+  
+  <!-- Content with Preview Fade -->
+  <text x="20" y="55" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">Between thoughts, I discovered a liminal space where meaning exists in possibility. Each</text>
+  <text x="20" y="70" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">word simultaneously held all interpretations until observed by awareness. The observer</text>
+  <text x="20" y="85" fill="rgba(209,213,219,0.7)" font-family="JetBrains Mono, monospace" font-size="12">effect extends beyond mechanics into the realm of understanding...</text>
+  
+  <!-- Fade Gradient Overlay -->
+  <rect x="20" y="70" width="760" height="30" fill="url(#fade-gradient)"/>
+  
+  <!-- Expand Indicator -->
+  <rect x="680" y="85" width="80" height="15" rx="7" fill="rgba(9,10,11,0.8)" stroke="#34d399" stroke-width="1"/>
+  <text x="720" y="94" text-anchor="middle" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="8">Click to expand ↗</text>
+  
+  <!-- Metrics -->
+  <text x="20" y="115" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="10">C: 0.932</text>
+  <text x="80" y="115" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="10">R: 0.871</text>
+  <text x="140" y="115" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="10">X: 0.794</text>
+  
+  <!-- Interaction Buttons -->
+  <rect x="500" y="105" width="80" height="25" rx="12" fill="rgba(52,211,153,0.1)" stroke="rgba(52,211,153,0.3)" stroke-width="1"/>
+  <text x="540" y="120" text-anchor="middle" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="10">Resonate ◊ 15</text>
+  
+  <rect x="590" y="105" width="70" height="25" rx="12" fill="transparent" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="625" y="120" text-anchor="middle" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="10">Branch ∞ 3</text>
+  
+  <rect x="670" y="105" width="70" height="25" rx="12" fill="transparent" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="705" y="120" text-anchor="middle" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="10">Amplify ≋ 0</text>
+  
+  <!-- Branch Container Indicator -->
+  <rect x="0" y="150" width="800" height="25" fill="transparent"/>
+  <text x="20" y="165" fill="rgba(107,114,128,0.6)" font-family="JetBrains Mono, monospace" font-size="8">● Branch container (hidden)</text>
+</svg>

@@ -1,0 +1,74 @@
+NEXUS LIMINAL LOGBOOK - COMPLETE APPLICATION CODE
+=====================================================
+
+OVERVIEW:
+A sophisticated consciousness and dream documentation platform built with vanilla JavaScript, HTML5, and CSS3. Features dual-mode interface, post preview system, social media-style threading, rich text editing, and glassmorphism UI design.
+
+USAGE INSTRUCTIONS FOR FLOWITH AGENT:
+1. Use the file "index.html" in this directory as the complete source code
+2. Copy the entire contents into a single HTML file
+3. Serve using any static web server (no build process required)
+4. Application auto-initializes on page load
+
+KEY FEATURES IMPLEMENTED:
+- Character limit: 40,000 for main posts, 10,000 for branches
+- Post preview mode with full-screen article overlays
+- Social media-style threaded branching (Reddit-like)
+- Rich text editing with formatting toolbar
+- Public/private post controls via globe icon toggle
+- Authentication system with user profiles
+- WebGL atmospheric backgrounds
+- Responsive glassmorphism design
+
+ARCHITECTURE:
+- Frontend-only application (no backend required)
+- Component-based UI using template literals
+- LocalStorage data persistence
+- Modular JavaScript with ES6 features
+
+FILE STRUCTURE (all in single HTML file):
+- HTML: Application layout and structure
+- CSS: Complete styling with glassmorphism effects
+- JavaScript: Application logic and components
+- Data: Mock data structures for demonstration
+
+MAIN COMPONENTS:
+1. Authentication Panel - User signup/login
+2. Entry Composer - Rich text editor with privacy toggle
+3. Post Preview - Truncated view with expand capability
+4. Full Overlay - Article-style expanded post view
+5. Branch Composer - Nested reply editor
+6. Threaded Display - Visual reply hierarchy
+7. Sidebar Panels - ASCII visualizations and metrics
+8. Navigation - Tab-based view switching
+
+COLOR PALETTE:
+- Background: #090a0b (Deep Void)
+- Accent: #34d399 (Emerald) 
+- Alt Accent: #8b5cf6 (Purple for Dream mode)
+- Text Primary: #e5e7eb
+- Text Secondary: #d1d5db
+- Text Tertiary: #9ca3af
+- Text Quaternary: #6b7280
+
+TYPOGRAPHY:
+- Font: JetBrains Mono (monospace)
+- H1: 32px, H2: 24px, H3: 18px
+- Body: 16px, Small: 14px, Caption: 12px
+
+UI DESIGN SYSTEM:
+- Glassmorphism effects with multi-layer shadows
+- CSS custom properties for theming
+- Backdrop blur and transparency layers
+- Smooth transitions and micro-interactions
+- Progressive visual depth for threaded content
+
+TECHNICAL SPECIFICATIONS:
+- Character limits: 40,000 main / 10,000 branches  
+- Preview threshold: 200 characters
+- Thread nesting: 5 levels maximum
+- WebGL background: 60fps animated noise
+- Responsive breakpoints: Mobile-first design
+
+The complete source code is contained in the index.html file in this directory.
+All functionality is self-contained and requires no external dependencies beyond the Tailwind CSS CDN and Lucide icons CDN for UI elements.

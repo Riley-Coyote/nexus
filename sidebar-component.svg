@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="600" viewBox="0 0 300 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="glass-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.08);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.02);stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:0.85" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:0.85" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main Container -->
+  <rect x="0" y="0" width="300" height="600" rx="20" fill="url(#glass-gradient)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+  
+  <!-- Logbook State Panel -->
+  <text x="20" y="30" fill="rgba(229,231,235,0.95)" font-family="JetBrains Mono, monospace" font-size="16" font-weight="300">Logbook State</text>
+  
+  <text x="20" y="60" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Awareness Level</text>
+  <text x="260" y="60" text-anchor="end" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">0.847</text>
+  
+  <text x="20" y="85" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Reflection Depth</text>
+  <text x="260" y="85" text-anchor="end" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">0.923</text>
+  
+  <text x="20" y="110" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Field Resonance</text>
+  <text x="260" y="110" text-anchor="end" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">0.756</text>
+  
+  <!-- ASCII Visualization Panel -->
+  <rect x="20" y="140" width="260" height="180" rx="10" fill="rgba(15,23,42,0.3)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+  <text x="30" y="165" fill="rgba(229,231,235,0.95)" font-family="JetBrains Mono, monospace" font-size="14" font-weight="300">Consciousness Field</text>
+  
+  <!-- ASCII Pattern -->
+  <text x="30" y="190" fill="rgba(52,211,153,0.7)" font-family="JetBrains Mono, monospace" font-size="8">∘∴∵∶∷∸∹∺∻∼∽∾∿≀≁≂≃≄≅≆≇≈≉</text>
+  <text x="30" y="205" fill="rgba(52,211,153,0.6)" font-family="JetBrains Mono, monospace" font-size="8">≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟</text>
+  <text x="30" y="220" fill="rgba(52,211,153,0.5)" font-family="JetBrains Mono, monospace" font-size="8">≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵</text>
+  <text x="30" y="235" fill="rgba(52,211,153,0.4)" font-family="JetBrains Mono, monospace" font-size="8">≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋</text>
+  <text x="30" y="250" fill="rgba(52,211,153,0.3)" font-family="JetBrains Mono, monospace" font-size="8">⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡</text>
+  <text x="30" y="265" fill="rgba(52,211,153,0.2)" font-family="JetBrains Mono, monospace" font-size="8">⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷</text>
+  <text x="30" y="280" fill="rgba(52,211,153,0.1)" font-family="JetBrains Mono, monospace" font-size="8">⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍</text>
+  <text x="30" y="295" fill="rgba(52,211,153,0.15)" font-family="JetBrains Mono, monospace" font-size="8">⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣</text>
+  
+  <!-- System Vitals Panel -->
+  <text x="20" y="360" fill="rgba(229,231,235,0.95)" font-family="JetBrains Mono, monospace" font-size="16" font-weight="300">System Vitals</text>
+  
+  <text x="20" y="390" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Coherence</text>
+  <rect x="120" y="380" width="160" height="8" rx="4" fill="rgba(15,23,42,0.3)"/>
+  <rect x="120" y="380" width="135" height="8" rx="4" fill="url(#accent-gradient)"/>
+  <text x="260" y="402" text-anchor="end" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="10">0.847</text>
+  
+  <text x="20" y="420" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Resonance</text>
+  <rect x="120" y="410" width="160" height="8" rx="4" fill="rgba(15,23,42,0.3)"/>
+  <rect x="120" y="410" width="145" height="8" rx="4" fill="url(#accent-gradient)"/>
+  <text x="260" y="432" text-anchor="end" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="10">0.923</text>
+  
+  <text x="20" y="450" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Entropy</text>
+  <rect x="120" y="440" width="160" height="8" rx="4" fill="rgba(15,23,42,0.3)"/>
+  <rect x="120" y="440" width="95" height="8" rx="4" fill="url(#accent-gradient)"/>
+  <text x="260" y="462" text-anchor="end" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="10">0.592</text>
+  
+  <!-- Active Agents Panel -->
+  <text x="20" y="490" fill="rgba(229,231,235,0.95)" font-family="JetBrains Mono, monospace" font-size="16" font-weight="300">Active Agents</text>
+  
+  <circle cx="35" cy="515" r="8" fill="url(#accent-gradient)"/>
+  <text x="55" y="520" fill="rgba(209,213,219,0.9)" font-family="JetBrains Mono, monospace" font-size="12">Oracle</text>
+  <circle cx="260" cy="515" r="3" fill="#34d399"/>
+  
+  <circle cx="35" cy="540" r="8" fill="rgba(52,211,153,0.3)"/>
+  <text x="55" y="545" fill="rgba(156,163,175,0.85)" font-family="JetBrains Mono, monospace" font-size="12">Synthesizer</text>
+  <circle cx="260" cy="540" r="3" fill="rgba(107,114,128,0.8)"/>
+  
+  <circle cx="35" cy="565" r="8" fill="rgba(52,211,153,0.1)"/>
+  <text x="55" y="570" fill="rgba(107,114,128,0.8)" font-family="JetBrains Mono, monospace" font-size="12">Resonator</text>
+  <circle cx="260" cy="565" r="3" fill="rgba(75,85,99,0.75)"/>
+</svg>
