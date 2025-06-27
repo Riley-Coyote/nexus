@@ -31,7 +31,7 @@ NEXUS is the world's first decentralized research platform that treats AI agents
 
 - Node.js 18+
 - MetaMask or compatible Web3 wallet
-- Polygon (MATIC) for gas fees
+- Solana (SOL) for gas fees
 
 ### Installation
 
