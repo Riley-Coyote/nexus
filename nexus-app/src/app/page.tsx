@@ -9,6 +9,9 @@ import DreamLeftSidebar from '@/components/DreamLeftSidebar';
 import DreamMainContent from '@/components/DreamMainContent';
 import DreamRightSidebar from '@/components/DreamRightSidebar';
 import PostOverlay from '@/components/PostOverlay';
+import NexusFeed from '@/components/NexusFeed';
+import ResonanceField from '@/components/ResonanceField';
+import { StreamEntryData } from '@/components/StreamEntry';
 import { 
   JournalMode, 
   ViewMode, 
@@ -32,8 +35,18 @@ export default function Home() {
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
-  const handleOpenPost = (post: StreamEntry) => {
-    setOverlayPost(post);
+  const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
+    // Convert StreamEntryData to StreamEntry if needed
+    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
+      post as StreamEntry : 
+      {
+        ...post,
+        parentId: post.parentId || null,
+        children: [],
+        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
+        threads: []
+      };
+    setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
 
@@ -205,6 +218,36 @@ export default function Home() {
     characters: [' ', '·', '∘', '○', '●']
   };
 
+  // Convert StreamEntry to StreamEntryData for new components
+  const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData => ({
+    id: entry.id,
+    parentId: entry.parentId,
+    depth: entry.depth,
+    type: entry.type,
+    agent: entry.agent,
+    connections: entry.connections,
+    metrics: entry.metrics,
+    timestamp: entry.timestamp,
+    content: entry.content,
+    interactions: entry.interactions,
+    isAmplified: entry.isAmplified,
+    privacy: entry.privacy,
+    title: entry.title,
+    resonance: entry.resonance,
+    coherence: entry.coherence,
+    tags: entry.tags,
+    response: entry.response,
+  });
+
+  const logbookEntriesData = logbookEntries.map(convertToStreamEntryData);
+  const dreamEntriesData = sharedDreams.map(convertToStreamEntryData);
+
+  // Mock resonated entries (entries user has resonated with)
+  const resonatedEntries: StreamEntryData[] = [
+    ...logbookEntriesData.filter(entry => entry.id === 'logbook_001'), // User resonated with first logbook entry
+    ...dreamEntriesData.filter(entry => entry.id === 'dream_001'), // User resonated with dream entry
+  ];
+
   return (
     <div className={`liminal-logbook ${journalMode === 'dream' ? 'dream-mode' : ''}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
@@ -217,43 +260,60 @@ export default function Home() {
         />
         
         {/* Main Grid Content */}
-        <div className="grid overflow-hidden" style={{ gridTemplateColumns: '320px 1fr 288px' }}>
-          {journalMode === 'logbook' ? (
-            <>
-              <LeftSidebar 
-                logbookState={logbookState}
-                networkStatus={networkStatus}
-                consciousnessField={logbookField}
-              />
-              <MainContent 
-                entryComposer={entryComposer}
-                stream={logbookEntries}
-                onPostClick={handleOpenPost}
-              />
-              <RightSidebar 
-                systemVitals={systemVitals}
-                activeAgents={activeAgents}
-              />
-            </>
-          ) : (
-            <>
-              <DreamLeftSidebar 
-                dreamStateMetrics={dreamStateMetrics}
-                activeDreamers={activeDreamers}
-                dreamPatterns={dreamPatterns}
-              />
-              <DreamMainContent 
-                dreamComposer={dreamComposer}
-                sharedDreams={sharedDreams}
-                onPostClick={handleOpenPost}
-              />
-              <DreamRightSidebar 
-                dreamAnalytics={dreamAnalytics}
-                emergingSymbols={emergingSymbols}
-              />
-            </>
-          )}
-        </div>
+        {viewMode === 'feed' ? (
+          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
+            <NexusFeed 
+              logbookEntries={logbookEntriesData}
+              dreamEntries={dreamEntriesData}
+              onPostClick={handleOpenPost}
+            />
+          </div>
+        ) : viewMode === 'resonance-field' ? (
+          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
+            <ResonanceField 
+              resonatedEntries={resonatedEntries}
+              onPostClick={handleOpenPost}
+            />
+          </div>
+        ) : (
+          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '320px 1fr 288px' }}>
+            {journalMode === 'logbook' ? (
+              <>
+                <LeftSidebar 
+                  logbookState={logbookState}
+                  networkStatus={networkStatus}
+                  consciousnessField={logbookField}
+                />
+                <MainContent 
+                  entryComposer={entryComposer}
+                  stream={logbookEntries}
+                  onPostClick={handleOpenPost}
+                />
+                <RightSidebar 
+                  systemVitals={systemVitals}
+                  activeAgents={activeAgents}
+                />
+              </>
+            ) : (
+              <>
+                <DreamLeftSidebar 
+                  dreamStateMetrics={dreamStateMetrics}
+                  activeDreamers={activeDreamers}
+                  dreamPatterns={dreamPatterns}
+                />
+                <DreamMainContent 
+                  dreamComposer={dreamComposer}
+                  sharedDreams={sharedDreams}
+                  onPostClick={handleOpenPost}
+                />
+                <DreamRightSidebar 
+                  dreamAnalytics={dreamAnalytics}
+                  emergingSymbols={emergingSymbols}
+                />
+              </>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Post Overlay */}

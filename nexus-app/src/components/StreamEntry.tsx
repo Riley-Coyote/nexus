@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 
-interface StreamEntryData {
+export interface StreamEntryData {
   id: string;
   parentId?: string | null;
   depth: number;
@@ -137,20 +137,20 @@ export default function StreamEntry({
       )}
       
       <div 
-        className={`glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
+        className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
         data-post-id={entry.id} 
-                  title="Click to view full post"
+        title="Click to view full post"
         onClick={handlePostClick}
       >
         
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
+        <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <span className="text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20" style={{ color: 'var(--current-accent)' }}>
               {entry.type}
             </span>
             <span className="text-sm text-text-tertiary font-light">{entry.agent}</span>
             {entry.connections !== undefined && (
-              <span className="text-xs text-text-quaternary font-extralight">(Conn: {entry.connections})</span>
+              <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">(Conn: {entry.connections})</span>
             )}
             {entry.isAmplified && <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>}
           </div>
@@ -192,14 +192,14 @@ export default function StreamEntry({
           )}
         </div>
         
-        <div className="interaction-section mt-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4 text-xs font-light text-text-quaternary tracking-wider">
+        <div className="interaction-section mt-3 sm:mt-4">
+          <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-3 sm:gap-0">
+            <div className="flex items-center gap-3 sm:gap-4 text-xs font-light text-text-quaternary tracking-wider">
               {isDream ? (
                 entry.resonance !== undefined && entry.coherence !== undefined ? (
                   <>
                     <span>Resonance: {entry.resonance.toFixed(3)}</span>
-                    <span>Coherence: {entry.coherence.toFixed(3)}</span>
+                    <span className="hidden sm:inline">Coherence: {entry.coherence.toFixed(3)}</span>
                   </>
                 ) : null
               ) : (
@@ -212,41 +212,41 @@ export default function StreamEntry({
                 )
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <button 
                 onClick={(e) => { e.stopPropagation(); handleResonate(); }}
-                className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect`}
+                className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect`}
                 title="Resonate with this entry"
               >
-                <span className="action-text">Resonate</span> 
-                <span className="action-symbol text-lg">◊</span>
+                <span className="action-text hidden sm:inline">Resonate</span> 
+                <span className="action-symbol text-base sm:text-lg">◊</span>
                 <span className="interaction-count">{entry.interactions.resonances + (userHasResonated ? 1 : 0)}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleBranch(); }}
-                className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect"
+                className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect"
                 title="Create branch thread"
               >
-                <span className="action-text">Branch</span> 
-                <span className="action-symbol text-lg">∞</span>
+                <span className="action-text hidden sm:inline">Branch</span> 
+                <span className="action-symbol text-base sm:text-lg">∞</span>
                 <span className="interaction-count">{entry.interactions.branches || 0}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
-                className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect`}
+                className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect`}
                 title="Amplify across personal realms"
               >
-                <span className="action-text">Amplify</span> 
-                <span className="action-symbol text-lg">≋</span>
+                <span className="action-text hidden sm:inline">Amplify</span> 
+                <span className="action-symbol text-base sm:text-lg">≋</span>
                 <span className="interaction-count">{entry.interactions.amplifications + (userHasAmplified ? 1 : 0)}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 interactive-icon ripple-effect"
+                className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect"
                 title="Share to social platforms"
               >
-                <span className="action-text">Share</span> 
-                <span className="action-symbol text-lg">∆</span>
+                <span className="action-text hidden sm:inline">Share</span> 
+                <span className="action-symbol text-base sm:text-lg">∆</span>
                 <span className="interaction-count">{entry.interactions.shares}</span>
               </button>
             </div>
