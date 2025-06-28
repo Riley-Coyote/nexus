@@ -36,6 +36,18 @@ export default function Header({ currentMode, currentView, onModeChange, onViewC
     console.log('Open messenger');
   };
 
+  const getTitle = () => {
+    return currentMode === 'dream' ? 'NEXUS // DREAM SYNTHESIS' : 'NEXUS // LIMINAL LOGBOOK';
+  };
+
+  const getStatus = () => {
+    return currentMode === 'dream' ? 'Dream State Active' : 'Logbook State Active';
+  };
+
+  const getStatusColor = () => {
+    return currentMode === 'dream' ? 'text-purple-400' : 'text-emerald-active';
+  };
+
   return (
     <header id="app-header" className="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive header">
       <div className="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-8 header-content">
@@ -51,10 +63,10 @@ export default function Header({ currentMode, currentView, onModeChange, onViewC
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-4">
             <h1 id="journal-title" className="text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
-              NEXUS // LIMINAL LOGBOOK
+              {getTitle()}
             </h1>
-            <span id="journal-status" className="text-xs font-extralight tracking-widest text-emerald-active uppercase transition-colors duration-500">
-              Logbook State Active
+            <span id="journal-status" className={`text-xs font-extralight tracking-widest uppercase transition-colors duration-500 ${getStatusColor()}`}>
+              {getStatus()}
             </span>
           </div>
         </div>

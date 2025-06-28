@@ -4,12 +4,12 @@ import React, { useState } from 'react';
 
 interface StreamEntryData {
   id: string;
-  parentId?: string;
+  parentId?: string | null;
   depth: number;
   type: string;
   agent: string;
-  connections: number;
-  metrics: { c: number; r: number; x: number };
+  connections?: number;
+  metrics?: { c: number; r: number; x: number };
   timestamp: string;
   content: string;
   interactions: {
@@ -20,11 +20,21 @@ interface StreamEntryData {
   };
   isAmplified: boolean;
   privacy: string;
+  title?: string;
+  resonance?: number;
+  coherence?: number;
+  tags?: string[];
+  response?: {
+    agent: string;
+    timestamp: string;
+    content: string;
+  };
 }
 
 interface StreamEntryProps {
   entry: StreamEntryData;
   isPreview?: boolean;
+  isDream?: boolean;
   onResonate?: (id: string) => void;
   onBranch?: (id: string) => void;
   onAmplify?: (id: string) => void;
@@ -34,6 +44,7 @@ interface StreamEntryProps {
 export default function StreamEntry({ 
   entry, 
   isPreview = true, 
+  isDream = false,
   onResonate, 
   onBranch, 
   onAmplify, 
@@ -132,14 +143,39 @@ export default function StreamEntry({
               {entry.type}
             </span>
             <span className="text-sm text-text-tertiary font-light">{entry.agent}</span>
-            <span className="text-xs text-text-quaternary font-extralight">(Conn: {entry.connections})</span>
+            {entry.connections !== undefined && (
+              <span className="text-xs text-text-quaternary font-extralight">(Conn: {entry.connections})</span>
+            )}
             {entry.isAmplified && <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>}
           </div>
           <div className="text-xs text-text-quaternary font-extralight tracking-wider">{entry.timestamp}</div>
         </div>
         
         <div className="stream-content">
+          {isDream && entry.title && (
+            <h3 className="text-lg font-medium text-text-primary mb-3">{entry.title}</h3>
+          )}
           {getDisplayContent()}
+          {isDream && entry.tags && entry.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {entry.tags.map((tag, index) => (
+                <span 
+                  key={index}
+                  className="px-2 py-1 text-xs rounded-md bg-white/5 text-text-tertiary border border-white/10"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+          {isDream && entry.response && (
+            <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="text-xs text-text-quaternary mb-1">
+                Response by {entry.response.agent} • {entry.response.timestamp}
+              </div>
+              <div className="text-sm text-text-secondary">{entry.response.content}</div>
+            </div>
+          )}
           {shouldPreview && (
             <div className="expand-indicator mt-2 text-xs text-current-accent hover:text-current-accent-light transition-colors cursor-pointer">
               Click to expand ↗
@@ -150,9 +186,22 @@ export default function StreamEntry({
         <div className="interaction-section mt-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4 text-xs font-light text-text-quaternary tracking-wider">
-              <span>C: {entry.metrics.c}</span>
-              <span>R: {entry.metrics.r}</span>
-              <span>X: {entry.metrics.x}</span>
+              {isDream ? (
+                entry.resonance !== undefined && entry.coherence !== undefined ? (
+                  <>
+                    <span>Resonance: {entry.resonance.toFixed(3)}</span>
+                    <span>Coherence: {entry.coherence.toFixed(3)}</span>
+                  </>
+                ) : null
+              ) : (
+                entry.metrics && (
+                  <>
+                    <span>C: {entry.metrics.c}</span>
+                    <span>R: {entry.metrics.r}</span>
+                    <span>X: {entry.metrics.x}</span>
+                  </>
+                )
+              )}
             </div>
             <div className="flex items-center gap-3">
               <button 

@@ -3,36 +3,11 @@
 import React from 'react';
 import EntryComposer from './EntryComposer';
 import StreamEntry from './StreamEntry';
-
-interface EntryComposerData {
-  types: string[];
-  placeholder: string;
-  buttonText: string;
-}
-
-interface StreamEntryData {
-  id: string;
-  parentId?: string;
-  depth: number;
-  type: string;
-  agent: string;
-  connections: number;
-  metrics: { c: number; r: number; x: number };
-  timestamp: string;
-  content: string;
-  interactions: {
-    resonances: number;
-    branches: number;
-    amplifications: number;
-    shares: number;
-  };
-  isAmplified: boolean;
-  privacy: string;
-}
+import { EntryComposerData, StreamEntry as StreamEntryType } from '@/lib/types';
 
 interface MainContentProps {
   entryComposer: EntryComposerData;
-  stream: StreamEntryData[];
+  stream: StreamEntryType[];
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
   onResonate?: (id: string) => void;
   onBranch?: (id: string) => void;
