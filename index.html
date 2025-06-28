@@ -3447,16 +3447,20 @@
         /* Mobile Layout Adjustments */
         @media (max-width: 767px) {
             /* Reset body and html for proper mobile viewport */
-            html, body {
+            html {
                 width: 100%;
                 height: 100%;
-                overflow-x: hidden;
+                overflow: hidden; /* Prevent html scrolling */
                 position: relative;
             }
             
             body {
+                width: 100%;
+                height: 100%;
                 padding: 0;
                 margin: 0;
+                overflow: hidden; /* Body doesn't scroll, main content does */
+                position: relative;
             }
             
             /* Fix WebGL canvas for mobile */
@@ -3510,6 +3514,9 @@
                 overflow: hidden;
                 display: flex;
                 flex-direction: column;
+                position: fixed;
+                top: 0;
+                left: 0;
             }
             
             /* Full-width main content */
@@ -6861,19 +6868,13 @@
                 // Enable GPU acceleration
                 document.body.style.transform = 'translateZ(0)';
                 
-                // Prevent bounce scroll on iOS
-                document.body.addEventListener('touchmove', (e) => {
-                    if (!e.target.closest('.scrollable')) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-                
-                // Add scrollable class to main content areas
-                document.querySelectorAll('.main-content, .sidebar-content, .messenger-container').forEach(el => {
+                // Add scrollable class to main content areas and feed
+                document.querySelectorAll('main, .main-content, #nexus-feed, .feed-container, .thread-container').forEach(el => {
                     el.classList.add('scrollable');
                     // Enable momentum scrolling on iOS
                     el.style.webkitOverflowScrolling = 'touch';
                     el.style.overflowScrolling = 'touch';
+                    el.style.overflowY = 'auto';
                 });
                 
                 // Adjust WebGL for mobile performance
@@ -7857,6 +7858,16 @@
                 if (mainLayout) {
                     mainLayout.style.display = 'block';
                     mainLayout.style.width = '100%';
+                    mainLayout.style.height = '100%';
+                    mainLayout.style.overflow = 'hidden';
+                }
+                
+                // Make sure the main content area is scrollable
+                const mainContent = document.querySelector('main');
+                if (mainContent) {
+                    mainContent.style.overflow = 'auto';
+                    mainContent.style.webkitOverflowScrolling = 'touch';
+                    mainContent.style.height = '100%';
                 }
             }
             
@@ -8510,7 +8521,9 @@
             }
         }
         
-        // Pull to Refresh Implementation
+        // Pull to Refresh Implementation (disabled for now to fix scrolling)
+        // Uncomment this section if you want pull-to-refresh functionality
+        /*
         let pullDistance = 0;
         let startY = 0;
         
@@ -8540,6 +8553,7 @@
             pullDistance = 0;
             startY = 0;
         });
+        */
         
         // Optimize scroll performance
         let scrollTimeout;
