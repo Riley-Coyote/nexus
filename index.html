@@ -3463,6 +3463,11 @@
                 position: relative;
             }
             
+            /* Ensure nothing creates invisible blocks */
+            body > *:not(#webgl-canvas):not(.mobile-bottom-nav):not(.mobile-compose-fab):not(main):not(.main-content):not(#app):not(.app-container) {
+                display: none !important;
+            }
+            
             /* Fix WebGL canvas for mobile */
             #webgl-canvas {
                 position: fixed !important;
@@ -3492,7 +3497,7 @@
                 justify-content: center;
             }
             
-            /* Hide ALL desktop elements */
+            /* Hide ALL desktop elements and potential overlays */
             #nav-links,
             .control-panel,
             .glass-sidebar,
@@ -3501,7 +3506,14 @@
             #dream-left-sidebar,
             #dream-right-sidebar,
             .sidebar,
-            .desktop-only {
+            .desktop-only,
+            .overlay:not(.active),
+            .modal:not(.active) {
+                display: none !important;
+            }
+            
+            /* Ensure auth panel doesn't block when hidden */
+            .auth-panel:not(.visible) {
                 display: none !important;
             }
             
@@ -3534,21 +3546,30 @@
             
             /* Main content area */
             main, .main-content {
-                flex: 1 !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: calc(60px + env(safe-area-inset-bottom)) !important;
                 width: 100% !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
-                padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important;
             }
             
             /* Feed container */
             #nexus-feed, .feed-container, .thread-container {
                 width: 100% !important;
                 padding: 0.5rem !important;
+                padding-top: 1rem !important; /* Small top padding for status bar */
                 margin: 0 !important;
+            }
+            
+            /* Ensure no gaps at top of feed */
+            .thread-container > *:first-child {
+                margin-top: 0 !important;
             }
             
             /* Ensure feed view is full width */
@@ -3567,38 +3588,15 @@
                 width: 100% !important;
             }
             
-            /* Header adjustments */
-            .glass-header {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 56px;
-                width: 100%;
-                z-index: 50;
-                padding-top: env(safe-area-inset-top);
+            /* Hide header on mobile - cleaner look */
+            .glass-header, header {
+                display: none !important;
             }
             
-            .header-content {
-                padding: 0 1rem;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-            
-            #journal-title {
-                font-size: 1.125rem;
-                letter-spacing: 0.05em;
-            }
-            
-            #journal-status {
-                display: none;
-            }
-            
-            /* Account for fixed header */
+            /* Remove all top padding/margin */
             main, .main-content {
-                padding-top: calc(56px + env(safe-area-inset-top)) !important;
+                padding-top: 0 !important;
+                margin-top: 0 !important;
             }
             
             /* Post card adjustments */
