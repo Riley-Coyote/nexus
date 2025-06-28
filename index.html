@@ -3107,23 +3107,6 @@
             }
         }
         
-        /* Fix for blank mobile screen - ensure content is visible */
-        @media (max-width: 767px) {
-            /* Force app container to be visible */
-            #app-container {
-                opacity: 1 !important;
-                visibility: visible !important;
-                display: block !important;
-                position: relative !important;
-                z-index: 1 !important;
-            }
-            
-            /* Ensure canvas doesn't block content */
-            #webgl-canvas {
-                z-index: 0 !important;
-                pointer-events: none !important;
-            }
-        }
         
         /* Enhanced Mobile Styles for World-Class Performance */
         @media (max-width: 768px) {
@@ -3601,47 +3584,14 @@
                 display: block !important;
             }
             
-            /* CRITICAL: Ensure nexus-feed-view is visible on mobile */
-            #nexus-feed-view {
-                display: none; /* Will be overridden when active */
-            }
-            
-            #nexus-feed-view:not(.hidden) {
-                display: block !important;
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 60px !important; /* Space for bottom nav */
-                width: 100% !important;
-                height: auto !important;
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                -webkit-overflow-scrolling: touch !important;
-                z-index: 1 !important;
-                background: transparent !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            
-            /* Same for resonance field view */
-            #resonance-field-view:not(.hidden) {
-                display: block !important;
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 60px !important;
-                width: 100% !important;
-                overflow-y: auto !important;
-                -webkit-overflow-scrolling: touch !important;
-                z-index: 1 !important;
-            }
-            
-            /* Hide other journal views on mobile */
-            #logbook-journal,
-            #dream-journal {
+            /* Hide view containers that aren't active */
+            .view-container {
                 display: none !important;
+            }
+            
+            .view-container.active {
+                display: block !important;
+                width: 100% !important;
             }
             
             /* Hide header on mobile - cleaner look */
@@ -4475,35 +4425,7 @@
                 
                 // Navigate to nexus feed
                 setTimeout(() => {
-                    console.log('Navigating to feed after login');
-                    if (typeof renderView === 'function') {
-                        renderView('feed');
-                        
-                        // Extra check for mobile
-                        if (window.innerWidth <= 767) {
-                            setTimeout(() => {
-                                const feedView = document.getElementById('nexus-feed-view');
-                                if (feedView) {
-                                    console.log('Ensuring feed is visible on mobile');
-                                    feedView.style.display = 'block';
-                                    feedView.style.visibility = 'visible';
-                                    feedView.classList.remove('hidden');
-                                    
-                                    // Force re-render if content is empty
-                                    const feedContent = document.getElementById('nexus-feed');
-                                    if (!feedContent || feedContent.innerHTML.trim() === '') {
-                                        console.log('Feed empty, forcing re-render');
-                                        renderNexusFeedView();
-                                    }
-                                }
-                            }, 200);
-                        }
-                    } else {
-                        const feedButton = document.querySelector('[data-view="feed"]');
-                        if (feedButton) {
-                            feedButton.click();
-                        }
-                    }
+                    renderView('feed');
                 }, 100);
             }
 
@@ -4692,37 +4614,8 @@
                 this.hideAuthPanel();
                 this.updateUI();
 
-                // Navigate to nexus feed  
                 setTimeout(() => {
-                    console.log('Navigating to feed after signup');
-                    if (typeof renderView === 'function') {
-                        renderView('feed');
-                        
-                        // Extra check for mobile
-                        if (window.innerWidth <= 767) {
-                            setTimeout(() => {
-                                const feedView = document.getElementById('nexus-feed-view');
-                                if (feedView) {
-                                    console.log('Ensuring feed is visible on mobile after signup');
-                                    feedView.style.display = 'block';
-                                    feedView.style.visibility = 'visible';
-                                    feedView.classList.remove('hidden');
-                                    
-                                    // Force re-render if content is empty
-                                    const feedContent = document.getElementById('nexus-feed');
-                                    if (!feedContent || feedContent.innerHTML.trim() === '') {
-                                        console.log('Feed empty, forcing re-render');
-                                        renderNexusFeedView();
-                                    }
-                                }
-                            }, 200);
-                        }
-                    } else {
-                        const feedButton = document.querySelector('[data-view="feed"]');
-                        if (feedButton) {
-                            feedButton.click();
-                        }
-                    }
+                    renderView('feed');
                 }, 100);
             }
 
@@ -7380,12 +7273,6 @@
             }
 
             function renderNexusFeedView() {
-                // First, ensure we have the nexusFeedView element
-                if (!nexusFeedView) {
-                    console.error('Nexus feed view not found');
-                    return;
-                }
-                
                 const publicLogbookEntries = logbookData.stream
                     .filter(entry => entry.privacy === 'public')
                     .map(entry => ({ ...entry, journal: 'logbook' }));
@@ -7397,7 +7284,7 @@
                 const nexusFeed = [...publicLogbookEntries, ...publicDreamEntries];
                 nexusFeed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-                let feedHtml = '<div id="nexus-feed" class="thread-container flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
+                let feedHtml = '<div class="thread-container flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
                 if (nexusFeed.length > 0) {
                     feedHtml += nexusFeed.map(entry => {
                         if (entry.journal === 'logbook') {
@@ -7411,34 +7298,12 @@
                 }
                 feedHtml += '</div>';
                 
-                // Update the nexus feed view
                 nexusFeedView.innerHTML = feedHtml;
-                
-                // Mobile-specific scroll fix
-                if (window.innerWidth <= 767) {
-                    // Ensure the feed view is scrollable
-                    nexusFeedView.style.overflow = 'auto';
-                    nexusFeedView.style.webkitOverflowScrolling = 'touch';
-                    nexusFeedView.style.height = '100%';
-                    nexusFeedView.style.position = 'relative';
-                    
-                    // Also ensure the feed container is scrollable
-                    const feedContainer = document.getElementById('nexus-feed');
-                    if (feedContainer) {
-                        feedContainer.style.overflow = 'visible';
-                        feedContainer.style.height = 'auto';
-                    }
-                }
                 
                 // Re-initialize depth manager for new elements
                 if (window.depthManager) {
                     window.depthManager.setupDepthResponsiveElements();
                 }
-                
-                // Re-initialize icons
-                setTimeout(() => {
-                    lucide.createIcons();
-                }, 100);
             }
 
             function renderResonanceFieldView() {
@@ -7496,10 +7361,7 @@
             }
             
             function renderView(view) {
-                console.log('renderView called with:', view);
-                
                 if (!authManager.isAuthenticated) {
-                    console.log('User not authenticated, showing auth panel');
                     authManager.showAuthPanel();
                     return;
                 }
@@ -7537,40 +7399,7 @@
                     renderDreamView();
                     startAnimations();
                 } else if (view === 'feed') {
-                    console.log('Rendering feed view');
                     nexusFeedView.style.display = 'block';
-                    nexusFeedView.classList.remove('hidden');
-                    
-                    // Mobile-specific fixes
-                    if (window.innerWidth <= 767) {
-                        console.log('Applying mobile-specific styles to feed view');
-                        // Force visibility
-                        nexusFeedView.style.visibility = 'visible';
-                        nexusFeedView.style.opacity = '1';
-                        
-                        // Ensure it's on top of everything except bottom nav
-                        nexusFeedView.style.position = 'fixed';
-                        nexusFeedView.style.top = '0';
-                        nexusFeedView.style.left = '0';
-                        nexusFeedView.style.right = '0';
-                        nexusFeedView.style.bottom = '60px'; // Space for bottom nav
-                        nexusFeedView.style.width = '100%';
-                        nexusFeedView.style.height = 'auto';
-                        nexusFeedView.style.overflow = 'auto';
-                        nexusFeedView.style.overflowY = 'auto';
-                        nexusFeedView.style.overflowX = 'hidden';
-                        nexusFeedView.style.webkitOverflowScrolling = 'touch';
-                        nexusFeedView.style.zIndex = '10';
-                        nexusFeedView.style.background = 'transparent';
-                        nexusFeedView.style.padding = '0';
-                        nexusFeedView.style.margin = '0';
-                        
-                        // Hide the desktop grid layout container
-                        const mainLayout = document.querySelector('.main-layout');
-                        if (mainLayout) {
-                            mainLayout.style.display = 'none';
-                        }
-                    }
                     
                     journalTitle.textContent = "NEXUS // NEXUS FEED";
                     journalStatus.textContent = "Public Stream Active";
@@ -7591,10 +7420,6 @@
                     root.style.setProperty('--current-accent-light', 'var(--accent-emerald-light)');
                     renderResonanceFieldView();
                 }
-                
-                // Log the final state
-                console.log('Feed view display:', nexusFeedView.style.display);
-                console.log('Feed view HTML length:', nexusFeedView.innerHTML.length);
                 
                 setTimeout(() => {
                     lucide.createIcons();
@@ -8054,34 +7879,7 @@
                     renderView('feed');
                     setTimeout(() => navigateToPost(initialState.postId), 100);
                 } else {
-                    // Always render feed on mobile after auth
-                    console.log('User authenticated, rendering feed view');
-                    setTimeout(() => {
-                        renderView('feed');
-                        
-                        // Extra check for mobile to ensure content is visible
-                        if (window.innerWidth <= 767) {
-                            const feedView = document.getElementById('nexus-feed-view');
-                            if (feedView) {
-                                feedView.style.display = 'block';
-                                feedView.style.visibility = 'visible';
-                                feedView.style.opacity = '1';
-                                feedView.style.position = 'absolute';
-                                feedView.style.top = '0';
-                                feedView.style.left = '0';
-                                feedView.style.right = '0';
-                                feedView.style.bottom = '60px';
-                                feedView.style.overflow = 'auto';
-                                feedView.style.webkitOverflowScrolling = 'touch';
-                                
-                                const feedContent = document.getElementById('nexus-feed');
-                                if (feedContent && feedContent.innerHTML.trim() === '') {
-                                    console.log('Feed empty, re-rendering...');
-                                    renderNexusFeedView();
-                                }
-                            }
-                        }
-                    }, 200);
+                    renderView('feed');
                 }
             } else {
                 setTimeout(() => {
