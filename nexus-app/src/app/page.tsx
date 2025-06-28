@@ -187,7 +187,7 @@ export default function Home() {
 
   return (
     <div className="liminal-logbook">
-      <div className="grid grid-cols-1 h-screen overflow-hidden">
+      <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 
           currentMode={journalMode}
@@ -197,7 +197,7 @@ export default function Home() {
         />
         
         {/* Main Grid Content */}
-        <div className="grid h-full overflow-hidden" style={{ gridTemplateColumns: '320px 1fr 288px' }}>
+        <div className="grid overflow-hidden" style={{ gridTemplateColumns: '320px 1fr 288px' }}>
           {journalMode === 'logbook' ? (
             <>
               <LeftSidebar 
