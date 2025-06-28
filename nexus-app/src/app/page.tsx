@@ -29,7 +29,7 @@ import {
 
 export default function Home() {
   const [journalMode, setJournalMode] = useState<JournalMode>('logbook');
-  const [viewMode, setViewMode] = useState<ViewMode>('feed');
+  const [viewMode, setViewMode] = useState<ViewMode>('default');
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
@@ -58,6 +58,12 @@ export default function Home() {
   const handlePostInteraction = (action: string, postId: string) => {
     // Handle post interactions (resonate, amplify, etc.)
     console.log(`${action} interaction on post ${postId}`);
+  };
+
+  const handleModeChange = (mode: JournalMode) => {
+    setJournalMode(mode);
+    // When switching to Logbook or Dream, return to default view
+    setViewMode('default');
   };
 
   // Logbook data
@@ -255,7 +261,7 @@ export default function Home() {
         <Header 
           currentMode={journalMode}
           currentView={viewMode}
-          onModeChange={setJournalMode}
+          onModeChange={handleModeChange}
           onViewChange={setViewMode}
         />
         

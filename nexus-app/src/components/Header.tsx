@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Search, MessageSquare, User, Menu } from 'lucide-react';
 
 type JournalMode = 'logbook' | 'dream';
-type ViewMode = 'feed' | 'resonance-field';
+type ViewMode = 'feed' | 'resonance-field' | 'default';
 
 interface HeaderProps {
   currentMode: JournalMode;
@@ -155,14 +155,22 @@ export default function Header({ currentMode, currentView, onModeChange, onViewC
           <div id="journal-toggle" className="flex items-center gap-2 p-1 rounded-lg bg-black/20">
             <button 
               data-journal="logbook" 
-              className={`journal-toggle-btn ${currentMode === 'logbook' ? 'active-journal-btn' : ''} ripple-effect`}
+              className={`journal-toggle-btn ${
+                currentView === 'default' && currentMode === 'logbook' 
+                  ? 'active-journal-btn' 
+                  : ''
+              } ripple-effect`}
               onClick={() => onModeChange('logbook')}
             >
               Logbook
             </button>
             <button 
               data-journal="dream" 
-              className={`journal-toggle-btn ${currentMode === 'dream' ? 'active-journal-btn' : ''} ripple-effect`}
+              className={`journal-toggle-btn ${
+                currentView === 'default' && currentMode === 'dream' 
+                  ? 'active-journal-btn' 
+                  : ''
+              } ripple-effect`}
               onClick={() => onModeChange('dream')}
             >
               Dream
