@@ -41,6 +41,8 @@
             let vh = window.innerHeight * 0.01;
             document.documentElement.style.setProperty('--vh', `${vh}px`);
         }
+        window.addEventListener('load', setViewportHeight);
+        window.addEventListener('resize', setViewportHeight);
         // Run on initial load
         window.addEventListener('load', setViewportHeight);
         // Run on resize (covers orientation change and browser UI appearing/disappearing)
