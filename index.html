@@ -2572,8 +2572,10 @@
 
         /* Mobile Responsive Updates */
         @media (max-width: 768px) {
-            /* Hide desktop navigation */
-            #nav-links {
+            /* Hide desktop navigation and header */
+            #nav-links,
+            #app-header,
+            .glass-header {
                 display: none;
             }
 
@@ -2967,6 +2969,13 @@
 
         /* Portrait mobile orientation - CRITICAL FIX */
         @media (max-width: 768px) and (orientation: portrait) {
+            /* Hide the desktop header that's blocking the feed */
+            #app-header,
+            .glass-header,
+            .header {
+                display: none !important;
+            }
+            
             /* Force feed to be visible in portrait */
             #nexus-feed-view:not(.hidden) {
                 display: block !important;
@@ -2983,6 +2992,7 @@
                 z-index: 10 !important;
                 background: transparent !important;
                 padding: 1rem !important;
+                padding-top: env(safe-area-inset-top, 1rem) !important;
                 margin: 0 !important;
                 visibility: visible !important;
                 opacity: 1 !important;
@@ -3011,6 +3021,12 @@
         
         /* Landscape mobile orientation */
         @media (max-width: 768px) and (orientation: landscape) {
+            /* Hide the desktop header in landscape too */
+            #app-header,
+            .glass-header {
+                display: none !important;
+            }
+            
             /* Force feed to be visible in landscape */
             #nexus-feed-view:not(.hidden) {
                 display: block !important;
@@ -3027,6 +3043,7 @@
                 z-index: 10 !important;
                 background: transparent !important;
                 padding: 0.5rem !important;
+                padding-top: env(safe-area-inset-top, 0.5rem) !important;
                 margin: 0 !important;
                 visibility: visible !important;
                 opacity: 1 !important;
@@ -3034,6 +3051,7 @@
             
             .mobile-bottom-nav {
                 height: 60px;
+                z-index: 999 !important;
             }
 
             .header {
@@ -3044,6 +3062,31 @@
 
             .main-content {
                 padding-bottom: 60px;
+            }
+        }
+
+        /* Additional mobile fixes for feed visibility */
+        @media (max-width: 768px) {
+            /* Ensure feed container fills the screen */
+            #nexus-feed-view {
+                position: fixed !important;
+                inset: 0 !important;
+                padding-bottom: 80px !important;
+                z-index: 1 !important;
+            }
+            
+            /* Remove any element that could block the feed */
+            .header-spacer,
+            .top-spacer,
+            [class*="header"],
+            [id*="header"] {
+                display: none !important;
+            }
+            
+            /* Ensure feed content starts from the top */
+            #nexus-feed-view > * {
+                margin-top: 0 !important;
+                padding-top: env(safe-area-inset-top, 20px) !important;
             }
         }
 
