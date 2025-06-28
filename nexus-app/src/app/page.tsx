@@ -186,7 +186,7 @@ export default function Home() {
   };
 
   return (
-    <div className="liminal-logbook">
+    <div className={`liminal-logbook ${journalMode === 'dream' ? 'dream-mode' : ''}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 

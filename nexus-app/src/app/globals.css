@@ -14,16 +14,18 @@
 
             /* Accent Colors */
             --accent-emerald: rgba(52, 211, 153, 0.85);
-            --accent-emerald-dark: rgba(5, 150, 105, 0.85);
-            --accent-emerald-light: rgba(110, 231, 183, 0.9);
+            --accent-emerald-dark: rgba(16, 185, 129, 0.85);
+            --accent-emerald-light: rgba(167, 243, 208, 0.9);
             
             --accent-purple: rgba(139, 92, 246, 0.85);
             --accent-purple-dark: rgba(109, 40, 217, 0.85);
             --accent-purple-light: rgba(196, 181, 253, 0.9);
             
+            /* Dynamic Current Accent (defaults to emerald for logbook) */
             --current-accent: var(--accent-emerald);
             --current-accent-dark: var(--accent-emerald-dark);
             --current-accent-light: var(--accent-emerald-light);
+            --current-accent-rgb: 52, 211, 153;
 
             /* Enhanced Multi-Layered Shadow System */
             --shadow-ambient: 0 2px 8px rgba(0,0,0,0.05);
@@ -3248,4 +3250,29 @@
             font-size: 11px;
             min-width: 80px;
           }
+        }
+
+        /* Dream Mode Styling */
+        .liminal-logbook.dream-mode {
+          --current-accent: var(--accent-purple);
+          --current-accent-dark: var(--accent-purple-dark);
+          --current-accent-light: var(--accent-purple-light);
+          --current-accent-rgb: 139, 92, 246;
+        }
+
+        /* Dream state metrics purple styling */
+        .dream-state-metrics .metric-value {
+          color: var(--accent-purple) !important;
+        }
+
+        .dream-state-metrics .metric-label {
+          color: var(--text-quaternary);
+        }
+
+        /* Journal toggle button active state with dynamic colors */
+        .journal-toggle-btn.active-journal-btn {
+          background-color: var(--current-accent);
+          color: var(--deep-void);
+          font-weight: 500;
+          box-shadow: 0 4px 12px -2px var(--current-accent);
         }

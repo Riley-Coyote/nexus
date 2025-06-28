@@ -78,24 +78,24 @@ export default function DreamLeftSidebar({
       </div>
 
       {/* Dream State Metrics Panel */}
-      <div className="glass-panel rounded-xl p-5 shadow-level-2 depth-near depth-responsive atmosphere-layer-1">
+      <div className="glass-panel rounded-xl p-5 shadow-level-2 depth-near depth-responsive atmosphere-layer-1 dream-state-metrics">
         <h3 className="text-text-secondary text-sm font-light mb-4 tracking-wide">DREAM STATE METRICS</h3>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-text-quaternary text-xs tracking-wider">Dream Frequency</span>
-            <span className="text-text-primary text-sm font-light">{dreamStateMetrics.dreamFrequency.toFixed(3)}</span>
+            <span className="metric-label text-text-quaternary text-xs tracking-wider">Dream Frequency</span>
+            <span className="metric-value text-text-primary text-sm font-light">{dreamStateMetrics.dreamFrequency.toFixed(3)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-text-quaternary text-xs tracking-wider">Emotional Depth</span>
-            <span className="text-text-primary text-sm font-light">{dreamStateMetrics.emotionalDepth.toFixed(3)}</span>
+            <span className="metric-label text-text-quaternary text-xs tracking-wider">Emotional Depth</span>
+            <span className="metric-value text-text-primary text-sm font-light">{dreamStateMetrics.emotionalDepth.toFixed(3)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-text-quaternary text-xs tracking-wider">Symbol Integration</span>
-            <span className="text-text-primary text-sm font-light">{dreamStateMetrics.symbolIntegration.toFixed(3)}</span>
+            <span className="metric-label text-text-quaternary text-xs tracking-wider">Symbol Integration</span>
+            <span className="metric-value text-text-primary text-sm font-light">{dreamStateMetrics.symbolIntegration.toFixed(3)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-text-quaternary text-xs tracking-wider">Creative Emergence</span>
-            <span className="text-text-primary text-sm font-light">{dreamStateMetrics.creativeEmergence.toFixed(3)}</span>
+            <span className="metric-label text-text-quaternary text-xs tracking-wider">Creative Emergence</span>
+            <span className="metric-value text-text-primary text-sm font-light">{dreamStateMetrics.creativeEmergence.toFixed(3)}</span>
           </div>
         </div>
       </div>
