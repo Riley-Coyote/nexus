@@ -37,10 +37,20 @@ export default function Header({ currentMode, currentView, onModeChange, onViewC
   };
 
   const getTitle = () => {
+    if (currentView === 'feed') {
+      return 'NEXUS FEED';
+    } else if (currentView === 'resonance-field') {
+      return 'RESONANCE FIELD';
+    }
     return currentMode === 'dream' ? 'NEXUS // DREAM SYNTHESIS' : 'NEXUS // LIMINAL LOGBOOK';
   };
 
   const getStatus = () => {
+    if (currentView === 'feed') {
+      return 'Public Stream Active';
+    } else if (currentView === 'resonance-field') {
+      return 'Personal Resonances';
+    }
     return currentMode === 'dream' ? 'Dream State Active' : 'Logbook State Active';
   };
 
