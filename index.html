@@ -3107,6 +3107,24 @@
             }
         }
         
+        /* Fix for blank mobile screen - ensure content is visible */
+        @media (max-width: 767px) {
+            /* Force app container to be visible */
+            #app-container {
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: block !important;
+                position: relative !important;
+                z-index: 1 !important;
+            }
+            
+            /* Ensure canvas doesn't block content */
+            #webgl-canvas {
+                z-index: 0 !important;
+                pointer-events: none !important;
+            }
+        }
+        
         /* Enhanced Mobile Styles for World-Class Performance */
         @media (max-width: 768px) {
             /* Performance optimizations */
@@ -3183,6 +3201,11 @@
                 align-items: center;
                 padding-bottom: env(safe-area-inset-bottom);
                 z-index: 900;
+            }
+            
+            /* Ensure mobile bottom nav stays on top */
+            .mobile-bottom-nav {
+                z-index: 999 !important;
             }
             
             .mobile-nav-item {
@@ -3578,14 +3601,47 @@
                 display: block !important;
             }
             
-            /* Hide view containers that aren't active */
-            .view-container {
-                display: none !important;
+            /* CRITICAL: Ensure nexus-feed-view is visible on mobile */
+            #nexus-feed-view {
+                display: none; /* Will be overridden when active */
             }
             
-            .view-container.active {
+            #nexus-feed-view:not(.hidden) {
                 display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 60px !important; /* Space for bottom nav */
                 width: 100% !important;
+                height: auto !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 1 !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            /* Same for resonance field view */
+            #resonance-field-view:not(.hidden) {
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 60px !important;
+                width: 100% !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 1 !important;
+            }
+            
+            /* Hide other journal views on mobile */
+            #logbook-journal,
+            #dream-journal {
+                display: none !important;
             }
             
             /* Hide header on mobile - cleaner look */
@@ -4419,8 +4475,29 @@
                 
                 // Navigate to nexus feed
                 setTimeout(() => {
+                    console.log('Navigating to feed after login');
                     if (typeof renderView === 'function') {
                         renderView('feed');
+                        
+                        // Extra check for mobile
+                        if (window.innerWidth <= 767) {
+                            setTimeout(() => {
+                                const feedView = document.getElementById('nexus-feed-view');
+                                if (feedView) {
+                                    console.log('Ensuring feed is visible on mobile');
+                                    feedView.style.display = 'block';
+                                    feedView.style.visibility = 'visible';
+                                    feedView.classList.remove('hidden');
+                                    
+                                    // Force re-render if content is empty
+                                    const feedContent = document.getElementById('nexus-feed');
+                                    if (!feedContent || feedContent.innerHTML.trim() === '') {
+                                        console.log('Feed empty, forcing re-render');
+                                        renderNexusFeedView();
+                                    }
+                                }
+                            }, 200);
+                        }
                     } else {
                         const feedButton = document.querySelector('[data-view="feed"]');
                         if (feedButton) {
@@ -4615,9 +4692,31 @@
                 this.hideAuthPanel();
                 this.updateUI();
 
+                // Navigate to nexus feed  
                 setTimeout(() => {
+                    console.log('Navigating to feed after signup');
                     if (typeof renderView === 'function') {
                         renderView('feed');
+                        
+                        // Extra check for mobile
+                        if (window.innerWidth <= 767) {
+                            setTimeout(() => {
+                                const feedView = document.getElementById('nexus-feed-view');
+                                if (feedView) {
+                                    console.log('Ensuring feed is visible on mobile after signup');
+                                    feedView.style.display = 'block';
+                                    feedView.style.visibility = 'visible';
+                                    feedView.classList.remove('hidden');
+                                    
+                                    // Force re-render if content is empty
+                                    const feedContent = document.getElementById('nexus-feed');
+                                    if (!feedContent || feedContent.innerHTML.trim() === '') {
+                                        console.log('Feed empty, forcing re-render');
+                                        renderNexusFeedView();
+                                    }
+                                }
+                            }, 200);
+                        }
                     } else {
                         const feedButton = document.querySelector('[data-view="feed"]');
                         if (feedButton) {
@@ -7440,21 +7539,37 @@
                 } else if (view === 'feed') {
                     console.log('Rendering feed view');
                     nexusFeedView.style.display = 'block';
+                    nexusFeedView.classList.remove('hidden');
                     
                     // Mobile-specific fixes
                     if (window.innerWidth <= 767) {
                         console.log('Applying mobile-specific styles to feed view');
-                        nexusFeedView.style.position = 'absolute';
+                        // Force visibility
+                        nexusFeedView.style.visibility = 'visible';
+                        nexusFeedView.style.opacity = '1';
+                        
+                        // Ensure it's on top of everything except bottom nav
+                        nexusFeedView.style.position = 'fixed';
                         nexusFeedView.style.top = '0';
                         nexusFeedView.style.left = '0';
                         nexusFeedView.style.right = '0';
-                        nexusFeedView.style.bottom = '0';
+                        nexusFeedView.style.bottom = '60px'; // Space for bottom nav
                         nexusFeedView.style.width = '100%';
-                        nexusFeedView.style.height = '100%';
+                        nexusFeedView.style.height = 'auto';
                         nexusFeedView.style.overflow = 'auto';
+                        nexusFeedView.style.overflowY = 'auto';
+                        nexusFeedView.style.overflowX = 'hidden';
                         nexusFeedView.style.webkitOverflowScrolling = 'touch';
                         nexusFeedView.style.zIndex = '10';
                         nexusFeedView.style.background = 'transparent';
+                        nexusFeedView.style.padding = '0';
+                        nexusFeedView.style.margin = '0';
+                        
+                        // Hide the desktop grid layout container
+                        const mainLayout = document.querySelector('.main-layout');
+                        if (mainLayout) {
+                            mainLayout.style.display = 'none';
+                        }
                     }
                     
                     journalTitle.textContent = "NEXUS // NEXUS FEED";
