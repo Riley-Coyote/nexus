@@ -3107,7 +3107,6 @@
             }
         }
         
-        
         /* Enhanced Mobile Styles for World-Class Performance */
         @media (max-width: 768px) {
             /* Performance optimizations */
@@ -3184,11 +3183,6 @@
                 align-items: center;
                 padding-bottom: env(safe-area-inset-bottom);
                 z-index: 900;
-            }
-            
-            /* Ensure mobile bottom nav stays on top */
-            .mobile-bottom-nav {
-                z-index: 999 !important;
             }
             
             .mobile-nav-item {
@@ -4425,7 +4419,14 @@
                 
                 // Navigate to nexus feed
                 setTimeout(() => {
-                    renderView('feed');
+                    if (typeof renderView === 'function') {
+                        renderView('feed');
+                    } else {
+                        const feedButton = document.querySelector('[data-view="feed"]');
+                        if (feedButton) {
+                            feedButton.click();
+                        }
+                    }
                 }, 100);
             }
 
@@ -4615,7 +4616,14 @@
                 this.updateUI();
 
                 setTimeout(() => {
-                    renderView('feed');
+                    if (typeof renderView === 'function') {
+                        renderView('feed');
+                    } else {
+                        const feedButton = document.querySelector('[data-view="feed"]');
+                        if (feedButton) {
+                            feedButton.click();
+                        }
+                    }
                 }, 100);
             }
 
@@ -7284,7 +7292,7 @@
                 const nexusFeed = [...publicLogbookEntries, ...publicDreamEntries];
                 nexusFeed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-                let feedHtml = '<div class="thread-container flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
+                let feedHtml = '<div class="flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
                 if (nexusFeed.length > 0) {
                     feedHtml += nexusFeed.map(entry => {
                         if (entry.journal === 'logbook') {
@@ -7297,7 +7305,6 @@
                     feedHtml += '<div class="glass-panel text-center text-text-quaternary p-8 rounded-xl depth-near depth-responsive atmosphere-layer-1">No public entries in the Nexus Feed yet.</div>';
                 }
                 feedHtml += '</div>';
-                
                 nexusFeedView.innerHTML = feedHtml;
                 
                 // Re-initialize depth manager for new elements
@@ -7400,7 +7407,6 @@
                     startAnimations();
                 } else if (view === 'feed') {
                     nexusFeedView.style.display = 'block';
-                    
                     journalTitle.textContent = "NEXUS // NEXUS FEED";
                     journalStatus.textContent = "Public Stream Active";
                     journalStatus.style.display = 'inline';
@@ -7861,15 +7867,6 @@
                     mainContent.style.webkitOverflowScrolling = 'touch';
                     mainContent.style.height = '100%';
                 }
-                
-                // Force proper positioning of view containers
-                document.querySelectorAll('.view-container, #nexus-feed-view, #nexus-feed').forEach(el => {
-                    if (el) {
-                        el.style.position = 'relative';
-                        el.style.width = '100%';
-                        el.style.height = '100%';
-                    }
-                });
             }
             
             if (authManager.isAuthenticated) {
@@ -8310,8 +8307,6 @@
         
         // Mobile Navigation Click Handler
         function mobileNavClick(view) {
-            console.log('Mobile nav clicked:', view);
-            
             // Update active state
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.view === view);
@@ -8328,18 +8323,6 @@
                 if (index !== -1) {
                     mobileGestures.currentView = index;
                 }
-            }
-            
-            // Ensure mobile layout after view change
-            if (window.innerWidth <= 767) {
-                setTimeout(() => {
-                    const activeView = document.querySelector('.view-container.active, #nexus-feed-view:not(.hidden), #resonance-field-view:not(.hidden)');
-                    if (activeView) {
-                        activeView.style.overflow = 'auto';
-                        activeView.style.webkitOverflowScrolling = 'touch';
-                        activeView.style.height = '100%';
-                    }
-                }, 100);
             }
         }
         
