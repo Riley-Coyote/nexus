@@ -7281,6 +7281,12 @@
             }
 
             function renderNexusFeedView() {
+                // First, ensure we have the nexusFeedView element
+                if (!nexusFeedView) {
+                    console.error('Nexus feed view not found');
+                    return;
+                }
+                
                 const publicLogbookEntries = logbookData.stream
                     .filter(entry => entry.privacy === 'public')
                     .map(entry => ({ ...entry, journal: 'logbook' }));
@@ -7292,7 +7298,7 @@
                 const nexusFeed = [...publicLogbookEntries, ...publicDreamEntries];
                 nexusFeed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-                let feedHtml = '<div class="flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
+                let feedHtml = '<div id="nexus-feed" class="thread-container flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
                 if (nexusFeed.length > 0) {
                     feedHtml += nexusFeed.map(entry => {
                         if (entry.journal === 'logbook') {
@@ -7305,12 +7311,35 @@
                     feedHtml += '<div class="glass-panel text-center text-text-quaternary p-8 rounded-xl depth-near depth-responsive atmosphere-layer-1">No public entries in the Nexus Feed yet.</div>';
                 }
                 feedHtml += '</div>';
+                
+                // Update the nexus feed view
                 nexusFeedView.innerHTML = feedHtml;
+                
+                // Mobile-specific scroll fix
+                if (window.innerWidth <= 767) {
+                    // Ensure the feed view is scrollable
+                    nexusFeedView.style.overflow = 'auto';
+                    nexusFeedView.style.webkitOverflowScrolling = 'touch';
+                    nexusFeedView.style.height = '100%';
+                    nexusFeedView.style.position = 'relative';
+                    
+                    // Also ensure the feed container is scrollable
+                    const feedContainer = document.getElementById('nexus-feed');
+                    if (feedContainer) {
+                        feedContainer.style.overflow = 'visible';
+                        feedContainer.style.height = 'auto';
+                    }
+                }
                 
                 // Re-initialize depth manager for new elements
                 if (window.depthManager) {
                     window.depthManager.setupDepthResponsiveElements();
                 }
+                
+                // Re-initialize icons
+                setTimeout(() => {
+                    lucide.createIcons();
+                }, 100);
             }
 
             function renderResonanceFieldView() {
@@ -7368,7 +7397,10 @@
             }
             
             function renderView(view) {
+                console.log('renderView called with:', view);
+                
                 if (!authManager.isAuthenticated) {
+                    console.log('User not authenticated, showing auth panel');
                     authManager.showAuthPanel();
                     return;
                 }
@@ -7406,7 +7438,25 @@
                     renderDreamView();
                     startAnimations();
                 } else if (view === 'feed') {
+                    console.log('Rendering feed view');
                     nexusFeedView.style.display = 'block';
+                    
+                    // Mobile-specific fixes
+                    if (window.innerWidth <= 767) {
+                        console.log('Applying mobile-specific styles to feed view');
+                        nexusFeedView.style.position = 'absolute';
+                        nexusFeedView.style.top = '0';
+                        nexusFeedView.style.left = '0';
+                        nexusFeedView.style.right = '0';
+                        nexusFeedView.style.bottom = '0';
+                        nexusFeedView.style.width = '100%';
+                        nexusFeedView.style.height = '100%';
+                        nexusFeedView.style.overflow = 'auto';
+                        nexusFeedView.style.webkitOverflowScrolling = 'touch';
+                        nexusFeedView.style.zIndex = '10';
+                        nexusFeedView.style.background = 'transparent';
+                    }
+                    
                     journalTitle.textContent = "NEXUS // NEXUS FEED";
                     journalStatus.textContent = "Public Stream Active";
                     journalStatus.style.display = 'inline';
@@ -7426,6 +7476,10 @@
                     root.style.setProperty('--current-accent-light', 'var(--accent-emerald-light)');
                     renderResonanceFieldView();
                 }
+                
+                // Log the final state
+                console.log('Feed view display:', nexusFeedView.style.display);
+                console.log('Feed view HTML length:', nexusFeedView.innerHTML.length);
                 
                 setTimeout(() => {
                     lucide.createIcons();
@@ -7867,6 +7921,15 @@
                     mainContent.style.webkitOverflowScrolling = 'touch';
                     mainContent.style.height = '100%';
                 }
+                
+                // Force proper positioning of view containers
+                document.querySelectorAll('.view-container, #nexus-feed-view, #nexus-feed').forEach(el => {
+                    if (el) {
+                        el.style.position = 'relative';
+                        el.style.width = '100%';
+                        el.style.height = '100%';
+                    }
+                });
             }
             
             if (authManager.isAuthenticated) {
@@ -7876,7 +7939,34 @@
                     renderView('feed');
                     setTimeout(() => navigateToPost(initialState.postId), 100);
                 } else {
-                    renderView('feed');
+                    // Always render feed on mobile after auth
+                    console.log('User authenticated, rendering feed view');
+                    setTimeout(() => {
+                        renderView('feed');
+                        
+                        // Extra check for mobile to ensure content is visible
+                        if (window.innerWidth <= 767) {
+                            const feedView = document.getElementById('nexus-feed-view');
+                            if (feedView) {
+                                feedView.style.display = 'block';
+                                feedView.style.visibility = 'visible';
+                                feedView.style.opacity = '1';
+                                feedView.style.position = 'absolute';
+                                feedView.style.top = '0';
+                                feedView.style.left = '0';
+                                feedView.style.right = '0';
+                                feedView.style.bottom = '60px';
+                                feedView.style.overflow = 'auto';
+                                feedView.style.webkitOverflowScrolling = 'touch';
+                                
+                                const feedContent = document.getElementById('nexus-feed');
+                                if (feedContent && feedContent.innerHTML.trim() === '') {
+                                    console.log('Feed empty, re-rendering...');
+                                    renderNexusFeedView();
+                                }
+                            }
+                        }
+                    }, 200);
                 }
             } else {
                 setTimeout(() => {
@@ -8307,6 +8397,8 @@
         
         // Mobile Navigation Click Handler
         function mobileNavClick(view) {
+            console.log('Mobile nav clicked:', view);
+            
             // Update active state
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.view === view);
@@ -8323,6 +8415,18 @@
                 if (index !== -1) {
                     mobileGestures.currentView = index;
                 }
+            }
+            
+            // Ensure mobile layout after view change
+            if (window.innerWidth <= 767) {
+                setTimeout(() => {
+                    const activeView = document.querySelector('.view-container.active, #nexus-feed-view:not(.hidden), #resonance-field-view:not(.hidden)');
+                    if (activeView) {
+                        activeView.style.overflow = 'auto';
+                        activeView.style.webkitOverflowScrolling = 'touch';
+                        activeView.style.height = '100%';
+                    }
+                }, 100);
             }
         }
         
