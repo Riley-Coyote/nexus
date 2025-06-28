@@ -1,0 +1,153 @@
+'use client';
+
+import React, { useState } from 'react';
+import { Search, MessageSquare, User, Menu } from 'lucide-react';
+
+type JournalMode = 'logbook' | 'dream';
+type ViewMode = 'feed' | 'resonance-field';
+
+interface HeaderProps {
+  currentMode: JournalMode;
+  currentView: ViewMode;
+  onModeChange: (mode: JournalMode) => void;
+  onViewChange: (view: ViewMode) => void;
+}
+
+export default function Header({ currentMode, currentView, onModeChange, onViewChange }: HeaderProps) {
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleMobileMenuToggle = () => {
+    // Mobile sidebar toggle functionality will be implemented later
+    console.log('Mobile menu toggle');
+  };
+
+  const handleSearchToggle = () => {
+    setShowSearch(!showSearch);
+  };
+
+  const handleProfileToggle = () => {
+    // Profile panel toggle functionality will be implemented later
+    console.log('Profile toggle');
+  };
+
+  const handleMessengerOpen = () => {
+    // Messenger open functionality will be implemented later
+    console.log('Open messenger');
+  };
+
+  return (
+    <header id="app-header" className="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive header">
+      <div className="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-8 header-content">
+        {/* Mobile Menu Toggle */}
+        <button 
+          className="mobile-menu-toggle hidden" 
+          id="mobileMenuToggle" 
+          onClick={handleMobileMenuToggle}
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+        
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4">
+            <h1 id="journal-title" className="text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
+              NEXUS // LIMINAL LOGBOOK
+            </h1>
+            <span id="journal-status" className="text-xs font-extralight tracking-widest text-emerald-active uppercase transition-colors duration-500">
+              Logbook State Active
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {/* Enhanced Search */}
+          <div className={`search-container ${showSearch ? '' : 'hidden'}`} id="search-container">
+            <Search className="search-icon w-4 h-4" />
+            <input 
+              type="text" 
+              id="global-search" 
+              className="search-input" 
+              placeholder="Search entries, dreams, patterns..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <nav>
+            <ul id="nav-links" className="list-none flex items-center gap-6 m-0 p-0">
+              <li>
+                <button 
+                  id="search-toggle-btn" 
+                  className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+                  title="Search"
+                  onClick={handleSearchToggle}
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              </li>
+              <li 
+                data-view="feed" 
+                className={`transition-colors duration-300 cursor-pointer ${
+                  currentView === 'feed' 
+                    ? 'text-current-accent' 
+                    : 'text-gray-450 hover:text-gray-250'
+                }`}
+                onClick={() => onViewChange('feed')}
+              >
+                Nexus Feed
+              </li>
+              <li 
+                data-view="resonance-field" 
+                className="cursor-pointer"
+                onClick={() => onViewChange('resonance-field')}
+              >
+                <span className={`transition-colors duration-300 ${
+                  currentView === 'resonance-field' 
+                    ? 'text-current-accent' 
+                    : 'text-gray-450 hover:text-gray-250'
+                }`}>
+                  Resonance Field
+                </span>
+              </li>
+              <li 
+                id="open-messenger-btn" 
+                className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer" 
+                title="Messenger"
+                onClick={handleMessengerOpen}
+              >
+                <MessageSquare className="w-5 h-5 interactive-icon" />
+              </li>
+              <li>
+                <button 
+                  id="profile-toggle-btn" 
+                  className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+                  title="Profile"
+                  onClick={handleProfileToggle}
+                >
+                  <User className="w-5 h-5" />
+                </button>
+              </li>
+            </ul>
+          </nav>
+          
+          <div id="journal-toggle" className="flex items-center gap-2 p-1 rounded-lg bg-black/20">
+            <button 
+              data-journal="logbook" 
+              className={`journal-toggle-btn ${currentMode === 'logbook' ? 'active-journal-btn' : ''} ripple-effect`}
+              onClick={() => onModeChange('logbook')}
+            >
+              Logbook
+            </button>
+            <button 
+              data-journal="dream" 
+              className={`journal-toggle-btn ${currentMode === 'dream' ? 'active-journal-btn' : ''} ripple-effect`}
+              onClick={() => onModeChange('dream')}
+            >
+              Dream
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+} 
