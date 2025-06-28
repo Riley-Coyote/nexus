@@ -28,215 +28,139 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
       const textContent = editorRef.current.textContent || '';
       setCharCount(textContent.length);
       setContent(editorRef.current.innerHTML);
+    }
+  }, []);
+
+  const updateActiveFormats = useCallback(() => {
+    if (!editorRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const newActiveFormats = new Set<string>();
+
+    // Use document.queryCommandState for reliable format detection
+    try {
+      if (document.queryCommandState('bold')) newActiveFormats.add('bold');
+      if (document.queryCommandState('italic')) newActiveFormats.add('italic');
+      if (document.queryCommandState('underline')) newActiveFormats.add('underline');
+      if (document.queryCommandState('strikeThrough')) newActiveFormats.add('strikethrough');
+    } catch (e) {
+      // Fallback: manual detection
+      const range = selection.getRangeAt(0);
+      let node = selection.isCollapsed ? range.startContainer : range.commonAncestorContainer;
       
-      // Update active formats based on current selection
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const parentElement = range.commonAncestorContainer.nodeType === Node.TEXT_NODE 
-          ? range.commonAncestorContainer.parentElement 
-          : range.commonAncestorContainer as Element;
-        
-        const newActiveFormats = new Set<string>();
-        
-        if (parentElement) {
-          let element: Element | null = parentElement;
-          while (element && element !== editorRef.current) {
-            const tagName = element.tagName?.toLowerCase();
-            if (tagName === 'strong' || tagName === 'b') newActiveFormats.add('bold');
-            if (tagName === 'em' || tagName === 'i') newActiveFormats.add('italic');
-            if (tagName === 'u') newActiveFormats.add('underline');
-            if (tagName === 's' || tagName === 'del') newActiveFormats.add('strikethrough');
-            element = element.parentElement;
-          }
-        }
-        
-        setActiveFormats(newActiveFormats);
+      if (node.nodeType === Node.TEXT_NODE) {
+        node = node.parentNode!;
+      }
+      
+      let element = node as Element;
+      while (element && element !== editorRef.current) {
+        const tagName = element.tagName?.toLowerCase();
+        if (tagName === 'strong' || tagName === 'b') newActiveFormats.add('bold');
+        if (tagName === 'em' || tagName === 'i') newActiveFormats.add('italic');
+        if (tagName === 'u') newActiveFormats.add('underline');
+        if (tagName === 's' || tagName === 'del' || tagName === 'strike') newActiveFormats.add('strikethrough');
+        element = element.parentElement!;
       }
     }
+
+    setActiveFormats(newActiveFormats);
   }, []);
 
   useEffect(() => {
     updateContent();
-  }, [updateContent]);
+    updateActiveFormats();
+  }, [updateContent, updateActiveFormats]);
 
-  const saveSelection = () => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      return selection.getRangeAt(0).cloneRange();
-    }
-    return null;
-  };
 
-  const restoreSelection = (range: Range) => {
-    const selection = window.getSelection();
-    if (selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  };
-
-  const wrapSelection = (tagName: string) => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    if (!editorRef.current?.contains(range.commonAncestorContainer)) return;
-
-    const selectedText = range.toString();
-    
-    if (selectedText) {
-      const wrapper = document.createElement(tagName);
-      
-      try {
-        const contents = range.extractContents();
-        wrapper.appendChild(contents);
-        range.insertNode(wrapper);
-        
-        // Select the new wrapped content
-        range.selectNode(wrapper);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        updateContent();
-      } catch (e) {
-        console.error('Error wrapping selection:', e);
-      }
-    }
-  };
-
-  const unwrapSelection = (tagName: string) => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    let element = range.commonAncestorContainer.nodeType === Node.TEXT_NODE 
-      ? range.commonAncestorContainer.parentElement 
-      : range.commonAncestorContainer as Element;
-
-    while (element && element !== editorRef.current) {
-      if (element.tagName?.toLowerCase() === tagName.toLowerCase()) {
-        const parent = element.parentNode;
-        if (parent) {
-          while (element.firstChild) {
-            parent.insertBefore(element.firstChild, element);
-          }
-          parent.removeChild(element);
-          updateContent();
-          break;
-        }
-      }
-      element = element.parentElement;
-    }
-  };
 
   const toggleFormat = (format: string) => {
     if (!editorRef.current) return;
 
-    const savedRange = saveSelection();
-    if (!savedRange) return;
-
     editorRef.current.focus();
-    restoreSelection(savedRange);
 
-    const isActive = activeFormats.has(format);
-    
-    const tagMap: { [key: string]: string } = {
-      'bold': 'strong',
-      'italic': 'em',
-      'underline': 'u',
-      'strikethrough': 's'
+    const commandMap: { [key: string]: string } = {
+      'bold': 'bold',
+      'italic': 'italic',
+      'underline': 'underline',
+      'strikethrough': 'strikeThrough'
     };
 
-    const tagName = tagMap[format];
-    if (!tagName) return;
+    const command = commandMap[format];
+    if (!command) return;
 
-    if (isActive) {
-      unwrapSelection(tagName);
-    } else {
-      wrapSelection(tagName);
+    try {
+      // Use execCommand for reliable formatting
+      document.execCommand(command, false, undefined);
+      updateContent();
+      updateActiveFormats();
+    } catch (e) {
+      console.error('Error executing format command:', e);
     }
   };
 
   const insertList = (ordered: boolean) => {
     if (!editorRef.current) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const listElement = document.createElement(ordered ? 'ol' : 'ul');
-    const listItem = document.createElement('li');
     
-    if (range.toString()) {
-      listItem.textContent = range.toString();
-      range.deleteContents();
-    } else {
-      listItem.textContent = '';
+    editorRef.current.focus();
+    
+    try {
+      document.execCommand(ordered ? 'insertOrderedList' : 'insertUnorderedList', false, undefined);
+      updateContent();
+    } catch (e) {
+      console.error('Error inserting list:', e);
     }
-    
-    listElement.appendChild(listItem);
-    range.insertNode(listElement);
-    
-    // Position cursor inside the list item
-    range.setStart(listItem, 0);
-    range.setEnd(listItem, listItem.childNodes.length);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    
-    updateContent();
   };
 
   const changeFormat = (formatType: string) => {
     if (!editorRef.current) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const element = document.createElement(formatType);
     
-    if (range.toString()) {
-      element.textContent = range.toString();
-      range.deleteContents();
-      range.insertNode(element);
+    editorRef.current.focus();
+    
+    try {
+      const commandMap: { [key: string]: string } = {
+        'h1': 'formatBlock',
+        'h2': 'formatBlock', 
+        'h3': 'formatBlock',
+        'blockquote': 'formatBlock',
+        'p': 'formatBlock'
+      };
+      
+      const command = commandMap[formatType];
+      if (command) {
+        document.execCommand(command, false, formatType);
+        updateContent();
+      }
+    } catch (e) {
+      console.error('Error changing format:', e);
     }
-    
-    updateContent();
   };
 
   const insertHorizontalRule = () => {
     if (!editorRef.current) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const hr = document.createElement('hr');
-    range.insertNode(hr);
     
-    // Move cursor after the HR
-    range.setStartAfter(hr);
-    range.setEndAfter(hr);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    editorRef.current.focus();
     
-    updateContent();
+    try {
+      document.execCommand('insertHorizontalRule', false, undefined);
+      updateContent();
+    } catch (e) {
+      console.error('Error inserting horizontal rule:', e);
+    }
   };
 
   const clearFormatting = () => {
     if (!editorRef.current) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
     
-    if (selectedText) {
-      range.deleteContents();
-      range.insertNode(document.createTextNode(selectedText));
+    editorRef.current.focus();
+    
+    try {
+      document.execCommand('removeFormat', false, undefined);
       updateContent();
+      updateActiveFormats();
+    } catch (e) {
+      console.error('Error clearing formatting:', e);
     }
   };
 
@@ -252,12 +176,14 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle submit shortcut
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit();
+      return;
     }
     
-    // Handle keyboard shortcuts
+    // Handle keyboard shortcuts for formatting
     if (e.metaKey || e.ctrlKey) {
       switch (e.key.toLowerCase()) {
         case 'b':
@@ -278,23 +204,19 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
 
   const handleInput = () => {
     updateContent();
+    updateActiveFormats();
   };
 
   const handleSelectionChange = () => {
-    updateContent();
+    updateActiveFormats();
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
-      range.insertNode(document.createTextNode(text));
+    // Let the browser handle paste naturally for better compatibility
+    setTimeout(() => {
       updateContent();
-    }
+      updateActiveFormats();
+    }, 0);
   };
 
   return (
