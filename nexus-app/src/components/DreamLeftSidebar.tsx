@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { DreamStateMetrics, ActiveDreamer, DreamPatterns } from '@/lib/types';
 
 interface DreamLeftSidebarProps {
@@ -14,29 +14,57 @@ export default function DreamLeftSidebar({
   activeDreamers, 
   dreamPatterns 
 }: DreamLeftSidebarProps) {
-  const [field, setField] = useState<string>('');
+  const fieldRef = useRef<HTMLPreElement>(null);
+  const animationFrameRef = useRef<number>();
+  const lastUpdateTimeRef = useRef<number>(0);
+
+  // Generate field content - optimized for performance
+  const generateField = useCallback(() => {
+    const { rows, columns, characters } = dreamPatterns;
+    const fieldArray: string[] = [];
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < columns; col++) {
+        const randomChar = characters[Math.floor(Math.random() * characters.length)];
+        fieldArray.push(randomChar);
+      }
+      if (row < rows - 1) fieldArray.push('\n');
+    }
+    
+    return fieldArray.join('');
+  }, [dreamPatterns]);
+
+  // Optimized animation using requestAnimationFrame
+  const animateField = useCallback((timestamp: number) => {
+    const element = fieldRef.current;
+    if (!element) return;
+
+    // Update every 2 seconds (2000ms) instead of using setInterval
+    if (timestamp - lastUpdateTimeRef.current >= 2000) {
+      element.textContent = generateField();
+      lastUpdateTimeRef.current = timestamp;
+    }
+
+    animationFrameRef.current = requestAnimationFrame(animateField);
+  }, [generateField]);
 
   useEffect(() => {
-    const generateField = () => {
-      const { rows, columns, characters } = dreamPatterns;
-      let newField = '';
-      
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < columns; col++) {
-          const randomChar = characters[Math.floor(Math.random() * characters.length)];
-          newField += randomChar;
-        }
-        if (row < rows - 1) newField += '\n';
-      }
-      
-      setField(newField);
-    };
+    const element = fieldRef.current;
+    if (!element) return;
 
-    generateField();
-    const interval = setInterval(generateField, 2000);
-    
-    return () => clearInterval(interval);
-  }, [dreamPatterns]);
+    // Initial render
+    element.textContent = generateField();
+    lastUpdateTimeRef.current = performance.now();
+
+    // Start animation loop
+    animationFrameRef.current = requestAnimationFrame(animateField);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [generateField, animateField]);
 
   const getStateColor = (state: string) => {
     switch (state) {
@@ -63,16 +91,15 @@ export default function DreamLeftSidebar({
         <h3 className="text-text-secondary text-sm font-light mb-4 tracking-wide">DREAM PATTERNS</h3>
         <div className="consciousness-field-container relative">
           <pre 
+            ref={fieldRef}
             id={dreamPatterns.id}
-            className="consciousness-field font-mono text-xs leading-none text-text-quaternary whitespace-pre overflow-hidden"
+            className="consciousness-field font-mono text-xs leading-none text-text-quaternary whitespace-pre overflow-hidden optimized-animation"
             style={{
               fontFamily: 'IBM Plex Mono, monospace',
               letterSpacing: '0.05em',
               lineHeight: '1.2'
             }}
-          >
-            {field}
-          </pre>
+          />
           <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 to-transparent"></div>
         </div>
       </div>

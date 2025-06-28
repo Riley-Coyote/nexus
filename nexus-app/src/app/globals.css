@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Performance Optimizations */
+.optimized-animation {
+    will-change: auto;
+    contain: layout style paint;
+    transform: translateZ(0);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .optimized-animation {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .ascii-field, .consciousness-field {
+        animation: none !important;
+    }
+}
+
 /* The complete CSS from index.html will be pasted below */         /* Enhanced Design Tokens */
         :root {
             /* Core Colors */

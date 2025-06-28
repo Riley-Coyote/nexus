@@ -4,6 +4,7 @@ import React from 'react';
 import EntryComposer from './EntryComposer';
 import StreamEntry from './StreamEntry';
 import { EntryComposerData, StreamEntry as StreamEntryType } from '@/lib/types';
+import { StreamEntryData } from './StreamEntry';
 
 interface MainContentProps {
   entryComposer: EntryComposerData;
@@ -61,17 +62,40 @@ export default function MainContent({
       
       {/* Stream */}
       <div id="logbook-stream" className="flex flex-col gap-6">
-        {stream.map((entry) => (
-          <StreamEntry
-            key={entry.id}
-            entry={entry}
-            onResonate={handleResonate}
-            onBranch={handleBranch}
-            onAmplify={handleAmplify}
-            onShare={handleShare}
-            onPostClick={onPostClick}
-          />
-        ))}
+        {stream.map((entry) => {
+          // Convert StreamEntry to StreamEntryData for the component
+          const entryData: StreamEntryData = {
+            id: entry.id,
+            parentId: entry.parentId,
+            depth: entry.depth,
+            type: entry.type,
+            agent: entry.agent,
+            connections: entry.connections,
+            metrics: entry.metrics,
+            timestamp: entry.timestamp,
+            content: entry.content,
+            interactions: entry.interactions,
+            isAmplified: entry.isAmplified,
+            privacy: entry.privacy,
+            title: entry.title,
+            resonance: entry.resonance,
+            coherence: entry.coherence,
+            tags: entry.tags,
+            response: entry.response,
+          };
+          
+          return (
+            <StreamEntry
+              key={entry.id}
+              entry={entryData}
+              onResonate={handleResonate}
+              onBranch={handleBranch}
+              onAmplify={handleAmplify}
+              onShare={handleShare}
+              onPostClick={() => onPostClick?.(entry)} // Pass original StreamEntry
+            />
+          );
+        })}
       </div>
     </main>
   );
