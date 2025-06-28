@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import LeftSidebar from '@/components/LeftSidebar';
+import RightSidebar from '@/components/RightSidebar';
 import { JournalMode, ViewMode } from '@/lib/types';
 
 export default function HomePage() {
@@ -27,7 +28,21 @@ export default function HomePage() {
       activeMessages: 42,
       dreamEntries: 21,
       entropy: 0.234
-    }
+    },
+    systemVitals: [
+      { name: "Coherence", value: 0.865 },
+      { name: "Stability", value: 0.767 },
+      { name: "Clarity", value: 0.876 },
+      { name: "Creativity", value: 0.604 },
+      { name: "Empathy", value: 0.773 },
+    ],
+    activeAgents: [
+      { name: "Guardian", connection: 0.954, specialty: "Privacy Architecture", status: "green" as const },
+      { name: "Dreamer", connection: 0.918, specialty: "Liminal Navigation", status: "green" as const },
+      { name: "Curator", connection: 0.892, specialty: "Knowledge Architecture", status: "yellow" as const },
+      { name: "Connector", connection: 0.847, specialty: "Network Topology", status: "yellow" as const },
+      { name: "Creator", connection: 0.731, specialty: "Emergence Design", status: "grey" as const },
+    ]
   };
 
   return (
@@ -56,14 +71,17 @@ export default function HomePage() {
             <div className="text-sm text-text-secondary">Current View: <span className="text-current-accent">{currentView}</span></div>
             <div className="text-xs text-text-quaternary">
               This is where the main feed/content will be displayed. The header above should look exactly like the original.
-              The left sidebar now contains the three panels: Logbook State, Consciousness Field (with animated ASCII), and Network Status.
+              <br /><br />
+              <strong>Left sidebar contains:</strong> Logbook State, Consciousness Field (with animated ASCII), and Network Status.
+              <br />
+              <strong>Right sidebar contains:</strong> System Vitals (with progress bars), Active Agents (with status indicators), and The Reverie Portal.
             </div>
           </main>
           
-          <div className="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
-            <div className="text-sm text-text-secondary">Right Sidebar</div>
-            <div className="text-xs text-text-quaternary">Sidebar content will go here</div>
-          </div>
+          <RightSidebar 
+            systemVitals={logbookData.systemVitals}
+            activeAgents={logbookData.activeAgents}
+          />
         </div>
       </div>
     </div>
