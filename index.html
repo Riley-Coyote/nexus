@@ -2965,8 +2965,73 @@
             }
         }
 
+        /* Portrait mobile orientation - CRITICAL FIX */
+        @media (max-width: 768px) and (orientation: portrait) {
+            /* Force feed to be visible in portrait */
+            #nexus-feed-view:not(.hidden) {
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 80px !important; /* More space for bottom nav in portrait */
+                width: 100vw !important;
+                height: calc(100vh - 80px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 10 !important;
+                background: transparent !important;
+                padding: 1rem !important;
+                margin: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                transform: translateZ(0) !important; /* Force GPU acceleration */
+            }
+            
+            /* Hide grid layouts in portrait */
+            .main-layout,
+            #logbook-journal,
+            #dream-journal {
+                display: none !important;
+            }
+            
+            /* Ensure app container doesn't block */
+            #app-container {
+                height: 100vh !important;
+                overflow: visible !important;
+            }
+            
+            /* Bottom nav specific to portrait */
+            .mobile-bottom-nav {
+                height: 80px !important;
+                z-index: 999 !important;
+            }
+        }
+        
         /* Landscape mobile orientation */
         @media (max-width: 768px) and (orientation: landscape) {
+            /* Force feed to be visible in landscape */
+            #nexus-feed-view:not(.hidden) {
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 60px !important;
+                width: 100vw !important;
+                height: calc(100vh - 60px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 10 !important;
+                background: transparent !important;
+                padding: 0.5rem !important;
+                margin: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
             .mobile-bottom-nav {
                 height: 60px;
             }
@@ -7455,7 +7520,17 @@
                         nexusFeedView.style.visibility = 'visible';
                         nexusFeedView.style.opacity = '1';
                         nexusFeedView.style.position = 'fixed';
-                        nexusFeedView.style.zIndex = '1';
+                        nexusFeedView.style.zIndex = '10';
+                        nexusFeedView.style.top = '0';
+                        nexusFeedView.style.left = '0';
+                        nexusFeedView.style.right = '0';
+                        nexusFeedView.style.width = '100vw';
+                        nexusFeedView.style.transform = 'translateZ(0)'; // Force GPU acceleration
+                        
+                        // Check orientation
+                        const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+                        nexusFeedView.style.bottom = isPortrait ? '80px' : '60px';
+                        nexusFeedView.style.height = isPortrait ? 'calc(100vh - 80px)' : 'calc(100vh - 60px)';
                     }
                     
                     journalTitle.textContent = "NEXUS // NEXUS FEED";
@@ -7928,6 +8003,42 @@
                     }
                 });
             }
+            
+            // Handle orientation changes
+            let lastOrientation = window.orientation;
+            window.addEventListener('orientationchange', () => {
+                console.log('Orientation changed:', window.orientation);
+                
+                // Force feed to be visible after orientation change
+                setTimeout(() => {
+                    if (activeView === 'feed' && window.innerWidth <= 767) {
+                        const feedView = document.getElementById('nexus-feed-view');
+                        if (feedView) {
+                            feedView.style.display = 'block';
+                            feedView.style.visibility = 'visible';
+                            feedView.style.opacity = '1';
+                            feedView.classList.remove('hidden');
+                            
+                            // Re-render if empty
+                            if (!feedView.innerHTML || feedView.innerHTML.trim() === '') {
+                                renderNexusFeedView();
+                            }
+                        }
+                    }
+                }, 300);
+            });
+            
+            // Also handle resize events for orientation changes
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 767 && activeView === 'feed') {
+                    const feedView = document.getElementById('nexus-feed-view');
+                    if (feedView) {
+                        feedView.style.display = 'block';
+                        feedView.style.visibility = 'visible';
+                        feedView.style.opacity = '1';
+                    }
+                }
+            });
             
             if (authManager.isAuthenticated) {
                 const initialState = parseURL();
