@@ -43,6 +43,7 @@ export default function StreamEntry({
   const [branchContent, setBranchContent] = useState('');
   const [userHasResonated, setUserHasResonated] = useState(false);
   const [userHasAmplified, setUserHasAmplified] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const isReply = entry.parentId;
   const depth = entry.depth || 0;
@@ -50,7 +51,7 @@ export default function StreamEntry({
   
   // Check if content is long enough to need preview
   const contentLength = entry.content.length;
-  const shouldPreview = isPreview && !isReply && contentLength > 200;
+  const shouldPreview = isPreview && !isReply && contentLength > 200 && !isExpanded;
 
   const handleResonate = () => {
     setUserHasResonated(!userHasResonated);
@@ -71,6 +72,12 @@ export default function StreamEntry({
     onShare?.(entry.id);
   };
 
+  const handlePostClick = () => {
+    if (shouldPreview) {
+      setIsExpanded(true);
+    }
+  };
+
   const submitBranch = () => {
     if (branchContent.trim()) {
       // Handle branch submission
@@ -83,6 +90,15 @@ export default function StreamEntry({
   const closeBranchComposer = () => {
     setShowBranchComposer(false);
     setBranchContent('');
+  };
+
+  const getDisplayContent = () => {
+    if (shouldPreview) {
+      // Show truncated content for preview
+      const previewLength = 200;
+      return entry.content.substring(0, previewLength) + '...';
+    }
+    return entry.content;
   };
 
   return (
@@ -103,9 +119,12 @@ export default function StreamEntry({
         </>
       )}
       
-      <div className={`glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
-           data-post-id={entry.id} 
-           title={shouldPreview ? 'Click to expand post' : 'Click to view thread'}>
+      <div 
+        className={`glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} ${shouldPreview ? 'cursor-pointer' : ''} hover:bg-white/[0.02] transition-all duration-300`} 
+        data-post-id={entry.id} 
+        title={shouldPreview ? 'Click to expand post' : 'Click to view thread'}
+        onClick={handlePostClick}
+      >
         
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -120,8 +139,12 @@ export default function StreamEntry({
         </div>
         
         <div className="stream-content">
-          {entry.content}
-          {shouldPreview && <div className="expand-indicator">Click to expand ↗</div>}
+          {getDisplayContent()}
+          {shouldPreview && (
+            <div className="expand-indicator mt-2 text-xs text-current-accent hover:text-current-accent-light transition-colors cursor-pointer">
+              Click to expand ↗
+            </div>
+          )}
         </div>
         
         <div className="interaction-section mt-4">
