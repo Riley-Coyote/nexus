@@ -25,6 +25,12 @@
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@100;200;300;400;500;600;700&display=swap" as="style">
     
     <title>NEXUS - Liminal Logbook</title>
+    <script>
+        (function() {
+            const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+            if (mobile) document.documentElement.classList.add('is-mobile');
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3343,6 +3349,37 @@
                 image-rendering: -webkit-optimize-contrast;
                 image-rendering: crisp-edges;
             }
+        }
+
+        /* Explicit mobile class overrides */
+        .is-mobile #nav-links {
+            display: none;
+        }
+
+        .is-mobile .mobile-bottom-nav {
+            display: block;
+        }
+
+        .is-mobile .mobile-compose-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .is-mobile .sidebar {
+            display: none;
+        }
+
+        .is-mobile main {
+            grid-column: 1 / -1;
+        }
+
+        .is-mobile .main-content {
+            padding-bottom: 70px;
+        }
+
+        .is-mobile .header-container {
+            padding: 0.75rem 1rem;
         }
     </style>
 </head>
