@@ -261,43 +261,51 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
               <div className="toolbar-group flex gap-1">
                 <button
                   type="button"
-                  className={`toolbar-btn w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded transition-colors ${
-                    activeFormats.has('bold') ? 'bg-white/20 text-current-accent' : 'text-text-secondary hover:text-text-primary'
+                  className={`toolbar-btn w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${
+                    activeFormats.has('bold') 
+                      ? 'active bg-current-accent text-deep-void shadow-lg transform scale-105 border border-current-accent' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/10 border border-transparent'
                   }`}
                   onClick={() => toggleFormat('bold')}
                   title="Bold (Ctrl+B)"
                 >
-                  <strong className="text-xs">B</strong>
+                  <strong className="text-xs font-bold">B</strong>
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded transition-colors ${
-                    activeFormats.has('italic') ? 'bg-white/20 text-current-accent' : 'text-text-secondary hover:text-text-primary'
+                  className={`toolbar-btn w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${
+                    activeFormats.has('italic') 
+                      ? 'active bg-current-accent text-deep-void shadow-lg transform scale-105 border border-current-accent' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/10 border border-transparent'
                   }`}
                   onClick={() => toggleFormat('italic')}
                   title="Italic (Ctrl+I)"
                 >
-                  <em className="text-xs">I</em>
+                  <em className="text-xs font-medium">I</em>
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded transition-colors ${
-                    activeFormats.has('underline') ? 'bg-white/20 text-current-accent' : 'text-text-secondary hover:text-text-primary'
+                  className={`toolbar-btn w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${
+                    activeFormats.has('underline') 
+                      ? 'active bg-current-accent text-deep-void shadow-lg transform scale-105 border border-current-accent' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/10 border border-transparent'
                   }`}
                   onClick={() => toggleFormat('underline')}
                   title="Underline (Ctrl+U)"
                 >
-                  <u className="text-xs">U</u>
+                  <u className="text-xs font-medium">U</u>
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded transition-colors ${
-                    activeFormats.has('strikethrough') ? 'bg-white/20 text-current-accent' : 'text-text-secondary hover:text-text-primary'
+                  className={`toolbar-btn w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${
+                    activeFormats.has('strikethrough') 
+                      ? 'active bg-current-accent text-deep-void shadow-lg transform scale-105 border border-current-accent' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/10 border border-transparent'
                   }`}
                   onClick={() => toggleFormat('strikethrough')}
                   title="Strikethrough"
                 >
-                  <s className="text-xs">S</s>
+                  <s className="text-xs font-medium">S</s>
                 </button>
               </div>
               
