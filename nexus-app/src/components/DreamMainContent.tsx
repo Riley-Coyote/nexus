@@ -8,11 +8,13 @@ import { EntryComposerData, StreamEntry as StreamEntryType } from '@/lib/types';
 interface DreamMainContentProps {
   dreamComposer: EntryComposerData;
   sharedDreams: StreamEntryType[];
+  onPostClick?: (post: StreamEntryType) => void;
 }
 
 export default function DreamMainContent({ 
   dreamComposer, 
-  sharedDreams 
+  sharedDreams,
+  onPostClick
 }: DreamMainContentProps) {
   const handleDreamSubmit = (content: string, type: string, isPublic: boolean) => {
     console.log('Dream submitted:', { content, type, isPublic });
@@ -35,6 +37,7 @@ export default function DreamMainContent({
             key={dream.id} 
             entry={dream}
             isDream={true}
+            onPostClick={onPostClick}
           />
         ))}
       </div>

@@ -8,6 +8,7 @@ import RightSidebar from '@/components/RightSidebar';
 import DreamLeftSidebar from '@/components/DreamLeftSidebar';
 import DreamMainContent from '@/components/DreamMainContent';
 import DreamRightSidebar from '@/components/DreamRightSidebar';
+import PostOverlay from '@/components/PostOverlay';
 import { 
   JournalMode, 
   ViewMode, 
@@ -26,6 +27,25 @@ import {
 export default function Home() {
   const [journalMode, setJournalMode] = useState<JournalMode>('logbook');
   const [viewMode, setViewMode] = useState<ViewMode>('feed');
+  
+  // Post overlay state
+  const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+
+  const handleOpenPost = (post: StreamEntry) => {
+    setOverlayPost(post);
+    setIsOverlayOpen(true);
+  };
+
+  const handleCloseOverlay = () => {
+    setIsOverlayOpen(false);
+    setTimeout(() => setOverlayPost(null), 400); // Wait for animation
+  };
+
+  const handlePostInteraction = (action: string, postId: string) => {
+    // Handle post interactions (resonate, amplify, etc.)
+    console.log(`${action} interaction on post ${postId}`);
+  };
 
   // Logbook data
   const logbookState: LogbookState = {
@@ -208,6 +228,7 @@ export default function Home() {
               <MainContent 
                 entryComposer={entryComposer}
                 stream={logbookEntries}
+                onPostClick={handleOpenPost}
               />
               <RightSidebar 
                 systemVitals={systemVitals}
@@ -224,6 +245,7 @@ export default function Home() {
               <DreamMainContent 
                 dreamComposer={dreamComposer}
                 sharedDreams={sharedDreams}
+                onPostClick={handleOpenPost}
               />
               <DreamRightSidebar 
                 dreamAnalytics={dreamAnalytics}
@@ -233,6 +255,14 @@ export default function Home() {
           )}
         </div>
       </div>
+      
+      {/* Post Overlay */}
+      <PostOverlay 
+        post={overlayPost}
+        isOpen={isOverlayOpen}
+        onClose={handleCloseOverlay}
+        onInteraction={handlePostInteraction}
+      />
     </div>
   );
 } 

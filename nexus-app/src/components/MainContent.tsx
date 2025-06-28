@@ -13,6 +13,7 @@ interface MainContentProps {
   onBranch?: (id: string) => void;
   onAmplify?: (id: string) => void;
   onShare?: (id: string) => void;
+  onPostClick?: (post: StreamEntryType) => void;
 }
 
 export default function MainContent({ 
@@ -22,7 +23,8 @@ export default function MainContent({
   onResonate,
   onBranch,
   onAmplify,
-  onShare
+  onShare,
+  onPostClick
 }: MainContentProps) {
   const handleSubmitEntry = (content: string, type: string, isPublic: boolean) => {
     console.log('New entry submitted:', { content, type, isPublic });
@@ -67,6 +69,7 @@ export default function MainContent({
             onBranch={handleBranch}
             onAmplify={handleAmplify}
             onShare={handleShare}
+            onPostClick={onPostClick}
           />
         ))}
       </div>

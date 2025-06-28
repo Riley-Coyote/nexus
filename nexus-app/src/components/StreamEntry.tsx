@@ -39,6 +39,7 @@ interface StreamEntryProps {
   onBranch?: (id: string) => void;
   onAmplify?: (id: string) => void;
   onShare?: (id: string) => void;
+  onPostClick?: (post: StreamEntryData) => void;
 }
 
 export default function StreamEntry({ 
@@ -48,7 +49,8 @@ export default function StreamEntry({
   onResonate, 
   onBranch, 
   onAmplify, 
-  onShare 
+  onShare,
+  onPostClick
 }: StreamEntryProps) {
   const [showBranchComposer, setShowBranchComposer] = useState(false);
   const [branchContent, setBranchContent] = useState('');
@@ -86,6 +88,9 @@ export default function StreamEntry({
   const handlePostClick = () => {
     if (shouldPreview) {
       setIsExpanded(true);
+    } else {
+      // Open post overlay when clicking on non-preview posts
+      onPostClick?.(entry);
     }
   };
 
@@ -131,9 +136,9 @@ export default function StreamEntry({
       )}
       
       <div 
-        className={`glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} ${shouldPreview ? 'cursor-pointer' : ''} hover:bg-white/[0.02] transition-all duration-300`} 
+        className={`glass-panel-enhanced rounded-2xl p-6 flex flex-col gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
         data-post-id={entry.id} 
-        title={shouldPreview ? 'Click to expand post' : 'Click to view thread'}
+                  title={shouldPreview ? 'Click to expand post' : 'Click to view full post'}
         onClick={handlePostClick}
       >
         
