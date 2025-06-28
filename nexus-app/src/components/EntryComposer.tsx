@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Globe } from 'lucide-react';
 
 interface EntryComposerData {
@@ -18,11 +18,39 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
   const [selectedType, setSelectedType] = useState(data.types[0]);
   const [content, setContent] = useState('');
   const [isPublic, setIsPublic] = useState(false);
+  const [charCount, setCharCount] = useState(0);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const maxLength = 40000;
+
+  useEffect(() => {
+    if (editorRef.current) {
+      const textContent = editorRef.current.textContent || '';
+      setCharCount(textContent.length);
+      setContent(editorRef.current.innerHTML);
+    }
+  }, []);
+
+  const execCommand = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    updateContent();
+  };
+
+  const updateContent = () => {
+    if (editorRef.current) {
+      const textContent = editorRef.current.textContent || '';
+      setCharCount(textContent.length);
+      setContent(editorRef.current.innerHTML);
+    }
+  };
 
   const handleSubmit = () => {
     if (content.trim()) {
       onSubmit?.(content, selectedType, isPublic);
-      setContent('');
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+        setContent('');
+        setCharCount(0);
+      }
     }
   };
 
@@ -31,6 +59,17 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleInput = () => {
+    updateContent();
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+    updateContent();
   };
 
   return (
@@ -49,14 +88,164 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
           </select>
           <div className="writing-indicator"></div>
         </div>
-        <div className="rich-text-editor-container">
-          <textarea
-            className="entry-composer-textarea w-full p-3 rounded-lg focus:outline-none resize-none"
-            placeholder={data.placeholder}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
+        
+        <div className="rich-text-editor">
+          {/* Rich Text Toolbar */}
+          <div className="rich-text-toolbar mb-3 p-3 bg-black/5 rounded-lg border border-white/5">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Format Block Dropdown */}
+              <div className="toolbar-group">
+                <select 
+                  className="toolbar-select bg-transparent text-text-secondary text-xs border border-white/10 rounded px-2 py-1"
+                  onChange={(e) => execCommand('formatBlock', e.target.value)}
+                >
+                  <option value="p">Paragraph</option>
+                  <option value="h1">Heading 1</option>
+                  <option value="h2">Heading 2</option>
+                  <option value="h3">Heading 3</option>
+                  <option value="blockquote">Quote</option>
+                </select>
+              </div>
+              
+              <div className="toolbar-separator w-px h-6 bg-white/10 mx-1"></div>
+              
+              {/* Text Style Buttons */}
+              <div className="toolbar-group flex gap-1">
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('bold')}
+                  title="Bold (Ctrl+B)"
+                >
+                  <strong className="text-xs">B</strong>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('italic')}
+                  title="Italic (Ctrl+I)"
+                >
+                  <em className="text-xs">I</em>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('underline')}
+                  title="Underline (Ctrl+U)"
+                >
+                  <u className="text-xs">U</u>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('strikeThrough')}
+                  title="Strikethrough"
+                >
+                  <s className="text-xs">S</s>
+                </button>
+              </div>
+              
+              <div className="toolbar-separator w-px h-6 bg-white/10 mx-1"></div>
+              
+              {/* List Buttons */}
+              <div className="toolbar-group flex gap-1">
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('insertUnorderedList')}
+                  title="Bullet List"
+                >
+                  <span className="text-xs">•</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('insertOrderedList')}
+                  title="Numbered List"
+                >
+                  <span className="text-xs">1.</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('outdent')}
+                  title="Decrease Indent"
+                >
+                  <span className="text-xs">⇤</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('indent')}
+                  title="Increase Indent"
+                >
+                  <span className="text-xs">⇥</span>
+                </button>
+              </div>
+              
+              <div className="toolbar-separator w-px h-6 bg-white/10 mx-1"></div>
+              
+              {/* Alignment Buttons */}
+              <div className="toolbar-group flex gap-1">
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('justifyLeft')}
+                  title="Align Left"
+                >
+                  <span className="text-xs">⫷</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('justifyCenter')}
+                  title="Align Center"
+                >
+                  <span className="text-xs">⫸</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('justifyRight')}
+                  title="Align Right"
+                >
+                  <span className="text-xs">⫹</span>
+                </button>
+              </div>
+              
+              <div className="toolbar-separator w-px h-6 bg-white/10 mx-1"></div>
+              
+              {/* Misc Buttons */}
+              <div className="toolbar-group flex gap-1">
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('insertHorizontalRule')}
+                  title="Horizontal Line"
+                >
+                  <span className="text-xs">―</span>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/10 rounded transition-colors"
+                  onClick={() => execCommand('removeFormat')}
+                  title="Clear Formatting"
+                >
+                  <span className="text-xs">✕</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Rich Text Content Area */}
+          <div
+            ref={editorRef}
+            className="rich-text-content w-full p-3 rounded-lg focus:outline-none"
+            contentEditable
+            onInput={handleInput}
             onKeyDown={handleKeyDown}
-            rows={4}
+            onPaste={handlePaste}
+            data-placeholder={data.placeholder}
             style={{
               minHeight: '120px',
               backgroundColor: 'rgba(15, 23, 42, 0.2)',
@@ -64,8 +253,14 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
               color: 'var(--text-secondary)'
             }}
           />
+          
+          {/* Character Counter */}
+          <div className={`rich-text-counter text-xs mt-2 ${charCount > maxLength * 0.9 ? 'text-yellow-400' : charCount > maxLength ? 'text-red-400' : 'text-text-quaternary'}`}>
+            {charCount}/{maxLength}
+          </div>
         </div>
       </div>
+      
       <div className="flex justify-between items-center bg-black/10 p-3 px-5 rounded-b-xl mt-auto">
         <div className="flex items-center gap-4">
           <button 
@@ -80,7 +275,7 @@ export default function EntryComposer({ data, onSubmit }: EntryComposerProps) {
         <button 
           className="commit-btn interactive-btn text-sm px-4 py-2 rounded-md ripple-effect"
           onClick={handleSubmit}
-          disabled={!content.trim()}
+          disabled={charCount === 0 || charCount > maxLength}
         >
           {data.buttonText}
         </button>

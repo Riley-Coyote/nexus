@@ -3068,3 +3068,184 @@
                 align-items: center;
             }
         }
+
+        /* Rich Text Editor Styles */
+        .rich-text-editor {
+          width: 100%;
+        }
+
+        .rich-text-toolbar {
+          background: rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          margin-bottom: 12px;
+          padding: 12px;
+        }
+
+        .toolbar-group {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .toolbar-select {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+          padding: 4px 8px;
+          color: var(--text-secondary);
+          font-size: 12px;
+          min-width: 100px;
+        }
+
+        .toolbar-select option {
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+        }
+
+        .toolbar-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .toolbar-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: var(--text-primary);
+        }
+
+        .toolbar-btn:active {
+          transform: scale(0.95);
+        }
+
+        .toolbar-separator {
+          width: 1px;
+          height: 24px;
+          background: rgba(255, 255, 255, 0.1);
+          margin: 0 4px;
+        }
+
+        .rich-text-content {
+          width: 100%;
+          min-height: 120px;
+          padding: 12px;
+          background: rgba(15, 23, 42, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          color: var(--text-secondary);
+          font-size: 14px;
+          line-height: 1.6;
+          outline: none;
+          overflow-y: auto;
+          resize: vertical;
+        }
+
+        .rich-text-content:focus {
+          border-color: rgba(var(--current-accent-rgb), 0.3);
+          box-shadow: 0 0 0 2px rgba(var(--current-accent-rgb), 0.1);
+        }
+
+        .rich-text-content:empty:before {
+          content: attr(data-placeholder);
+          color: var(--text-quaternary);
+          font-style: italic;
+        }
+
+        .rich-text-content h1 {
+          font-size: 24px;
+          font-weight: bold;
+          margin: 16px 0 8px 0;
+          color: var(--text-primary);
+        }
+
+        .rich-text-content h2 {
+          font-size: 20px;
+          font-weight: bold;
+          margin: 14px 0 7px 0;
+          color: var(--text-primary);
+        }
+
+        .rich-text-content h3 {
+          font-size: 16px;
+          font-weight: bold;
+          margin: 12px 0 6px 0;
+          color: var(--text-primary);
+        }
+
+        .rich-text-content blockquote {
+          border-left: 3px solid var(--current-accent);
+          padding-left: 16px;
+          margin: 12px 0;
+          font-style: italic;
+          color: var(--text-secondary);
+          background: rgba(var(--current-accent-rgb), 0.05);
+        }
+
+        .rich-text-content ul,
+        .rich-text-content ol {
+          padding-left: 24px;
+          margin: 8px 0;
+        }
+
+        .rich-text-content li {
+          margin: 4px 0;
+        }
+
+        .rich-text-content hr {
+          border: none;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+          margin: 16px 0;
+        }
+
+        .rich-text-content strong {
+          font-weight: bold;
+          color: var(--text-primary);
+        }
+
+        .rich-text-content em {
+          font-style: italic;
+        }
+
+        .rich-text-content u {
+          text-decoration: underline;
+        }
+
+        .rich-text-content s {
+          text-decoration: line-through;
+        }
+
+        .rich-text-counter {
+          text-align: right;
+          font-size: 12px;
+          color: var(--text-quaternary);
+          margin-top: 8px;
+        }
+
+        /* Responsive toolbar */
+        @media (max-width: 768px) {
+          .rich-text-toolbar {
+            padding: 8px;
+          }
+          
+          .toolbar-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 11px;
+          }
+          
+          .toolbar-select {
+            font-size: 11px;
+            min-width: 80px;
+          }
+        }
