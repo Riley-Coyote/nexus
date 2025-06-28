@@ -14,6 +14,16 @@
     <!-- Prevent phone number detection -->
     <meta name="format-detection" content="telephone=no">
     
+    <!-- Performance optimizations -->
+    <link rel="preconnect" href="https://api.dicebear.com" crossorigin>
+    <link rel="dns-prefetch" href="https://api.dicebear.com">
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@100;200;300;400;500;600;700&display=swap" as="style">
+    
     <title>NEXUS - Liminal Logbook</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3007,6 +3017,72 @@
             height: calc(var(--vh, 1vh) * 100);
         }
 
+        /* Performance Optimizations */
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* GPU Acceleration for smooth animations */
+        .gpu-accelerated {
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            perspective: 1000px;
+            -webkit-perspective: 1000px;
+        }
+
+        /* Optimized scrolling */
+        .smooth-scroll {
+            -webkit-overflow-scrolling: touch;
+            overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Reduce motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* High performance shadows */
+        .shadow-gpu {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateZ(0);
+        }
+
+        /* Optimize image rendering */
+        img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        /* Lazy loading styles */
+        .lazy-load {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .lazy-load.loaded {
+            opacity: 1;
+        }
+
+        /* Virtual scroll container */
+        .virtual-scroll {
+            contain: strict;
+            will-change: scroll-position;
+        }
+
         /* Disable hover on touch devices */
         .touch-device .hover\:text-gray-250:hover,
         .touch-device .hover\:bg-gray-750:hover,
@@ -3028,6 +3104,244 @@
         @media (display-mode: standalone) {
             .header {
                 padding-top: calc(env(safe-area-inset-top) + 8px);
+            }
+        }
+        
+        /* Enhanced Mobile Styles for World-Class Performance */
+        @media (max-width: 768px) {
+            /* Performance optimizations */
+            * {
+                -webkit-tap-highlight-color: rgba(0,0,0,0);
+                -webkit-touch-callout: none;
+            }
+            
+            /* Optimize scrolling */
+            .scrollable {
+                -webkit-overflow-scrolling: touch;
+                overflow-scrolling: touch;
+                scroll-behavior: smooth;
+            }
+            
+            /* GPU acceleration for transitions */
+            .transition-gpu {
+                transform: translateZ(0);
+                will-change: transform, opacity;
+                backface-visibility: hidden;
+                perspective: 1000px;
+            }
+            
+            /* Responsive typography */
+            :root {
+                --font-size-xs: 0.75rem;
+                --font-size-sm: 0.875rem;
+                --font-size-base: 1rem;
+                --font-size-lg: 1.125rem;
+                --font-size-xl: 1.25rem;
+            }
+            
+            body {
+                font-size: var(--font-size-base);
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+            
+            /* Mobile-first layout adjustments */
+            .main-layout {
+                display: flex;
+                flex-direction: column;
+                height: calc(var(--vh, 1vh) * 100);
+                overflow: hidden;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                width: 280px;
+                height: 100%;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 1000;
+            }
+            
+            .sidebar.active {
+                transform: translateX(280px);
+            }
+            
+            /* Mobile navigation bar */
+            .mobile-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 60px;
+                background: var(--panel-bg);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border-top: 1px solid rgba(255,255,255,0.1);
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                padding-bottom: env(safe-area-inset-bottom);
+                z-index: 900;
+            }
+            
+            .mobile-nav-item {
+                flex: 1;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                color: var(--text-tertiary);
+                transition: all 0.2s ease;
+            }
+            
+            .mobile-nav-item.active {
+                color: var(--current-accent);
+            }
+            
+            /* Floating compose button */
+            .compose-fab {
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                background: var(--current-accent);
+                color: var(--deep-void);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: var(--shadow-level-3);
+                transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                transform: scale(1);
+                z-index: 850;
+            }
+            
+            .compose-fab:active {
+                transform: scale(0.9);
+            }
+            
+            /* Content area adjustments */
+            .main-content {
+                flex: 1;
+                overflow-y: auto;
+                padding-bottom: 80px;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: contain;
+            }
+            
+            /* Form inputs optimization */
+            input, textarea, select {
+                font-size: 16px; /* Prevents zoom on iOS */
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            /* Touch-optimized buttons */
+            button, .button, .clickable {
+                touch-action: manipulation;
+                user-select: none;
+                -webkit-user-select: none;
+                min-height: 44px;
+                min-width: 44px;
+                position: relative;
+            }
+            
+            /* Reduced motion for better performance */
+            @media (prefers-reduced-motion: reduce) {
+                * {
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                }
+            }
+            
+            /* Hide desktop-only elements */
+            .desktop-only {
+                display: none !important;
+            }
+            
+            /* Show mobile-only elements */
+            .mobile-only {
+                display: block !important;
+            }
+            
+            /* Optimize images */
+            img {
+                max-width: 100%;
+                height: auto;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: crisp-edges;
+            }
+            
+            /* Card and panel adjustments */
+            .panel, .card {
+                margin: 8px;
+                border-radius: 12px;
+            }
+            
+            /* Modal optimizations */
+            .modal {
+                position: fixed;
+                inset: 0;
+                padding: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .modal-content {
+                max-height: calc(var(--vh, 1vh) * 90);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Loading states */
+            .skeleton {
+                background: linear-gradient(90deg, 
+                    rgba(255,255,255,0.05) 0%, 
+                    rgba(255,255,255,0.1) 50%, 
+                    rgba(255,255,255,0.05) 100%);
+                background-size: 200% 100%;
+                animation: skeleton-loading 1.5s ease-in-out infinite;
+            }
+            
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        }
+        
+        /* iPhone X and newer safe areas */
+        @supports (padding: max(0px)) {
+            .header {
+                padding-top: max(8px, env(safe-area-inset-top));
+            }
+            
+            .mobile-nav {
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
+            
+            .main-content {
+                padding-bottom: calc(80px + env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Dark mode optimizations */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color-scheme: dark;
+            }
+        }
+        
+        /* High refresh rate displays */
+        @media (min-resolution: 2dppx) {
+            .webgl-canvas {
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: crisp-edges;
             }
         }
     </style>
@@ -6123,6 +6437,9 @@
                 // Add mobile class to body for additional styling
                 document.body.classList.add('is-mobile');
                 
+                // Enable GPU acceleration
+                document.body.style.transform = 'translateZ(0)';
+                
                 // Prevent bounce scroll on iOS
                 document.body.addEventListener('touchmove', (e) => {
                     if (!e.target.closest('.scrollable')) {
@@ -6133,11 +6450,14 @@
                 // Add scrollable class to main content areas
                 document.querySelectorAll('.main-content, .sidebar-content, .messenger-container').forEach(el => {
                     el.classList.add('scrollable');
+                    // Enable momentum scrolling on iOS
+                    el.style.webkitOverflowScrolling = 'touch';
+                    el.style.overflowScrolling = 'touch';
                 });
                 
                 // Adjust WebGL for mobile performance
                 if (window.webglComplexity) {
-                    window.webglComplexity = 3.0; // Reduce complexity on mobile
+                    window.webglComplexity = 2.0; // Further reduce complexity on mobile
                 }
                 
                 // Handle viewport height changes (keyboard, etc.)
@@ -6147,9 +6467,40 @@
                 }
                 updateViewportHeight();
                 window.addEventListener('resize', updateViewportHeight);
+                window.addEventListener('orientationchange', updateViewportHeight);
                 
                 // Disable hover effects on touch devices
                 document.body.classList.add('touch-device');
+                
+                // Enable passive touch events for better scrolling
+                document.addEventListener('touchstart', () => {}, { passive: true });
+                document.addEventListener('touchmove', () => {}, { passive: true });
+                
+                // Optimize animations for mobile
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(() => {
+                        document.querySelectorAll('[data-animate]').forEach(el => {
+                            el.style.willChange = 'transform, opacity';
+                        });
+                    });
+                }
+                
+                // Add touch feedback
+                document.addEventListener('touchstart', (e) => {
+                    const target = e.target.closest('button, .clickable, .nav-link, .action-button');
+                    if (target) {
+                        target.style.transform = 'scale(0.98)';
+                        target.style.opacity = '0.8';
+                    }
+                }, { passive: true });
+                
+                document.addEventListener('touchend', (e) => {
+                    const target = e.target.closest('button, .clickable, .nav-link, .action-button');
+                    if (target) {
+                        target.style.transform = '';
+                        target.style.opacity = '';
+                    }
+                }, { passive: true });
             }
             
             // Initialize WebGL background with error handling
@@ -7390,8 +7741,47 @@
             }
         }
 
-        // Initialize mobile UI on load
+        // Simple mobile optimizations
         document.addEventListener('DOMContentLoaded', () => {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // Add mobile class for CSS targeting
+                document.body.classList.add('is-mobile');
+                
+                // Enable smooth scrolling on iOS
+                document.querySelectorAll('.scrollable, .main-content, .sidebar-content').forEach(el => {
+                    el.style.webkitOverflowScrolling = 'touch';
+                    el.style.overflowScrolling = 'touch';
+                });
+                
+                // Handle viewport height for better mobile experience
+                function setViewportHeight() {
+                    const vh = window.innerHeight * 0.01;
+                    document.documentElement.style.setProperty('--vh', `${vh}px`);
+                }
+                setViewportHeight();
+                window.addEventListener('resize', setViewportHeight);
+                window.addEventListener('orientationchange', setViewportHeight);
+                
+                // Simple touch feedback
+                document.addEventListener('touchstart', (e) => {
+                    const target = e.target.closest('button, .clickable, a');
+                    if (target) {
+                        target.style.opacity = '0.7';
+                    }
+                }, { passive: true });
+                
+                document.addEventListener('touchend', (e) => {
+                    const target = e.target.closest('button, .clickable, a');
+                    if (target) {
+                        setTimeout(() => {
+                            target.style.opacity = '';
+                        }, 100);
+                    }
+                }, { passive: true });
+            }
+            
             // Re-create icons for mobile navigation
             setTimeout(() => {
                 lucide.createIcons();
