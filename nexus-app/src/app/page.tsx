@@ -131,6 +131,8 @@ export default function Home() {
               onPostClick={handleOpenPost}
               getFlattenedStreamEntries={nexusData.getFlattenedStreamEntries}
               createBranch={nexusData.createBranch}
+              refreshLogbookData={nexusData.refreshLogbookData}
+              refreshDreamData={nexusData.refreshDreamData}
             />
           </div>
         ) : viewMode === 'resonance-field' ? (
@@ -138,6 +140,8 @@ export default function Home() {
             <ResonanceField 
               resonatedEntries={nexusData.resonatedEntries}
               onPostClick={handleOpenPost}
+              refreshResonatedEntries={nexusData.refreshResonatedEntries}
+              onResonate={nexusData.resonateWithEntry}
             />
           </div>
         ) : (

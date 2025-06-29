@@ -131,6 +131,8 @@ class DataService {
         }
         // Initialize branch relationships from existing parent-child data
         this.initializeMockBranchRelationships();
+        // Initialize test resonances for demo
+        this.initializeTestResonances();
         console.log('📝 Using mock data mode');
         console.log('🧪 Data Source: In-Memory Mock Data');
         if (DEBUG_USE_MOCK_DATA) {
@@ -172,6 +174,33 @@ class DataService {
         }
       }
     });
+  }
+
+  // Method to initialize test resonances after user login
+  initializeUserResonances(userId: string) {
+    if (!USE_MOCK_DATA && !DEBUG_USE_MOCK_DATA) return;
+    
+    // Check if user already has resonances
+    if (this.userResonances.has(userId) && this.userResonances.get(userId)!.size > 0) {
+      return; // User already has resonances, don't overwrite
+    }
+    
+    if (!this.userResonances.has(userId)) {
+      this.userResonances.set(userId, new Set());
+    }
+    
+    const userResonances = this.userResonances.get(userId)!;
+    const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+    
+    // Add the first 2-3 entries as resonated for demo purposes
+    const entriesToResonate = allEntries.slice(0, 3);
+    entriesToResonate.forEach(entry => {
+      userResonances.add(entry.id);
+      // Update interaction count
+      entry.interactions.resonances = (entry.interactions.resonances || 0) + 1;
+    });
+    
+    console.log(`🧪 Initialized ${entriesToResonate.length} test resonances for user: ${userId}`);
   }
 
   // ========== ADVANCED THREADING UTILITIES ==========
@@ -698,7 +727,45 @@ class DataService {
     }
   }
 
-  // Get resonated entries for resonance field
+  // ========== EFFICIENT ENTRY TYPE DETECTION ==========
+
+  // Quick method to determine entry type without full fetch
+  async getEntryType(entryId: string): Promise<'logbook' | 'dream' | null> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Check in logbook entries first
+      const logbookEntry = this.logbookEntries.find(e => e.id === entryId);
+      if (logbookEntry) {
+        return 'logbook';
+      }
+      
+      // Check in shared dreams
+      const dreamEntry = this.sharedDreams.find(e => e.id === entryId);
+      if (dreamEntry) {
+        return 'dream';
+      }
+      
+      return null;
+    }
+    
+    try {
+      const entry = await this.database.getEntryById(entryId);
+      if (!entry) return null;
+      
+      // Determine type based on entry properties
+      if (entry.type.toLowerCase().includes('dream') || entry.resonance !== undefined) {
+        return 'dream';
+      } else {
+        return 'logbook';
+      }
+    } catch (error) {
+      console.error('❌ Error determining entry type:', error);
+      return null;
+    }
+  }
+
+  // Get resonated entries for resonance field - OPTIMIZED
   async getResonatedEntries(userId: string): Promise<StreamEntry[]> {
     await this.initializeData();
     
@@ -726,14 +793,28 @@ class DataService {
         return [];
       }
       
-      // Fetch all resonated entries
+      // Batch fetch all resonated entries for better performance
       const resonatedEntries: StreamEntry[] = [];
-      for (const entryId of resonatedEntryIds) {
-        const entry = await this.database.getEntryById(entryId);
-        if (entry) {
-          resonatedEntries.push(entry);
+      
+      // Use Promise.allSettled to handle any individual entry fetch failures gracefully
+      const entryPromises = resonatedEntryIds.map(async (entryId) => {
+        try {
+          const entry = await this.database!.getEntryById(entryId);
+          return entry;
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch resonated entry ${entryId}:`, error);
+          return null;
         }
-      }
+      });
+      
+      const entryResults = await Promise.allSettled(entryPromises);
+      
+      // Collect successful results
+      entryResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          resonatedEntries.push(result.value);
+        }
+      });
       
       // Sort by timestamp desc (newest first)
       return resonatedEntries.sort((a, b) => 
@@ -1326,6 +1407,73 @@ class DataService {
     
     // Then get the parent
     return await this.getEntryById(child.parentId);
+  }
+
+  // ========== DEBUG METHODS ==========
+  
+  // Initialize some test resonances for demo/testing purposes
+  private initializeTestResonances() {
+    if (!USE_MOCK_DATA && !DEBUG_USE_MOCK_DATA) return;
+    
+    // Get current user from auth service to set up test resonances
+    const currentUser = authService.getCurrentUser();
+    if (currentUser) {
+      const userId = currentUser.id;
+      
+      if (!this.userResonances.has(userId)) {
+        this.userResonances.set(userId, new Set());
+      }
+      
+      const userResonances = this.userResonances.get(userId)!;
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      
+      // Add the first 2-3 entries as resonated for demo purposes
+      const entriesToResonate = allEntries.slice(0, 3);
+      entriesToResonate.forEach(entry => {
+        userResonances.add(entry.id);
+        // Update interaction count
+        entry.interactions.resonances = (entry.interactions.resonances || 0) + 1;
+      });
+      
+      console.log(`🧪 Initialized ${entriesToResonate.length} test resonances for user: ${currentUser.name} (${userId})`);
+    }
+    
+    // Also add some generic demo users for when no one is logged in
+    const demoUsers = ['demo_user', 'test_user', 'admin', 'user'];
+    const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+    
+    demoUsers.forEach(userId => {
+      if (!this.userResonances.has(userId)) {
+        this.userResonances.set(userId, new Set());
+      }
+      
+      const userResonances = this.userResonances.get(userId)!;
+      
+      // Add different entries for different demo users
+      const startIndex = demoUsers.indexOf(userId);
+      const entriesToResonate = allEntries.slice(startIndex, startIndex + 2);
+      entriesToResonate.forEach(entry => {
+        userResonances.add(entry.id);
+      });
+    });
+  }
+
+  // Debug method to manually add a resonance (for testing)
+  debugAddResonance(userId: string, entryId: string) {
+    if (!this.userResonances.has(userId)) {
+      this.userResonances.set(userId, new Set());
+    }
+    this.userResonances.get(userId)!.add(entryId);
+    this.updateEntryInteraction(entryId, 'resonances', 1);
+    console.log(`🐛 DEBUG: Added resonance ${entryId} for user ${userId}`);
+  }
+
+  // Debug method to get current resonances for a user (for testing)
+  debugGetUserResonances(userId: string): string[] {
+    const userResonances = this.userResonances.get(userId);
+    const resonances = userResonances ? Array.from(userResonances) : [];
+    console.log(`🐛 DEBUG: User ${userId} has ${resonances.length} resonances:`, resonances);
+    return resonances;
   }
 }
 

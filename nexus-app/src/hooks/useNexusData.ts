@@ -52,6 +52,10 @@ export interface NexusData {
   
   // Actions
   refreshData: () => Promise<void>;
+  refreshLogbookData: () => Promise<void>;
+  refreshDreamData: () => Promise<void>;
+  refreshResonatedEntries: () => Promise<void>;
+  smartRefresh: (entryId: string, refreshType?: 'all' | 'logbook' | 'dream' | 'resonance') => Promise<void>;
   submitEntry: (content: string, type: string, isPublic: boolean, mode: JournalMode) => Promise<void>;
   createBranch: (parentId: string, content: string) => Promise<void>;
   resonateWithEntry: (entryId: string) => Promise<void>;
@@ -72,6 +76,7 @@ export interface NexusData {
   getFlattenedLogbookEntries: () => Promise<StreamEntryData[]>;
   getDirectChildren: (parentId: string) => Promise<StreamEntryData[]>;
   getParentPost: (childId: string) => Promise<StreamEntryData | null>;
+  getEntryType: (entryId: string) => Promise<'logbook' | 'dream' | null>;
   
   // Threading controls (for advanced users)
   setThreadingMode: (mode: 'dfs' | 'bfs' | 'adaptive') => void;
@@ -128,17 +133,22 @@ export const useNexusData = (): NexusData => {
   // Load user resonated entries
   const loadResonatedEntries = useCallback(async () => {
     if (!authState.currentUser) {
+      console.log('🔍 No current user, clearing resonated entries');
       setResonatedEntries([]);
       return;
     }
+    
+    console.log(`🔍 Loading resonated entries for user: ${authState.currentUser.id}`);
     
     try {
       // Use the new getResonatedEntries method that returns full entries directly
       const resonatedEntries = await dataService.getResonatedEntries(authState.currentUser.id);
       const resonatedEntriesData = resonatedEntries.map(convertToStreamEntryData);
+      
+      console.log(`✅ Loaded ${resonatedEntries.length} resonated entries:`, resonatedEntries.map(e => e.id));
       setResonatedEntries(resonatedEntriesData);
     } catch (error) {
-      console.error('Failed to load resonated entries:', error);
+      console.error('❌ Failed to load resonated entries:', error);
       setResonatedEntries([]);
     }
   }, [authState.currentUser]);
@@ -195,69 +205,127 @@ export const useNexusData = (): NexusData => {
   const refreshData = useCallback(async () => {
     await Promise.all([loadLogbookData(), loadDreamData()]);
   }, [loadLogbookData, loadDreamData]);
+
+  // ========== GRANULAR REFRESH METHODS ==========
   
+  // Refresh only logbook data (for logbook-specific actions)
+  const refreshLogbookData = useCallback(async () => {
+    await loadLogbookData();
+  }, [loadLogbookData]);
+
+  // Refresh only dream data (for dream-specific actions)
+  const refreshDreamData = useCallback(async () => {
+    await loadDreamData();
+  }, [loadDreamData]);
+
+  // Refresh only resonated entries (for resonance actions)
+  const refreshResonatedEntries = useCallback(async () => {
+    await loadResonatedEntries();
+  }, [loadResonatedEntries]);
+
+  // Smart refresh: only refresh what's needed based on entry type
+  const smartRefresh = useCallback(async (entryId: string, refreshType?: 'all' | 'logbook' | 'dream' | 'resonance') => {
+    if (refreshType === 'all') {
+      await refreshData();
+      await refreshResonatedEntries();
+      return;
+    }
+
+    const promises: Promise<void>[] = [];
+    
+    if (refreshType === 'logbook') {
+      promises.push(refreshLogbookData());
+    } else if (refreshType === 'dream') {
+      promises.push(refreshDreamData());
+    }
+    
+    if (refreshType === 'resonance') {
+      promises.push(refreshResonatedEntries());
+    }
+
+    await Promise.all(promises);
+  }, [refreshData, refreshLogbookData, refreshDreamData, refreshResonatedEntries]);
+
   // Submit new entry
   const submitEntry = useCallback(async (content: string, type: string, isPublic: boolean, mode: JournalMode) => {
     try {
       const newEntry = await dataService.submitEntry(content, type, isPublic, mode);
       
-      // Don't update state here since dataService already handles storage
-      // Instead, refresh the data to get the updated entries from dataService
+      // Smart refresh: only refresh the relevant mode
       if (mode === 'logbook') {
-        await loadLogbookData();
+        await refreshLogbookData();
       } else {
-        await loadDreamData();
+        await refreshDreamData();
       }
     } catch (error) {
       console.error('Failed to submit entry:', error);
       throw error;
     }
-  }, [loadLogbookData, loadDreamData]);
+  }, [refreshLogbookData, refreshDreamData]);
 
   // Create branch
   const createBranch = useCallback(async (parentId: string, content: string) => {
     try {
       await dataService.createBranch(parentId, content);
       
-      // Refresh data to show the new branch
-      await refreshData();
+      // Determine if parent is logbook or dream entry to refresh correctly
+      const parentEntry = await dataService.getEntryById(parentId);
+      if (parentEntry) {
+        const isDreamEntry = parentEntry.type.toLowerCase().includes('dream') || 
+                             parentEntry.resonance !== undefined;
+        
+        if (isDreamEntry) {
+          await refreshDreamData();
+        } else {
+          await refreshLogbookData();
+        }
+      } else {
+        // Fallback: refresh both if we can't determine
+        await refreshData();
+      }
+      
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
     } catch (error) {
       console.error('Failed to create branch:', error);
       throw error;
     }
-  }, [refreshData]);
+  }, [refreshData, refreshLogbookData, refreshDreamData]);
   
-    // Resonate with entry
+  // Resonate with entry - OPTIMIZED
   const resonateWithEntry = useCallback(async (entryId: string) => {
     try {
       await dataService.resonateWithEntry(entryId);
-      // Refresh data to reflect the resonance
-      await refreshData();
-      // Reload resonated entries
-      await loadResonatedEntries();
+      
+      // Only refresh resonated entries immediately for UI responsiveness
+      await refreshResonatedEntries();
+      
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
+      
+      // Note: We don't refresh all data here for performance
+      // The interaction counts will be updated on next natural refresh
     } catch (error) {
       console.error('Failed to resonate with entry:', error);
       throw error;
     }
-  }, [refreshData, loadResonatedEntries]);
+  }, [refreshResonatedEntries]);
 
-  // Amplify entry
+  // Amplify entry - OPTIMIZED  
   const amplifyEntry = useCallback(async (entryId: string) => {
     try {
       await dataService.amplifyEntry(entryId);
-      // Refresh data to reflect the amplification
-      await refreshData();
+      
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
+      
+      // Note: We don't refresh all data here for performance
+      // The interaction counts will be updated on next natural refresh
     } catch (error) {
       console.error('Failed to amplify entry:', error);
       throw error;
     }
-  }, [refreshData]);
+  }, []);
 
   // Auth actions
   const login = useCallback(async (username: string, password: string) => {
@@ -332,7 +400,13 @@ export const useNexusData = (): NexusData => {
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       (window as any).nexusDataService = dataService;
-      console.log('🔧 Development Mode: Access threading controls via window.nexusDataService');
+      // Expose additional debug methods
+      (window as any).debugResonance = {
+        addResonance: (userId: string, entryId: string) => dataService.debugAddResonance(userId, entryId),
+        getUserResonances: (userId: string) => dataService.debugGetUserResonances(userId),
+        refreshResonatedEntries: () => loadResonatedEntries()
+      };
+      console.log('🔧 Development Mode: Access debugging via window.nexusDataService and window.debugResonance');
     }
   }, []);
   
@@ -371,6 +445,10 @@ export const useNexusData = (): NexusData => {
     
     // Actions
     refreshData,
+    refreshLogbookData,
+    refreshDreamData,
+    refreshResonatedEntries,
+    smartRefresh,
     submitEntry,
     createBranch,
     resonateWithEntry,
@@ -388,13 +466,34 @@ export const useNexusData = (): NexusData => {
     
     // Feed-specific methods
     getFlattenedStreamEntries: useCallback(async () => {
+      // Try to use already loaded data first if available
+      if (logbookEntries.length > 0 || sharedDreams.length > 0) {
+        const allEntries = [...logbookEntries, ...sharedDreams];
+        const sortedEntries = allEntries.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        return sortedEntries.map(convertToStreamEntryData);
+      }
+      
+      // Fallback to service call if no data loaded
       const entries = await dataService.getFlattenedStreamEntries();
       return entries.map(convertToStreamEntryData);
-    }, []),
+    }, [logbookEntries, sharedDreams]),
+    
     getFlattenedLogbookEntries: useCallback(async () => {
+      // Try to use already loaded data first if available
+      if (logbookEntries.length > 0) {
+        const sortedEntries = [...logbookEntries].sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        return sortedEntries.map(convertToStreamEntryData);
+      }
+      
+      // Fallback to service call if no data loaded
       const entries = await dataService.getFlattenedLogbookEntries();
       return entries.map(convertToStreamEntryData);
-    }, []),
+    }, [logbookEntries]),
+    
     getDirectChildren: useCallback(async (parentId: string) => {
       const children = await dataService.getDirectChildren(parentId);
       return children.map(convertToStreamEntryData);
@@ -403,8 +502,11 @@ export const useNexusData = (): NexusData => {
       const post = await dataService.getParentPost(childId);
       return post ? convertToStreamEntryData(post) : null;
     }, []),
+    getEntryType: useCallback(async (entryId: string) => {
+      return await dataService.getEntryType(entryId);
+    }, []),
     
-    // Threading controls
+    // Threading controls (for advanced users)
     setThreadingMode: dataService.setThreadingMode.bind(dataService),
     getThreadingConfig: dataService.getThreadingConfig.bind(dataService),
   };
