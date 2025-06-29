@@ -6,6 +6,8 @@ export interface HeaderProps {
   currentView: ViewMode;
   onModeChange: (mode: JournalMode) => void;
   onViewChange: (view: ViewMode) => void;
+  currentUser?: User | null;
+  onProfileClick?: () => void;
 }
 
 export interface LogbookState {
@@ -54,6 +56,7 @@ export interface StreamEntry {
   };
   threads: any[];
   isAmplified: boolean;
+  userId?: string; // User ID for tracking who created the entry
   title?: string;
   resonance?: number;
   coherence?: number;
@@ -97,4 +100,27 @@ export interface DreamPatterns {
   rows: number;
   columns: number;
   characters: string[];
+}
+
+// User and Authentication types
+export interface User {
+  id: string;
+  username: string;
+  name: string;
+  email?: string;
+  role: string;
+  avatar: string;
+  profileImage?: string;
+  stats: {
+    entries: number;
+    dreams: number;
+    connections: number;
+  };
+  createdAt: string;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  currentUser: User | null;
+  sessionToken: string | null;
 } 

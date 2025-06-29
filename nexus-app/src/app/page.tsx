@@ -11,6 +11,8 @@ import DreamRightSidebar from '@/components/DreamRightSidebar';
 import PostOverlay from '@/components/PostOverlay';
 import NexusFeed from '@/components/NexusFeed';
 import ResonanceField from '@/components/ResonanceField';
+import AuthPanel from '@/components/AuthPanel';
+import UserProfile from '@/components/UserProfile';
 import { StreamEntryData } from '@/components/StreamEntry';
 import { JournalMode, ViewMode, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
@@ -25,6 +27,9 @@ export default function Home() {
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  
+  // Profile state
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
     // Convert StreamEntryData to StreamEntry if needed
@@ -46,14 +51,18 @@ export default function Home() {
     setTimeout(() => setOverlayPost(null), 400); // Wait for animation
   };
 
-  const handlePostInteraction = (action: string, postId: string) => {
-    // Handle post interactions using the data service
-    if (action === 'Resonate ◊') {
-      nexusData.resonateWithEntry(postId);
-    } else if (action === 'Amplify ≋') {
-      nexusData.amplifyEntry(postId);
+  const handlePostInteraction = async (action: string, postId: string) => {
+    try {
+      // Handle post interactions using the data service
+      if (action === 'Resonate ◊') {
+        await nexusData.resonateWithEntry(postId);
+      } else if (action === 'Amplify ≋') {
+        await nexusData.amplifyEntry(postId);
+      }
+      console.log(`${action} interaction on post ${postId}`);
+    } catch (error) {
+      console.error('Failed to perform action:', error);
     }
-    console.log(`${action} interaction on post ${postId}`);
   };
 
   const handleModeChange = (mode: JournalMode) => {
@@ -62,8 +71,35 @@ export default function Home() {
     setViewMode('default');
   };
 
-  // Show loading state while data is being fetched
-  if (nexusData.isLoading) {
+  const handleAuthSuccess = () => {
+    // Force a re-check of auth state to trigger re-render
+    nexusData.forceAuthRefresh();
+  };
+
+  const handleProfileClick = () => {
+    setIsProfileOpen(true);
+  };
+
+  const handleLogout = () => {
+    nexusData.logout();
+    setIsProfileOpen(false);
+  };
+
+  // Show authentication panel if not authenticated
+  if (!nexusData.authState.isAuthenticated) {
+    return (
+      <AuthPanel 
+        onAuthSuccess={handleAuthSuccess}
+        onLogin={nexusData.login}
+        onSignup={nexusData.signup}
+      />
+    );
+  }
+
+  // Show loading state while data is being fetched or required data is not available
+  if (nexusData.isLoading || 
+      (journalMode === 'logbook' && (!nexusData.logbookState || !nexusData.networkStatus)) ||
+      (journalMode === 'dream' && (!nexusData.dreamStateMetrics || !nexusData.dreamAnalytics))) {
     return (
       <div className="liminal-logbook loading-state">
         <div className="flex items-center justify-center h-screen">
@@ -82,6 +118,8 @@ export default function Home() {
           currentView={viewMode}
           onModeChange={handleModeChange}
           onViewChange={setViewMode}
+          currentUser={nexusData.currentUser}
+          onProfileClick={handleProfileClick}
         />
         
         {/* Main Grid Content */}
@@ -151,6 +189,16 @@ export default function Home() {
         onClose={handleCloseOverlay}
         onInteraction={handlePostInteraction}
       />
+
+      {/* User Profile */}
+      {nexusData.currentUser && (
+        <UserProfile
+          user={nexusData.currentUser}
+          onLogout={handleLogout}
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+        />
+      )}
     </div>
   );
 } 

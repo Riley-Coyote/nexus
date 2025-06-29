@@ -8,8 +8,10 @@ import {
   DreamStateMetrics,
   ActiveDreamer,
   DreamAnalytics,
-  DreamPatterns
+  DreamPatterns,
+  User
 } from '../types';
+import { authService } from './authService';
 import { StreamEntryData } from '../../components/StreamEntry';
 import {
   mockLogbookState,
@@ -57,6 +59,26 @@ export const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData =>
 const simulateApiDelay = (ms: number = 100) => new Promise(resolve => setTimeout(resolve, ms));
 
 class DataService {
+  // In-memory storage for user-specific data
+  private logbookEntries: StreamEntry[] = [];
+  private sharedDreams: StreamEntry[] = [];
+  private userResonances: Map<string, Set<string>> = new Map(); // userId -> Set of entryIds
+  private userAmplifications: Map<string, Set<string>> = new Map(); // userId -> Set of entryIds
+
+  constructor() {
+    this.initializeData();
+  }
+
+  private initializeData() {
+    // Initialize with mock data if no entries exist
+    if (this.logbookEntries.length === 0) {
+      this.logbookEntries = [...mockLogbookEntries];
+    }
+    if (this.sharedDreams.length === 0) {
+      this.sharedDreams = [...mockSharedDreams];
+    }
+  }
+
   // Logbook Data
   async getLogbookState(): Promise<LogbookState> {
     if (USE_MOCK_DATA) {
@@ -105,7 +127,7 @@ class DataService {
   async getLogbookEntries(page: number = 1, limit: number = 10): Promise<StreamEntry[]> {
     if (USE_MOCK_DATA) {
       await simulateApiDelay();
-      return mockLogbookEntries;
+      return this.logbookEntries;
     }
     
     const response = await fetch(`${API_BASE_URL}/logbook/entries?page=${page}&limit=${limit}`);
@@ -139,7 +161,7 @@ class DataService {
   async getSharedDreams(page: number = 1, limit: number = 10): Promise<StreamEntry[]> {
     if (USE_MOCK_DATA) {
       await simulateApiDelay();
-      return mockSharedDreams;
+      return this.sharedDreams;
     }
     
     const response = await fetch(`${API_BASE_URL}/dreams/shared?page=${page}&limit=${limit}`);
@@ -180,14 +202,19 @@ class DataService {
     if (USE_MOCK_DATA) {
       await simulateApiDelay(300);
       
-      // Create a mock new entry
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User must be authenticated to submit entries');
+      }
+      
+      // Create a new entry with user attribution
       const newEntry: StreamEntry = {
-        id: `${mode}_${Date.now()}`,
+        id: `${mode}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         parentId: null,
         children: [],
         depth: 0,
         type: type,
-        agent: "User",
+        agent: currentUser.name,
         connections: 0,
         metrics: { c: 0.5, r: 0.5, x: 0.5 },
         timestamp: new Date().toISOString(),
@@ -201,8 +228,18 @@ class DataService {
           shares: 0
         },
         threads: [],
-        isAmplified: false
+        isAmplified: false,
+        userId: currentUser.id // Add user ID for tracking
       };
+      
+      // Add to appropriate storage
+      if (mode === 'logbook') {
+        this.logbookEntries.unshift(newEntry);
+        authService.updateUserStats('entries');
+      } else {
+        this.sharedDreams.unshift(newEntry);
+        authService.updateUserStats('dreams');
+      }
       
       return newEntry;
     }
@@ -225,26 +262,127 @@ class DataService {
 
   async resonateWithEntry(entryId: string): Promise<void> {
     if (USE_MOCK_DATA) {
-      await simulateApiDelay(100);
-      console.log(`Resonated with entry: ${entryId}`);
+      await simulateApiDelay();
+      
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User must be authenticated to resonate');
+      }
+
+      // Check if user has already resonated
+      if (!this.userResonances.has(currentUser.id)) {
+        this.userResonances.set(currentUser.id, new Set());
+      }
+      
+      const userResonances = this.userResonances.get(currentUser.id)!;
+      if (userResonances.has(entryId)) {
+        // User already resonated, so remove resonance
+        userResonances.delete(entryId);
+        this.updateEntryInteraction(entryId, 'resonances', -1);
+      } else {
+        // Add resonance
+        userResonances.add(entryId);
+        this.updateEntryInteraction(entryId, 'resonances', 1);
+        authService.updateUserStats('connections');
+      }
+      
       return;
     }
     
-    await fetch(`${API_BASE_URL}/entries/${entryId}/resonate`, {
+    const response = await fetch(`${API_BASE_URL}/entries/${entryId}/resonate`, {
       method: 'POST'
     });
+    
+    if (!response.ok) {
+      throw new Error('Failed to resonate with entry');
+    }
   }
 
   async amplifyEntry(entryId: string): Promise<void> {
     if (USE_MOCK_DATA) {
-      await simulateApiDelay(100);
-      console.log(`Amplified entry: ${entryId}`);
+      await simulateApiDelay();
+      
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User must be authenticated to amplify');
+      }
+
+      // Check if user has already amplified
+      if (!this.userAmplifications.has(currentUser.id)) {
+        this.userAmplifications.set(currentUser.id, new Set());
+      }
+      
+      const userAmplifications = this.userAmplifications.get(currentUser.id)!;
+      if (userAmplifications.has(entryId)) {
+        // User already amplified, so remove amplification
+        userAmplifications.delete(entryId);
+        this.updateEntryInteraction(entryId, 'amplifications', -1);
+        this.updateEntryAmplified(entryId, false);
+      } else {
+        // Add amplification
+        userAmplifications.add(entryId);
+        this.updateEntryInteraction(entryId, 'amplifications', 1);
+        this.updateEntryAmplified(entryId, true);
+        authService.updateUserStats('connections');
+      }
+      
       return;
     }
     
-    await fetch(`${API_BASE_URL}/entries/${entryId}/amplify`, {
+    const response = await fetch(`${API_BASE_URL}/entries/${entryId}/amplify`, {
       method: 'POST'
     });
+    
+    if (!response.ok) {
+      throw new Error('Failed to amplify entry');
+    }
+  }
+
+  // Helper methods for updating entry interactions
+  private updateEntryInteraction(entryId: string, type: keyof StreamEntry['interactions'], delta: number): void {
+    // Update in logbook entries
+    const logbookEntry = this.logbookEntries.find(entry => entry.id === entryId);
+    if (logbookEntry) {
+      logbookEntry.interactions[type] = Math.max(0, logbookEntry.interactions[type] + delta);
+      return;
+    }
+    
+    // Update in shared dreams
+    const dreamEntry = this.sharedDreams.find(entry => entry.id === entryId);
+    if (dreamEntry) {
+      dreamEntry.interactions[type] = Math.max(0, dreamEntry.interactions[type] + delta);
+    }
+  }
+
+  private updateEntryAmplified(entryId: string, isAmplified: boolean): void {
+    // Update in logbook entries
+    const logbookEntry = this.logbookEntries.find(entry => entry.id === entryId);
+    if (logbookEntry) {
+      logbookEntry.isAmplified = isAmplified;
+      return;
+    }
+    
+    // Update in shared dreams
+    const dreamEntry = this.sharedDreams.find(entry => entry.id === entryId);
+    if (dreamEntry) {
+      dreamEntry.isAmplified = isAmplified;
+    }
+  }
+
+  // Get user-specific data
+  getUserResonatedEntries(userId: string): string[] {
+    const userResonances = this.userResonances.get(userId);
+    return userResonances ? Array.from(userResonances) : [];
+  }
+
+  hasUserResonated(userId: string, entryId: string): boolean {
+    const userResonances = this.userResonances.get(userId);
+    return userResonances ? userResonances.has(entryId) : false;
+  }
+
+  hasUserAmplified(userId: string, entryId: string): boolean {
+    const userAmplifications = this.userAmplifications.get(userId);
+    return userAmplifications ? userAmplifications.has(entryId) : false;
   }
 }
 

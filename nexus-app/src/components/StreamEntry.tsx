@@ -40,6 +40,8 @@ interface StreamEntryProps {
   onAmplify?: (id: string) => void;
   onShare?: (id: string) => void;
   onPostClick?: (post: StreamEntryData) => void;
+  userHasResonated?: boolean;
+  userHasAmplified?: boolean;
 }
 
 export default function StreamEntry({ 
@@ -50,12 +52,12 @@ export default function StreamEntry({
   onBranch, 
   onAmplify, 
   onShare,
-  onPostClick
+  onPostClick,
+  userHasResonated = false,
+  userHasAmplified = false
 }: StreamEntryProps) {
   const [showBranchComposer, setShowBranchComposer] = useState(false);
   const [branchContent, setBranchContent] = useState('');
-  const [userHasResonated, setUserHasResonated] = useState(false);
-  const [userHasAmplified, setUserHasAmplified] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isReply = entry.parentId;
@@ -67,7 +69,6 @@ export default function StreamEntry({
   const shouldPreview = isPreview && !isReply && contentLength > 200 && !isExpanded;
 
   const handleResonate = () => {
-    setUserHasResonated(!userHasResonated);
     onResonate?.(entry.id);
   };
 
@@ -77,7 +78,6 @@ export default function StreamEntry({
   };
 
   const handleAmplify = () => {
-    setUserHasAmplified(!userHasAmplified);
     onAmplify?.(entry.id);
   };
 
@@ -220,7 +220,7 @@ export default function StreamEntry({
               >
                 <span className="action-text hidden sm:inline">Resonate</span> 
                 <span className="action-symbol text-base sm:text-lg">◊</span>
-                <span className="interaction-count">{entry.interactions.resonances + (userHasResonated ? 1 : 0)}</span>
+                <span className="interaction-count">{entry.interactions.resonances}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleBranch(); }}
@@ -238,7 +238,7 @@ export default function StreamEntry({
               >
                 <span className="action-text hidden sm:inline">Amplify</span> 
                 <span className="action-symbol text-base sm:text-lg">≋</span>
-                <span className="interaction-count">{entry.interactions.amplifications + (userHasAmplified ? 1 : 0)}</span>
+                <span className="interaction-count">{entry.interactions.amplifications}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleShare(); }}

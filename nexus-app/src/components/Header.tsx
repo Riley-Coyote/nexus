@@ -2,18 +2,16 @@
 
 import React, { useState } from 'react';
 import { Search, MessageSquare, User, Menu } from 'lucide-react';
+import { HeaderProps } from '@/lib/types';
 
-type JournalMode = 'logbook' | 'dream';
-type ViewMode = 'feed' | 'resonance-field' | 'default';
-
-interface HeaderProps {
-  currentMode: JournalMode;
-  currentView: ViewMode;
-  onModeChange: (mode: JournalMode) => void;
-  onViewChange: (view: ViewMode) => void;
-}
-
-export default function Header({ currentMode, currentView, onModeChange, onViewChange }: HeaderProps) {
+export default function Header({ 
+  currentMode, 
+  currentView, 
+  onModeChange, 
+  onViewChange, 
+  currentUser, 
+  onProfileClick 
+}: HeaderProps) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -27,8 +25,9 @@ export default function Header({ currentMode, currentView, onModeChange, onViewC
   };
 
   const handleProfileToggle = () => {
-    // Profile panel toggle functionality will be implemented later
-    console.log('Profile toggle');
+    if (onProfileClick) {
+      onProfileClick();
+    }
   };
 
   const handleMessengerOpen = () => {
@@ -142,11 +141,22 @@ export default function Header({ currentMode, currentView, onModeChange, onViewC
               <li>
                 <button 
                   id="profile-toggle-btn" 
-                  className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+                  className="flex items-center gap-2 text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
                   title="Profile"
                   onClick={handleProfileToggle}
                 >
-                  <User className="w-5 h-5" />
+                  {currentUser ? (
+                    <>
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xs font-medium text-gray-100">
+                        {currentUser.avatar}
+                      </div>
+                      <span className="text-sm font-medium hidden sm:inline">
+                        {currentUser.name}
+                      </span>
+                    </>
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
                 </button>
               </li>
             </ul>
