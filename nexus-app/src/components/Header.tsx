@@ -122,7 +122,6 @@ export default function Header({
                 Nexus Feed
               </li>
               <li 
-                data-view="resonance-field" 
                 className="cursor-pointer"
                 onClick={() => onViewChange('resonance-field')}
               >
@@ -135,7 +134,6 @@ export default function Header({
                 </span>
               </li>
               <li 
-                data-view="profile" 
                 className="cursor-pointer"
                 onClick={() => onViewChange('profile')}
               >

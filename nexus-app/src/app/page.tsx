@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import LeftSidebar from '@/components/LeftSidebar';
 import MainContent from '@/components/MainContent';
@@ -10,15 +11,14 @@ import DreamMainContent from '@/components/DreamMainContent';
 import DreamRightSidebar from '@/components/DreamRightSidebar';
 import PostOverlay from '@/components/PostOverlay';
 import NexusFeed from '@/components/NexusFeed';
-import ResonanceField from '@/components/ResonanceField';
 import AuthPanel from '@/components/AuthPanel';
 import UserProfile from '@/components/UserProfile';
-import ProfileView from '@/components/ProfileView';
 import { StreamEntryData } from '@/components/StreamEntry';
 import { JournalMode, ViewMode, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
 
 export default function Home() {
+  const router = useRouter();
   const [journalMode, setJournalMode] = useState<JournalMode>('logbook');
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   
@@ -73,11 +73,16 @@ export default function Home() {
   };
 
   const handleViewChange = (view: ViewMode) => {
-    // If switching to profile view, always show current user's profile
+    // Use router navigation for different views
     if (view === 'profile') {
-      nexusData.viewSelfProfile();
+      router.push('/profile');
+    } else if (view === 'resonance-field') {
+      router.push('/resonance-field');
+    } else if (view === 'feed') {
+      setViewMode('feed');
+    } else {
+      setViewMode(view);
     }
-    setViewMode(view);
   };
 
   const handleAuthSuccess = () => {
@@ -96,24 +101,17 @@ export default function Home() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    handleViewChange('profile');
+    router.push('/profile');
   };
 
   const handleUserClick = async (username: string) => {
     try {
-      // Load the user's profile
-      await nexusData.viewUserProfile(username);
-      
-      // Navigate to profile view
-      setViewMode('profile');
-      
-      // Close any open modals
-      setIsProfileModalOpen(false);
+      // Navigate to user's profile page using router
+      router.push(`/profile/${username}`);
       
       console.log(`📱 Navigating to ${username}'s profile`);
     } catch (error) {
       console.error('❌ Failed to navigate to user profile:', error);
-      // Could show a toast or error message here
     }
   };
 
@@ -170,35 +168,6 @@ export default function Home() {
               onAmplify={nexusData.amplifyEntry}
               hasUserResonated={nexusData.hasUserResonated}
               hasUserAmplified={nexusData.hasUserAmplified}
-            />
-          </div>
-        ) : viewMode === 'resonance-field' ? (
-          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
-            <ResonanceField 
-              resonatedEntries={nexusData.resonatedEntries}
-              onPostClick={handleOpenPost}
-              refreshResonatedEntries={nexusData.refreshResonatedEntries}
-              onResonate={nexusData.resonateWithEntry}
-            />
-          </div>
-        ) : viewMode === 'profile' ? (
-          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
-            <ProfileView 
-              user={nexusData.getCurrentProfileUser()!}
-              userPosts={nexusData.getUserPosts()}
-              onPostClick={handleOpenPost}
-              onUserClick={handleUserClick}
-              onResonate={nexusData.resonateWithEntry}
-              onAmplify={nexusData.amplifyEntry}
-              hasUserResonated={nexusData.hasUserResonated}
-              hasUserAmplified={nexusData.hasUserAmplified}
-              onLogout={nexusData.logout}
-              onUpdateProfile={nexusData.updateUserProfile}
-              isOwnProfile={nexusData.profileViewState.mode === 'self'}
-              followUser={nexusData.followUser}
-              unfollowUser={nexusData.unfollowUser}
-              isFollowing={nexusData.isFollowing}
-              onReturnToOwnProfile={handleViewProfile}
             />
           </div>
         ) : (
