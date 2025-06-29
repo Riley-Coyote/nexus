@@ -14,7 +14,8 @@ import {
   DreamAnalytics,
   JournalMode,
   User,
-  AuthState
+  AuthState,
+  ProfileViewState
 } from '../lib/types';
 
 export interface NexusData {
@@ -67,6 +68,18 @@ export interface NexusData {
   logout: () => void;
   forceAuthRefresh: () => void;
   
+  // Profile actions
+  updateUserProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
+  
+  // Follow system actions
+  followUser: (followedId: string) => Promise<boolean>;
+  unfollowUser: (followedId: string) => Promise<boolean>;
+  isFollowing: (followedId: string) => Promise<boolean>;
+  getFollowers: (userId: string, limit?: number, offset?: number) => Promise<any[]>;
+  getFollowing: (userId: string, limit?: number, offset?: number) => Promise<any[]>;
+  getMutualFollows: (userId: string, limit?: number) => Promise<any[]>;
+  getFollowSuggestions: (userId: string, limit?: number) => Promise<any[]>;
+  
   // User interaction checks
   hasUserResonated: (entryId: string) => boolean;
   hasUserAmplified: (entryId: string) => boolean;
@@ -82,16 +95,33 @@ export interface NexusData {
   // Threading controls (for advanced users)
   setThreadingMode: (mode: 'dfs' | 'bfs' | 'adaptive') => void;
   getThreadingConfig: () => any;
+  
+  // Profile viewing state
+  profileViewState: ProfileViewState;
+  profileUser: User | null;
+  profileUserPosts: StreamEntry[];
+  
+  // Profile viewing methods
+  viewUserProfile: (username: string) => Promise<void>;
+  viewSelfProfile: () => void;
+  getCurrentProfileUser: () => User | null;
 }
 
 export const useNexusData = (): NexusData => {
-  // Auth state - start with consistent unauthenticated state to avoid hydration mismatch
+  // Core state
+  const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     currentUser: null,
     sessionToken: null
   });
-  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Profile viewing state
+  const [profileViewState, setProfileViewState] = useState<ProfileViewState>({
+    mode: 'self'
+  });
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [profileUserPosts, setProfileUserPosts] = useState<StreamEntry[]>([]);
   
   // Logbook state
   const [logbookState, setLogbookState] = useState<LogbookState | null>(null);
@@ -153,8 +183,6 @@ export const useNexusData = (): NexusData => {
       setResonatedEntries([]);
     }
   }, [authState.currentUser]);
-  
-  const isLoading = authState.isAuthenticated && (isLoadingLogbook || isLoadingDreams);
   
   // Load logbook data
   const loadLogbookData = useCallback(async () => {
@@ -381,7 +409,7 @@ export const useNexusData = (): NexusData => {
   
   // Hydration effect - check for existing session after client-side hydration
   useEffect(() => {
-    setIsHydrated(true);
+    setIsLoading(false);
     // Check for existing session after hydration
     const currentAuthState = authService.getAuthState();
     if (currentAuthState.isAuthenticated !== authState.isAuthenticated) {
@@ -391,12 +419,12 @@ export const useNexusData = (): NexusData => {
 
   // Load initial data only if authenticated
   useEffect(() => {
-    if (authState.isAuthenticated && isHydrated && authState.currentUser) {
+    if (authState.isAuthenticated && authState.currentUser) {
       // Initialize user resonances for demo
       dataService.initializeUserResonances(authState.currentUser.id);
       refreshData();
     }
-  }, [authState.isAuthenticated, isHydrated, refreshData]);
+  }, [authState.isAuthenticated, refreshData]);
   
   // Load resonated entries when user changes or on mount - FIXED DEPENDENCY
   useEffect(() => {
@@ -469,6 +497,18 @@ export const useNexusData = (): NexusData => {
     logout,
     forceAuthRefresh,
     
+    // Profile actions
+    updateUserProfile: useCallback(async (updates: { name?: string; bio?: string; location?: string }) => {
+      if (!authState.currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      await dataService.updateUserProfile(authState.currentUser.id, updates);
+      
+      // Refresh auth state to get updated user data
+      forceAuthRefresh();
+    }, [authState.currentUser, forceAuthRefresh]),
+    
     // User interaction checks
     hasUserResonated,
     hasUserAmplified,
@@ -518,6 +558,12 @@ export const useNexusData = (): NexusData => {
     getUserPosts: useCallback(() => {
       if (!authState.currentUser) return [];
       
+      // If viewing another user's profile, return their posts
+      if (profileViewState.mode === 'other' && profileUser) {
+        return profileUserPosts;
+      }
+      
+      // Otherwise return current user's posts
       // Combine logbook and dream entries, filter by current user
       const allEntries = [...logbookEntries, ...sharedDreams];
       const userPosts = allEntries.filter(entry => entry.userId === authState.currentUser?.id);
@@ -526,10 +572,97 @@ export const useNexusData = (): NexusData => {
       return userPosts.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-    }, [authState.currentUser, logbookEntries, sharedDreams]),
+    }, [authState.currentUser, logbookEntries, sharedDreams, profileViewState, profileUser, profileUserPosts]),
     
     // Threading controls (for advanced users)
     setThreadingMode: dataService.setThreadingMode.bind(dataService),
     getThreadingConfig: dataService.getThreadingConfig.bind(dataService),
+    
+    // Follow system actions
+    followUser: useCallback(async (followedId: string) => {
+      if (!authState.currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      return await dataService.followUser(authState.currentUser.id, followedId);
+    }, [authState.currentUser]),
+    
+    unfollowUser: useCallback(async (followedId: string) => {
+      if (!authState.currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      return await dataService.unfollowUser(authState.currentUser.id, followedId);
+    }, [authState.currentUser]),
+    
+    isFollowing: useCallback(async (followedId: string) => {
+      if (!authState.currentUser) {
+        return false;
+      }
+      
+      return await dataService.isFollowing(authState.currentUser.id, followedId);
+    }, [authState.currentUser]),
+    
+    getFollowers: useCallback(async (userId: string, limit?: number, offset?: number) => {
+      return await dataService.getFollowers(userId, limit, offset);
+    }, []),
+    
+    getFollowing: useCallback(async (userId: string, limit?: number, offset?: number) => {
+      return await dataService.getFollowing(userId, limit, offset);
+    }, []),
+    
+    getMutualFollows: useCallback(async (userId: string, limit?: number) => {
+      return await dataService.getMutualFollows(userId, limit);
+    }, []),
+    
+    getFollowSuggestions: useCallback(async (userId: string, limit?: number) => {
+      return await dataService.getFollowSuggestions(userId, limit);
+    }, []),
+    
+    // Profile viewing state
+    profileViewState,
+    profileUser,
+    profileUserPosts,
+    
+    // Profile viewing methods
+    viewUserProfile: useCallback(async (username: string) => {
+      try {
+        setIsLoading(true);
+        
+        // Get user by username
+        const user = await dataService.getUserByUsername(username);
+        if (!user) {
+          throw new Error('User not found');
+        }
+        
+        // Get user's posts
+        const posts = await dataService.getUserPostsByUsername(username);
+        
+        // Update profile state
+        setProfileViewState({ mode: 'other', username, userId: user.id });
+        setProfileUser(user);
+        setProfileUserPosts(posts);
+        
+        console.log(`✅ Loaded profile for ${username}:`, { user, postsCount: posts.length });
+      } catch (error) {
+        console.error('❌ Failed to load user profile:', error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    }, []),
+    
+    viewSelfProfile: useCallback(() => {
+      setProfileViewState({ mode: 'self' });
+      setProfileUser(null);
+      setProfileUserPosts([]);
+    }, []),
+    
+    getCurrentProfileUser: useCallback(() => {
+      if (profileViewState.mode === 'other') {
+        return profileUser;
+      }
+      return authState.currentUser;
+    }, [profileViewState.mode, profileUser, authState.currentUser]),
   };
 }; 

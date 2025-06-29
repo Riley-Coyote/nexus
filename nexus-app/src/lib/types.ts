@@ -111,11 +111,15 @@ export interface User {
   role: string;
   avatar: string;
   profileImage?: string;
+  bio?: string;
+  location?: string;
   stats: {
     entries: number;
     dreams: number;
     connections: number;
   };
+  followerCount?: number;
+  followingCount?: number;
   createdAt: string;
 }
 
@@ -123,4 +127,10 @@ export interface AuthState {
   isAuthenticated: boolean;
   currentUser: User | null;
   sessionToken: string | null;
+}
+
+export interface ProfileViewState {
+  mode: 'self' | 'other';
+  userId?: string;
+  username?: string;
 } 

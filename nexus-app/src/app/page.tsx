@@ -87,11 +87,28 @@ export default function Home() {
   };
 
   const handleViewProfile = () => {
+    nexusData.viewSelfProfile();
     setIsProfileModalOpen(false);
     setViewMode('profile');
   };
 
-
+  const handleUserClick = async (username: string) => {
+    try {
+      // Load the user's profile
+      await nexusData.viewUserProfile(username);
+      
+      // Navigate to profile view
+      setViewMode('profile');
+      
+      // Close any open modals
+      setIsProfileModalOpen(false);
+      
+      console.log(`📱 Navigating to ${username}'s profile`);
+    } catch (error) {
+      console.error('❌ Failed to navigate to user profile:', error);
+      // Could show a toast or error message here
+    }
+  };
 
   // Show authentication panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
@@ -137,6 +154,7 @@ export default function Home() {
               logbookEntries={nexusData.logbookEntriesData}
               dreamEntries={nexusData.dreamEntriesData}
               onPostClick={handleOpenPost}
+              onUserClick={handleUserClick}
               getFlattenedStreamEntries={nexusData.getFlattenedStreamEntries}
               createBranch={nexusData.createBranch}
               refreshLogbookData={nexusData.refreshLogbookData}
@@ -159,18 +177,17 @@ export default function Home() {
         ) : viewMode === 'profile' ? (
           <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
             <ProfileView 
-              user={nexusData.currentUser!}
+              user={nexusData.getCurrentProfileUser()!}
               userPosts={nexusData.getUserPosts()}
               onPostClick={handleOpenPost}
+              onUserClick={handleUserClick}
               onResonate={nexusData.resonateWithEntry}
               onAmplify={nexusData.amplifyEntry}
               hasUserResonated={nexusData.hasUserResonated}
               hasUserAmplified={nexusData.hasUserAmplified}
               onLogout={nexusData.logout}
-              onUpdateProfile={async (updates) => {
-                console.log('Profile updates:', updates);
-                // TODO: Implement profile update in data service
-              }}
+              onUpdateProfile={nexusData.updateUserProfile}
+              isOwnProfile={nexusData.profileViewState.mode === 'self'}
             />
           </div>
         ) : (
@@ -186,6 +203,7 @@ export default function Home() {
                   entryComposer={nexusData.entryComposer}
                   stream={nexusData.logbookEntries}
                   onPostClick={handleOpenPost}
+                  onUserClick={handleUserClick}
                   onSubmitEntry={(content, type, isPublic) => nexusData.submitEntry(content, type, isPublic, 'logbook')}
                   onResonate={nexusData.resonateWithEntry}
                   onBranch={nexusData.createBranch}
@@ -209,6 +227,7 @@ export default function Home() {
                   dreamComposer={nexusData.dreamComposer}
                   sharedDreams={nexusData.sharedDreams}
                   onPostClick={handleOpenPost}
+                  onUserClick={handleUserClick}
                   onSubmitEntry={(content, type, isPublic) => nexusData.submitEntry(content, type, isPublic, 'dream')}
                   onBranch={nexusData.createBranch}
                   onResonate={nexusData.resonateWithEntry}

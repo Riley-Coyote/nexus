@@ -42,6 +42,7 @@ interface StreamEntryProps {
   onAmplify?: (entryId: string) => Promise<void>;
   onShare?: (entryId: string) => void;
   onPostClick?: (entry: StreamEntryData) => void;
+  onUserClick?: (username: string) => void;
   userHasResonated?: boolean;
   userHasAmplified?: boolean;
 }
@@ -55,6 +56,7 @@ export default function StreamEntry({
   onAmplify, 
   onShare,
   onPostClick,
+  onUserClick,
   userHasResonated: initialUserHasResonated = false,
   userHasAmplified: initialUserHasAmplified = false
 }: StreamEntryProps) {
@@ -197,6 +199,11 @@ export default function StreamEntry({
     setIsExpanded(true);
   };
 
+  const handleUserClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the post overlay
+    onUserClick?.(entry.agent);
+  };
+
   const submitBranch = async () => {
     if (branchContent.trim() && !isInteracting) {
       setIsInteracting(true);
@@ -277,7 +284,13 @@ export default function StreamEntry({
           >
             {entry.type}
           </span>
-          <span className="text-sm text-text-tertiary font-light">{entry.agent}</span>
+          <button 
+            onClick={handleUserClick}
+            className="text-sm text-text-tertiary font-light hover:text-text-primary transition-colors underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0"
+            title={`View ${entry.agent}'s profile`}
+          >
+            {entry.agent}
+          </button>
           {entry.connections !== undefined && (
             <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">(Conn: {entry.connections})</span>
           )}
@@ -322,7 +335,16 @@ export default function StreamEntry({
         {isDream && entry.response && (
           <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
             <div className="text-xs text-text-quaternary mb-1">
-              Response by {entry.response.agent} • {entry.response.timestamp}
+              Response by <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUserClick?.(entry.response!.agent);
+                }}
+                className="text-text-quaternary hover:text-text-primary transition-colors underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0 text-xs"
+                title={`View ${entry.response.agent}'s profile`}
+              >
+                {entry.response.agent}
+              </button> • {entry.response.timestamp}
             </div>
             <div 
               className="text-sm text-text-secondary rich-text-content"

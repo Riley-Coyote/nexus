@@ -40,9 +40,27 @@ export interface DatabaseProvider {
   getBranchTree(rootId: string, maxDepth?: number): Promise<BranchNode[]>;
   
   // Users (if we want to store users in DB later)
-  createUser?(user: Omit<User, 'id'>): Promise<User>;
-  getUserById?(id: string): Promise<User | null>;
-  updateUser?(id: string, updates: Partial<User>): Promise<User>;
+  createUser(user: Omit<User, 'id' | 'createdAt'>): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  getUserByUsername(username: string): Promise<User | null>;
+  updateUser(id: string, updates: Partial<User>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+  
+  // Stream entries
+  createStreamEntry(entry: Omit<StreamEntry, 'id'>): Promise<StreamEntry>;
+  getStreamEntry(id: string): Promise<StreamEntry | null>;
+  getUserPosts(userId: string, limit?: number): Promise<StreamEntry[]>;
+  getUserPostsByUsername(username: string, limit?: number): Promise<StreamEntry[]>;
+  
+  // Follow system
+  followUser?(followerId: string, followedId: string): Promise<boolean>;
+  unfollowUser?(followerId: string, followedId: string): Promise<boolean>;
+  isFollowing?(followerId: string, followedId: string): Promise<boolean>;
+  getFollowers?(userId: string, limit?: number, offset?: number): Promise<FollowRelationship[]>;
+  getFollowing?(userId: string, limit?: number, offset?: number): Promise<FollowRelationship[]>;
+  getMutualFollows?(userId: string, limit?: number): Promise<User[]>;
+  getFollowSuggestions?(userId: string, limit?: number): Promise<FollowSuggestion[]>;
+  bulkCheckFollowing?(followerId: string, userIds: string[]): Promise<Map<string, boolean>>;
 }
 
 export interface QueryOptions {
@@ -157,5 +175,23 @@ export interface SupabaseUserInteraction {
   user_id: string;
   entry_id: string;
   interaction_type: 'resonance' | 'amplification';
+  created_at: string;
+}
+
+// Follow system types
+export interface FollowRelationship {
+  user: User;
+  followedAt: string;
+}
+
+export interface FollowSuggestion {
+  user: User;
+  mutualConnections: number;
+}
+
+export interface SupabaseUserFollow {
+  id: string;
+  follower_id: string;
+  followed_id: string;
   created_at: string;
 } 

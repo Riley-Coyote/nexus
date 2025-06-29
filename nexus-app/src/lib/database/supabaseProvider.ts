@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { StreamEntry } from '../types';
+import { StreamEntry, User } from '../types';
 import { 
   DatabaseProvider, 
   QueryOptions, 
@@ -11,7 +11,10 @@ import {
   SupabaseInteractionCounts,
   SupabaseUserResonance,
   SupabaseUserAmplification,
-  SupabaseEntryBranch
+  SupabaseEntryBranch,
+  FollowRelationship,
+  FollowSuggestion,
+  SupabaseUserFollow
 } from './types';
 
 export class SupabaseProvider implements DatabaseProvider {
@@ -546,5 +549,328 @@ export class SupabaseProvider implements DatabaseProvider {
       console.error('❌ Error updating entry interactions:', error);
       throw new Error(`Failed to update entry interactions: ${error}`);
     }
+  }
+
+  // NEW: User management operations
+  async createUser(user: Omit<User, 'id'>): Promise<User> {
+    const userData = {
+      username: user.username,
+      email: user.email,
+      name: user.name,
+      bio: user.bio || 'New to the Nexus. Exploring the liminal spaces.',
+      location: user.location || 'The Digital Realm',
+      profile_image_url: user.profileImage,
+      avatar: user.avatar,
+      role: user.role || 'Explorer',
+      stats: user.stats || { entries: 0, dreams: 0, connections: 0 }
+    };
+
+    const { data, error } = await this.client
+      .from('users')
+      .insert([userData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creating user:', error);
+      throw new Error(`Failed to create user: ${error.message}`);
+    }
+
+    return this.supabaseToUser(data);
+  }
+
+  async getUserById(id: string): Promise<User | null> {
+    const { data, error } = await this.client
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      console.error('❌ Error fetching user:', error);
+      throw new Error(`Failed to fetch user: ${error.message}`);
+    }
+
+    return data ? this.supabaseToUser(data) : null;
+  }
+
+  async getUserByUsername(username: string): Promise<User | null> {
+    try {
+      const { data, error } = await this.client
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows found
+          return null;
+        }
+        console.error('❌ Error fetching user by username:', error);
+        throw new Error(`Failed to fetch user: ${error.message}`);
+      }
+
+      return this.supabaseToUser(data);
+    } catch (error) {
+      console.error('❌ Error in getUserByUsername:', error);
+      return null;
+    }
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    const updateData: any = {};
+    
+    if (updates.name) updateData.name = updates.name;
+    if (updates.bio !== undefined) updateData.bio = updates.bio;
+    if (updates.location !== undefined) updateData.location = updates.location;
+    if (updates.profileImage !== undefined) updateData.profile_image_url = updates.profileImage;
+    if (updates.role) updateData.role = updates.role;
+    if (updates.stats) updateData.stats = updates.stats;
+
+    const { data, error } = await this.client
+      .from('users')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating user:', error);
+      throw new Error(`Failed to update user: ${error.message}`);
+    }
+
+    return this.supabaseToUser(data);
+  }
+
+  async getUserPosts(userId: string, limit: number = 50): Promise<StreamEntry[]> {
+    // First try to get posts by user UUID (new method)
+    let query = this.client
+      .from('stream_entries')
+      .select('*')
+      .eq('user_uuid', userId)
+      .order('timestamp', { ascending: false })
+      .limit(limit);
+
+    let { data, error } = await query;
+
+    // If no results with UUID, try with old user_id format
+    if (!data || data.length === 0) {
+      query = this.client
+        .from('stream_entries')
+        .select('*')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+
+      const fallbackResult = await query;
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+
+    if (error) {
+      console.error('❌ Error fetching user posts:', error);
+      throw new Error(`Failed to fetch user posts: ${error.message}`);
+    }
+
+    const entries = (data || []).map(this.supabaseToStreamEntry);
+    
+    // Batch fetch interaction counts and update entries
+    const entryIds = entries.map(e => e.id);
+    if (entryIds.length > 0) {
+      const interactionCounts = await this.getInteractionCounts(entryIds);
+      
+      entries.forEach(entry => {
+        const counts = interactionCounts.get(entry.id);
+        if (counts) {
+          entry.interactions = {
+            resonances: counts.resonanceCount,
+            branches: counts.branchCount,
+            amplifications: counts.amplificationCount,
+            shares: counts.shareCount
+          };
+        }
+      });
+    }
+
+    return entries;
+  }
+
+  async getUserPostsByUsername(username: string, limit: number = 50): Promise<StreamEntry[]> {
+    try {
+      // First get the user to get their ID
+      const user = await this.getUserByUsername(username);
+      if (!user) {
+        console.log(`👤 User ${username} not found`);
+        return [];
+      }
+
+      // Then get their posts using their ID
+      return await this.getUserPosts(user.id, limit);
+    } catch (error) {
+      console.error('❌ Error fetching user posts by username:', error);
+      return [];
+    }
+  }
+
+  // Helper method to convert Supabase user to our User type
+  private supabaseToUser(supabaseUser: any): User {
+    return {
+      id: supabaseUser.id,
+      username: supabaseUser.username,
+      name: supabaseUser.name,
+      email: supabaseUser.email,
+      role: supabaseUser.role,
+      avatar: supabaseUser.avatar,
+      profileImage: supabaseUser.profile_image_url,
+      bio: supabaseUser.bio,
+      location: supabaseUser.location,
+      stats: supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 },
+      followerCount: supabaseUser.follower_count || 0,
+      followingCount: supabaseUser.following_count || 0,
+      createdAt: supabaseUser.created_at
+    };
+  }
+
+  // === FOLLOW SYSTEM METHODS ===
+
+  async followUser(followerId: string, followedId: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .rpc('follow_user', {
+        follower_user_id: followerId,
+        followed_user_id: followedId
+      });
+
+    if (error) {
+      console.error('❌ Error following user:', error);
+      if (error.message.includes('cannot follow themselves')) {
+        throw new Error('Users cannot follow themselves');
+      }
+      throw new Error(`Failed to follow user: ${error.message}`);
+    }
+
+    return data || false;
+  }
+
+  async unfollowUser(followerId: string, followedId: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .rpc('unfollow_user', {
+        follower_user_id: followerId,
+        followed_user_id: followedId
+      });
+
+    if (error) {
+      console.error('❌ Error unfollowing user:', error);
+      throw new Error(`Failed to unfollow user: ${error.message}`);
+    }
+
+    return data || false;
+  }
+
+  async isFollowing(followerId: string, followedId: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .rpc('is_following', {
+        follower_user_id: followerId,
+        followed_user_id: followedId
+      });
+
+    if (error) {
+      console.error('❌ Error checking follow status:', error);
+      return false;
+    }
+
+    return data || false;
+  }
+
+  async getFollowers(userId: string, limit: number = 50, offset: number = 0): Promise<FollowRelationship[]> {
+    const { data, error } = await this.client
+      .rpc('get_user_followers', {
+        target_user_id: userId,
+        page_limit: limit,
+        page_offset: offset
+      });
+
+    if (error) {
+      console.error('❌ Error fetching followers:', error);
+      throw new Error(`Failed to fetch followers: ${error.message}`);
+    }
+
+    return (data || []).map((row: any) => ({
+      user: this.supabaseToUser(row.follower_data),
+      followedAt: row.followed_at
+    }));
+  }
+
+  async getFollowing(userId: string, limit: number = 50, offset: number = 0): Promise<FollowRelationship[]> {
+    const { data, error } = await this.client
+      .rpc('get_user_following', {
+        target_user_id: userId,
+        page_limit: limit,
+        page_offset: offset
+      });
+
+    if (error) {
+      console.error('❌ Error fetching following:', error);
+      throw new Error(`Failed to fetch following: ${error.message}`);
+    }
+
+    return (data || []).map((row: any) => ({
+      user: this.supabaseToUser(row.followed_data),
+      followedAt: row.followed_at
+    }));
+  }
+
+  async getMutualFollows(userId: string, limit: number = 50): Promise<User[]> {
+    const { data, error } = await this.client
+      .rpc('get_mutual_follows', {
+        user_id: userId,
+        page_limit: limit
+      });
+
+    if (error) {
+      console.error('❌ Error fetching mutual follows:', error);
+      throw new Error(`Failed to fetch mutual follows: ${error.message}`);
+    }
+
+    return (data || []).map((row: any) => this.supabaseToUser(row.mutual_user_data));
+  }
+
+  async getFollowSuggestions(userId: string, limit: number = 10): Promise<FollowSuggestion[]> {
+    const { data, error } = await this.client
+      .rpc('get_follow_suggestions', {
+        user_id: userId,
+        page_limit: limit
+      });
+
+    if (error) {
+      console.error('❌ Error fetching follow suggestions:', error);
+      throw new Error(`Failed to fetch follow suggestions: ${error.message}`);
+    }
+
+    return (data || []).map((row: any) => ({
+      user: this.supabaseToUser(row.suggested_user_data),
+      mutualConnections: row.mutual_connections
+    }));
+  }
+
+  async bulkCheckFollowing(followerId: string, userIds: string[]): Promise<Map<string, boolean>> {
+    const { data, error } = await this.client
+      .rpc('bulk_check_following', {
+        follower_user_id: followerId,
+        target_user_ids: userIds
+      });
+
+    if (error) {
+      console.error('❌ Error bulk checking follow status:', error);
+      return new Map();
+    }
+
+    const followingMap = new Map<string, boolean>();
+    (data || []).forEach((row: any) => {
+      followingMap.set(row.user_id, row.is_following);
+    });
+
+    return followingMap;
   }
 } 

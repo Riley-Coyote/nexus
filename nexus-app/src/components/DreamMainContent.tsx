@@ -9,7 +9,8 @@ import { StreamEntryData } from './StreamEntry';
 interface DreamMainContentProps {
   dreamComposer: EntryComposerData;
   sharedDreams: StreamEntryType[];
-  onPostClick?: (post: StreamEntryType | StreamEntryData) => void;
+  onPostClick?: (post: StreamEntryType) => void;
+  onUserClick?: (username: string) => void;
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
   onBranch?: (parentId: string, content: string) => void;
   onResonate?: (entryId: string) => Promise<void>;
@@ -22,6 +23,7 @@ export default function DreamMainContent({
   dreamComposer, 
   sharedDreams,
   onPostClick,
+  onUserClick,
   onSubmitEntry,
   onBranch,
   onResonate,
@@ -96,6 +98,7 @@ export default function DreamMainContent({
               entry={dreamData}
               isDream={true}
               onPostClick={(post) => onPostClick?.(dream)} // Pass original StreamEntry
+              onUserClick={onUserClick}
               onBranch={onBranch}
               onResonate={handleResonate}
               onAmplify={handleAmplify}

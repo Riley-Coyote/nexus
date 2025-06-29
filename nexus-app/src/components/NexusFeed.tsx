@@ -7,6 +7,7 @@ interface NexusFeedProps {
   logbookEntries: StreamEntryData[];
   dreamEntries: StreamEntryData[];
   onPostClick?: (post: StreamEntryData) => void;
+  onUserClick?: (username: string) => void;
   getFlattenedStreamEntries: () => Promise<StreamEntryData[]>;
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
@@ -21,6 +22,7 @@ export default function NexusFeed({
   logbookEntries, 
   dreamEntries, 
   onPostClick,
+  onUserClick,
   getFlattenedStreamEntries,
   createBranch,
   refreshLogbookData,
@@ -130,6 +132,7 @@ export default function NexusFeed({
                 entry={entry}
                 isDream={isDreamEntry(entry)}
                 onPostClick={onPostClick}
+                onUserClick={onUserClick}
                 onBranch={handleBranch}
                 onResonate={onResonate}
                 onAmplify={onAmplify}

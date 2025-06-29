@@ -15,6 +15,7 @@ interface MainContentProps {
   onAmplify?: (id: string) => Promise<void>;
   onShare?: (id: string) => void;
   onPostClick?: (post: StreamEntryType) => void;
+  onUserClick?: (username: string) => void;
   hasUserResonated?: (entryId: string) => boolean;
   hasUserAmplified?: (entryId: string) => boolean;
 }
@@ -28,6 +29,7 @@ export default function MainContent({
   onAmplify,
   onShare,
   onPostClick,
+  onUserClick,
   hasUserResonated,
   hasUserAmplified
 }: MainContentProps) {
@@ -101,6 +103,7 @@ export default function MainContent({
               onAmplify={handleAmplify}
               onShare={handleShare}
               onPostClick={() => onPostClick?.(entry)} // Pass original StreamEntry
+              onUserClick={onUserClick}
               userHasResonated={hasUserResonated?.(entry.id) || false}
               userHasAmplified={hasUserAmplified?.(entry.id) || false}
             />

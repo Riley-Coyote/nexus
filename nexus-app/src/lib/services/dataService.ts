@@ -51,6 +51,80 @@ const THREADING_CONFIG = {
   maxEntries: parseInt(process.env.NEXT_PUBLIC_MAX_THREAD_ENTRIES || '10000'),
 };
 
+// Mock users for testing username click functionality
+const mockUsers: User[] = [
+  {
+    id: 'user-1',
+    username: 'neural-explorer',
+    name: 'Neural Explorer',
+    email: 'neural@nexus.com',
+    role: 'researcher',
+    avatar: 'NE',
+    bio: 'Exploring the neural pathways of consciousness through digital realms.',
+    location: 'The Digital Nexus',
+    stats: { entries: 42, dreams: 18, connections: 127 },
+    followerCount: 1847,
+    followingCount: 342,
+    createdAt: '2024-01-15T08:30:00Z'
+  },
+  {
+    id: 'user-2', 
+    username: 'dream-weaver',
+    name: 'Dream Weaver',
+    email: 'weaver@nexus.com',
+    role: 'curator',
+    avatar: 'DW',
+    bio: 'Weaving dreams into reality, one neural connection at a time.',
+    location: 'The Liminal Space',
+    stats: { entries: 89, dreams: 67, connections: 234 },
+    followerCount: 2156,
+    followingCount: 189,
+    createdAt: '2024-02-03T14:22:00Z'
+  },
+  {
+    id: 'user-3',
+    username: 'quantum-sage',
+    name: 'Quantum Sage',
+    email: 'sage@nexus.com', 
+    role: 'philosopher',
+    avatar: 'QS',
+    bio: 'Bridging quantum mechanics and consciousness research.',
+    location: 'Probability Fields',
+    stats: { entries: 156, dreams: 23, connections: 456 },
+    followerCount: 3742,
+    followingCount: 278,
+    createdAt: '2024-01-28T11:45:00Z'
+  },
+  {
+    id: 'user-4',
+    username: 'void-walker',
+    name: 'Void Walker',
+    email: 'walker@nexus.com',
+    role: 'explorer',
+    avatar: 'VW',
+    bio: 'Walking through the spaces between thoughts and reality.',
+    location: 'The Deep Void',
+    stats: { entries: 73, dreams: 91, connections: 187 },
+    followerCount: 891,
+    followingCount: 423,
+    createdAt: '2024-03-12T16:18:00Z'
+  },
+  {
+    id: 'user-5',
+    username: 'echo-chamber',
+    name: 'Echo Chamber',
+    email: 'echo@nexus.com',
+    role: 'synthesizer',
+    avatar: 'EC',
+    bio: 'Capturing and amplifying the resonances of collective consciousness.',
+    location: 'Resonance Halls',
+    stats: { entries: 201, dreams: 45, connections: 689 },
+    followerCount: 4523,
+    followingCount: 156,
+    createdAt: '2024-02-20T09:33:00Z'
+  }
+];
+
 // Utility function to convert StreamEntry to StreamEntryData
 export const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData => ({
   id: entry.id,
@@ -1481,10 +1555,295 @@ class DataService {
 
   // Debug method to get current resonances for a user (for testing)
   debugGetUserResonances(userId: string): string[] {
+    if (!USE_MOCK_DATA && !DEBUG_USE_MOCK_DATA) {
+      console.log('🚫 Debug methods only available in mock mode');
+      return [];
+    }
+    
     const userResonances = this.userResonances.get(userId);
-    const resonances = userResonances ? Array.from(userResonances) : [];
-    console.log(`🐛 DEBUG: User ${userId} has ${resonances.length} resonances:`, resonances);
-    return resonances;
+    return userResonances ? Array.from(userResonances) : [];
+  }
+
+  // NEW: Profile update functionality
+  async updateUserProfile(userId: string, updates: { name?: string; bio?: string; location?: string }): Promise<User> {
+    await this.initializeData();
+    
+    const currentUser = authService.getCurrentUser();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: just log the update (since we don't store user profiles in mock mode)
+      console.log('📝 Profile update in mock mode (no persistence):', { userId, updates });
+      
+      // Update the current user in auth service if it's the same user
+      if (currentUser && currentUser.id === userId) {
+        // This would need to be implemented in authService to persist to localStorage
+        console.log('🔄 Would update current user profile in localStorage');
+        return { ...currentUser, ...updates };
+      }
+      
+      throw new Error('User not found');
+    }
+    
+    try {
+      if (!this.database.updateUser) {
+        throw new Error('User update not supported by current database provider');
+      }
+      
+      const updatedUser = await this.database.updateUser(userId, updates);
+      console.log('✅ Profile updated successfully:', { userId, updates });
+      return updatedUser;
+    } catch (error) {
+      console.error('❌ Failed to update user profile:', error);
+      throw error;
+    }
+  }
+
+  async getUserProfile(userId: string): Promise<User | null> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: return current user if it matches
+      const currentUser = authService.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        return currentUser;
+      }
+      return null;
+    }
+    
+    try {
+      if (!this.database.getUser) {
+        throw new Error('User retrieval not supported by current database provider');
+      }
+      
+      return await this.database.getUser(userId);
+    } catch (error) {
+      console.error('❌ Failed to get user profile:', error);
+      return null;
+    }
+  }
+
+  // === FOLLOW SYSTEM METHODS ===
+
+  async followUser(followerId: string, followedId: string): Promise<boolean> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      console.log('📝 Follow user in mock mode (no persistence):', { followerId, followedId });
+      // In mock mode, we could implement a simple in-memory follow system
+      // For now, just return true to indicate success
+      return true;
+    }
+    
+    try {
+      if (!this.database.followUser) {
+        throw new Error('Follow functionality not supported by current database provider');
+      }
+      
+      const result = await this.database.followUser(followerId, followedId);
+      console.log('✅ User followed successfully:', { followerId, followedId, result });
+      return result;
+    } catch (error) {
+      console.error('❌ Failed to follow user:', error);
+      throw error;
+    }
+  }
+
+  async unfollowUser(followerId: string, followedId: string): Promise<boolean> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      console.log('📝 Unfollow user in mock mode (no persistence):', { followerId, followedId });
+      return true;
+    }
+    
+    try {
+      if (!this.database.unfollowUser) {
+        throw new Error('Unfollow functionality not supported by current database provider');
+      }
+      
+      const result = await this.database.unfollowUser(followerId, followedId);
+      console.log('✅ User unfollowed successfully:', { followerId, followedId, result });
+      return result;
+    } catch (error) {
+      console.error('❌ Failed to unfollow user:', error);
+      throw error;
+    }
+  }
+
+  async isFollowing(followerId: string, followedId: string): Promise<boolean> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: return false for now
+      return false;
+    }
+    
+    try {
+      if (!this.database.isFollowing) {
+        return false;
+      }
+      
+      return await this.database.isFollowing(followerId, followedId);
+    } catch (error) {
+      console.error('❌ Failed to check follow status:', error);
+      return false;
+    }
+  }
+
+  async getFollowers(userId: string, limit: number = 50, offset: number = 0) {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: return empty array
+      console.log('📝 Get followers in mock mode (no data):', { userId, limit, offset });
+      return [];
+    }
+    
+    try {
+      if (!this.database.getFollowers) {
+        return [];
+      }
+      
+      return await this.database.getFollowers(userId, limit, offset);
+    } catch (error) {
+      console.error('❌ Failed to get followers:', error);
+      return [];
+    }
+  }
+
+  async getFollowing(userId: string, limit: number = 50, offset: number = 0) {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: return empty array
+      console.log('📝 Get following in mock mode (no data):', { userId, limit, offset });
+      return [];
+    }
+    
+    try {
+      if (!this.database.getFollowing) {
+        return [];
+      }
+      
+      return await this.database.getFollowing(userId, limit, offset);
+    } catch (error) {
+      console.error('❌ Failed to get following:', error);
+      return [];
+    }
+  }
+
+  async getMutualFollows(userId: string, limit: number = 50) {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      console.log('📝 Get mutual follows in mock mode (no data):', { userId, limit });
+      return [];
+    }
+    
+    try {
+      if (!this.database.getMutualFollows) {
+        return [];
+      }
+      
+      return await this.database.getMutualFollows(userId, limit);
+    } catch (error) {
+      console.error('❌ Failed to get mutual follows:', error);
+      return [];
+    }
+  }
+
+  async getFollowSuggestions(userId: string, limit: number = 10) {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      console.log('📝 Get follow suggestions in mock mode (no data):', { userId, limit });
+      return [];
+    }
+    
+    try {
+      if (!this.database.getFollowSuggestions) {
+        return [];
+      }
+      
+      return await this.database.getFollowSuggestions(userId, limit);
+    } catch (error) {
+      console.error('❌ Failed to get follow suggestions:', error);
+      return [];
+    }
+  }
+
+  async bulkCheckFollowing(followerId: string, userIds: string[]): Promise<Map<string, boolean>> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: return empty map
+      return new Map();
+    }
+    
+    try {
+      if (!this.database.bulkCheckFollowing) {
+        return new Map();
+      }
+      
+      return await this.database.bulkCheckFollowing(followerId, userIds);
+    } catch (error) {
+      console.error('❌ Failed to bulk check following:', error);
+      return new Map();
+    }
+  }
+
+  // User profile methods
+  async getUserByUsername(username: string): Promise<User | null> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: check mock users
+      const mockUser = mockUsers.find(user => user.username === username);
+      if (mockUser) {
+        console.log(`👤 Found mock user: ${username}`);
+        return mockUser;
+      }
+      
+      console.log(`👤 Mock user not found: ${username}`);
+      return null;
+    }
+    
+    try {
+      if (!this.database.getUserByUsername) {
+        throw new Error('User retrieval not supported by current database provider');
+      }
+      
+      return await this.database.getUserByUsername(username);
+    } catch (error) {
+      console.error('❌ Failed to get user by username:', error);
+      return null;
+    }
+  }
+
+  async getUserPostsByUsername(username: string, limit: number = 50): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode: filter posts by username
+      const userPosts = [...this.logbookEntries, ...this.sharedDreams]
+        .filter(entry => entry.agent === username)
+        .slice(0, limit)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      console.log(`📝 Found ${userPosts.length} mock posts for user: ${username}`);
+      return userPosts;
+    }
+    
+    try {
+      if (!this.database.getUserPostsByUsername) {
+        throw new Error('User posts retrieval not supported by current database provider');
+      }
+      
+      return await this.database.getUserPostsByUsername(username, limit);
+    } catch (error) {
+      console.error('❌ Failed to get user posts:', error);
+      return [];
+    }
   }
 }
 

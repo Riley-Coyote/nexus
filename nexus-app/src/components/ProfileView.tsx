@@ -8,12 +8,14 @@ interface ProfileViewProps {
   user: User;
   userPosts: StreamEntry[];
   onPostClick: (post: StreamEntry) => void;
+  onUserClick?: (username: string) => void;
   onResonate: (postId: string) => Promise<void>;
   onAmplify: (postId: string) => Promise<void>;
   hasUserResonated: (postId: string) => boolean;
   hasUserAmplified: (postId: string) => boolean;
   onLogout: () => void;
   onUpdateProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
+  isOwnProfile?: boolean;
 }
 
 type ProfileTab = 'posts' | 'resonance' | 'media' | 'hypothesis';
@@ -22,20 +24,33 @@ export default function ProfileView({
   user, 
   userPosts, 
   onPostClick, 
+  onUserClick,
   onResonate, 
   onAmplify, 
   hasUserResonated, 
   hasUserAmplified,
   onLogout,
-  onUpdateProfile
+  onUpdateProfile,
+  isOwnProfile = true
 }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
-  const [editedName, setEditedName] = useState(user.name);
-  const [editedBio, setEditedBio] = useState('Navigating the liminal spaces between thought and reality. Architect of the Nexus. All entries are quantum superpositions of meaning.');
-  const [editedLocation, setEditedLocation] = useState('The Liminal Space');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [editedName, setEditedName] = useState(user.name);
+  const [editedBio, setEditedBio] = useState(user.bio || '');
+  const [editedLocation, setEditedLocation] = useState(user.location || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Follow state for other users' profiles
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Update local state when user prop changes
+  useEffect(() => {
+    setEditedName(user.name);
+    setEditedBio(user.bio || '');
+    setEditedLocation(user.location || '');
+  }, [user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -66,9 +81,26 @@ export default function ProfileView({
 
   const handleCancelEdit = () => {
     setEditedName(user.name);
-    setEditedBio('Navigating the liminal spaces between thought and reality. Architect of the Nexus. All entries are quantum superpositions of meaning.');
-    setEditedLocation('The Liminal Space');
+    setEditedBio(user.bio || '');
+    setEditedLocation(user.location || '');
     setIsEditing(false);
+  };
+
+  const handleFollowToggle = async () => {
+    if (isFollowLoading) return;
+    
+    setIsFollowLoading(true);
+    try {
+      // This would be implemented when follow system is available
+      // For now, just toggle the state
+      setIsFollowing(!isFollowing);
+      
+      console.log(`${isFollowing ? 'Unfollowed' : 'Followed'} ${user.username}`);
+    } catch (error) {
+      console.error('Failed to toggle follow:', error);
+    } finally {
+      setIsFollowLoading(false);
+    }
   };
 
   const renderTabContent = () => {
@@ -104,6 +136,7 @@ export default function ProfileView({
                     key={post.id}
                     entry={streamEntryData}
                     onPostClick={(entry) => onPostClick(post)}
+                    onUserClick={onUserClick}
                     onResonate={onResonate}
                     onAmplify={onAmplify}
                     userHasResonated={hasUserResonated(post.id)}
@@ -174,61 +207,78 @@ export default function ProfileView({
                 <h1 className="text-2xl font-medium text-text-primary">{user.name}</h1>
               )}
               
-              {/* Profile Actions */}
-              <div className="flex items-center gap-2">
-                {isEditing ? (
-                  <div className="flex gap-2">
+              {/* Profile Actions - only show for own profile */}
+              {isOwnProfile && (
+                <div className="flex items-center gap-2">
+                  {isEditing ? (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={handleSaveProfile}
+                        className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-sm text-emerald-400 transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button 
+                        onClick={handleCancelEdit}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
                     <button 
-                      onClick={handleSaveProfile}
-                      className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-sm text-emerald-400 transition-colors"
-                    >
-                      Save
-                    </button>
-                    <button 
-                      onClick={handleCancelEdit}
+                      onClick={() => setIsEditing(true)}
                       className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors"
                     >
-                      Cancel
+                      Edit profile
                     </button>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors"
-                  >
-                    Edit profile
-                  </button>
-                )}
-                
-                                 {/* Dropdown Menu */}
-                 <div className="relative" ref={dropdownRef}>
-                   <button
-                     onClick={() => setShowDropdown(!showDropdown)}
-                     className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-gray-300 transition-colors"
-                   >
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                     </svg>
-                   </button>
-                   
-                   {showDropdown && (
-                     <div className="absolute top-full right-0 mt-2 w-48 bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl z-10">
-                       <button
-                         onClick={() => {
-                           onLogout();
-                           setShowDropdown(false);
-                         }}
-                         className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2 rounded-lg"
-                       >
-                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                         </svg>
-                         Logout
-                       </button>
-                     </div>
-                   )}
-                 </div>
-              </div>
+                  )}
+                  
+                                   {/* Dropdown Menu */}
+                   <div className="relative" ref={dropdownRef}>
+                     <button
+                       onClick={() => setShowDropdown(!showDropdown)}
+                       className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-gray-300 transition-colors"
+                     >
+                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                       </svg>
+                     </button>
+                     
+                     {showDropdown && (
+                       <div className="absolute top-full right-0 mt-2 w-48 bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl z-10">
+                         <button
+                           onClick={() => {
+                             onLogout();
+                             setShowDropdown(false);
+                           }}
+                           className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2 rounded-lg"
+                         >
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                           </svg>
+                           Logout
+                         </button>
+                       </div>
+                     )}
+                   </div>
+                </div>
+              )}
+              
+              {/* Follow button for other users */}
+              {!isOwnProfile && (
+                <button
+                  onClick={handleFollowToggle}
+                  disabled={isFollowLoading}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isFollowing
+                      ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-gray-300'
+                      : 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400'
+                  } ${isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isFollowLoading ? 'Loading...' : (isFollowing ? 'Following' : 'Follow')}
+                </button>
+              )}
             </div>
             
             <p className="text-gray-400 mb-1">@{user.username}</p>
@@ -242,7 +292,7 @@ export default function ProfileView({
               />
             ) : (
               <p className="text-gray-300 mb-4">
-                {editedBio}
+                {editedBio || (isOwnProfile ? 'New to the Nexus. Add a bio to tell others about yourself.' : 'No bio available.')}
               </p>
             )}
             
@@ -260,7 +310,7 @@ export default function ProfileView({
                     className="bg-transparent border border-white/20 rounded px-1 focus:outline-none focus:border-emerald-400"
                   />
                 ) : (
-                  editedLocation
+                  editedLocation || (isOwnProfile ? 'Add your location' : 'Location not specified')
                 )}
               </span>
               <span className="flex items-center gap-1">
@@ -274,11 +324,11 @@ export default function ProfileView({
             {/* Following/Followers */}
             <div className="flex items-center gap-6">
               <span className="text-text-primary">
-                <span className="font-semibold">128</span>{' '}
+                <span className="font-semibold">{user.followingCount?.toLocaleString() || '0'}</span>{' '}
                 <span className="text-gray-400">Following</span>
               </span>
               <span className="text-text-primary">
-                <span className="font-semibold">1.2M</span>{' '}
+                <span className="font-semibold">{user.followerCount?.toLocaleString() || '0'}</span>{' '}
                 <span className="text-gray-400">Followers</span>
               </span>
             </div>
