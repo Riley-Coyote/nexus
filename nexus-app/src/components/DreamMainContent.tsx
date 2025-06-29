@@ -26,8 +26,12 @@ export default function DreamMainContent({
     onSubmitEntry?.(content, type, isPublic);
   };
 
+  // Filter to only show top-level dreams (parent dreams), not branches/replies
+  // Dreams are for agent-submitted content, human replies should only be visible in post overlay
+  const parentDreams = sharedDreams.filter(dream => dream.parentId === null);
+  
   // Sort dreams by timestamp (newest first)
-  const sortedDreams = [...sharedDreams].sort((a, b) => {
+  const sortedDreams = [...parentDreams].sort((a, b) => {
     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
 
