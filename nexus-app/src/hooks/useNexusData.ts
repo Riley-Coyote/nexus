@@ -65,6 +65,10 @@ export interface NexusData {
   // User interaction checks
   hasUserResonated: (entryId: string) => boolean;
   hasUserAmplified: (entryId: string) => boolean;
+  
+  // Threading controls (for advanced users)
+  setThreadingMode: (mode: 'dfs' | 'bfs' | 'adaptive') => void;
+  getThreadingConfig: () => any;
 }
 
 export const useNexusData = (): NexusData => {
@@ -122,17 +126,15 @@ export const useNexusData = (): NexusData => {
     }
     
     try {
-      const resonatedIds = await dataService.getUserResonatedEntries(authState.currentUser.id);
-      const filtered = [
-        ...logbookEntriesData.filter(entry => resonatedIds.includes(entry.id)),
-        ...dreamEntriesData.filter(entry => resonatedIds.includes(entry.id)),
-      ];
-      setResonatedEntries(filtered);
+      // Use the new getResonatedEntries method that returns full entries directly
+      const resonatedEntries = await dataService.getResonatedEntries(authState.currentUser.id);
+      const resonatedEntriesData = resonatedEntries.map(convertToStreamEntryData);
+      setResonatedEntries(resonatedEntriesData);
     } catch (error) {
       console.error('Failed to load resonated entries:', error);
       setResonatedEntries([]);
     }
-  }, [authState.currentUser, logbookEntriesData, dreamEntriesData]);
+  }, [authState.currentUser]);
   
   const isLoading = authState.isAuthenticated && (isLoadingLogbook || isLoadingDreams);
   
@@ -304,6 +306,14 @@ export const useNexusData = (): NexusData => {
     loadResonatedEntries();
   }, [loadResonatedEntries]);
   
+  // Expose dataService globally for testing in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      (window as any).nexusDataService = dataService;
+      console.log('🔧 Development Mode: Access threading controls via window.nexusDataService');
+    }
+  }, []);
+  
   return {
     // Authentication
     authState,
@@ -352,5 +362,9 @@ export const useNexusData = (): NexusData => {
     // User interaction checks
     hasUserResonated,
     hasUserAmplified,
+    
+    // Threading controls
+    setThreadingMode: dataService.setThreadingMode.bind(dataService),
+    getThreadingConfig: dataService.getThreadingConfig.bind(dataService),
   };
 }; 

@@ -4,8 +4,14 @@ import {
   DatabaseProvider, 
   QueryOptions, 
   InteractionType, 
+  InteractionCounts,
+  UserInteractionState,
+  BranchNode,
   SupabaseStreamEntry, 
-  SupabaseUserInteraction 
+  SupabaseInteractionCounts,
+  SupabaseUserResonance,
+  SupabaseUserAmplification,
+  SupabaseEntryBranch
 } from './types';
 
 export class SupabaseProvider implements DatabaseProvider {
@@ -139,7 +145,28 @@ export class SupabaseProvider implements DatabaseProvider {
       throw new Error(`Failed to fetch entries: ${error.message}`);
     }
 
-    return (data || []).map(this.supabaseToStreamEntry);
+    const entries = (data || []).map(this.supabaseToStreamEntry);
+    
+    // Batch fetch interaction counts and update entries
+    const entryIds = entries.map(e => e.id);
+    if (entryIds.length > 0) {
+      const interactionCounts = await this.getInteractionCounts(entryIds);
+      
+      // Update entries with latest interaction counts
+      entries.forEach(entry => {
+        const counts = interactionCounts.get(entry.id);
+        if (counts) {
+          entry.interactions = {
+            resonances: counts.resonanceCount,
+            branches: counts.branchCount,
+            amplifications: counts.amplificationCount,
+            shares: counts.shareCount
+          };
+        }
+      });
+    }
+
+    return entries;
   }
 
   async getEntryById(id: string): Promise<StreamEntry | null> {
@@ -155,7 +182,23 @@ export class SupabaseProvider implements DatabaseProvider {
       throw new Error(`Failed to fetch entry: ${error.message}`);
     }
 
-    return data ? this.supabaseToStreamEntry(data) : null;
+    if (!data) return null;
+
+    const entry = this.supabaseToStreamEntry(data);
+    
+    // Update with latest interaction counts
+    const interactionCounts = await this.getInteractionCounts([id]);
+    const counts = interactionCounts.get(id);
+    if (counts) {
+      entry.interactions = {
+        resonances: counts.resonanceCount,
+        branches: counts.branchCount,
+        amplifications: counts.amplificationCount,
+        shares: counts.shareCount
+      };
+    }
+
+    return entry;
   }
 
   async updateEntry(id: string, updates: Partial<StreamEntry>): Promise<StreamEntry> {
@@ -190,16 +233,221 @@ export class SupabaseProvider implements DatabaseProvider {
     return true;
   }
 
+  // ========== NEW EFFICIENT INTERACTION METHODS ==========
+
+  async toggleUserResonance(userId: string, entryId: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.client.rpc('toggle_user_resonance', {
+        target_user_id: userId,
+        target_entry_id: entryId
+      });
+
+      if (error) {
+        console.error('❌ Error toggling resonance:', error);
+        throw new Error(`Failed to toggle resonance: ${error.message}`);
+      }
+
+      return data as boolean; // Returns true if now resonated, false if unresonated
+    } catch (error) {
+      console.error('❌ Error in toggleUserResonance:', error);
+      throw error;
+    }
+  }
+
+  async toggleUserAmplification(userId: string, entryId: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.client.rpc('toggle_user_amplification', {
+        target_user_id: userId,
+        target_entry_id: entryId
+      });
+
+      if (error) {
+        console.error('❌ Error toggling amplification:', error);
+        throw new Error(`Failed to toggle amplification: ${error.message}`);
+      }
+
+      return data as boolean; // Returns true if now amplified, false if unamplified
+    } catch (error) {
+      console.error('❌ Error in toggleUserAmplification:', error);
+      throw error;
+    }
+  }
+
+  async createBranch(parentId: string, childId: string): Promise<void> {
+    try {
+      const { error } = await this.client.rpc('create_branch', {
+        parent_id: parentId,
+        child_id: childId
+      });
+
+      if (error) {
+        console.error('❌ Error creating branch:', error);
+        throw new Error(`Failed to create branch: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('❌ Error in createBranch:', error);
+      throw error;
+    }
+  }
+
+  async getInteractionCounts(entryIds: string[]): Promise<Map<string, InteractionCounts>> {
+    try {
+      const { data, error } = await this.client.rpc('get_interaction_counts', {
+        entry_ids: entryIds
+      });
+
+      if (error) {
+        console.error('❌ Error fetching interaction counts:', error);
+        throw new Error(`Failed to fetch interaction counts: ${error.message}`);
+      }
+
+      const countsMap = new Map<string, InteractionCounts>();
+      
+      if (data) {
+        data.forEach((row: any) => {
+          countsMap.set(row.entry_id, {
+            resonanceCount: row.resonance_count || 0,
+            branchCount: row.branch_count || 0,
+            amplificationCount: row.amplification_count || 0,
+            shareCount: row.share_count || 0
+          });
+        });
+      }
+
+      return countsMap;
+    } catch (error) {
+      console.error('❌ Error in getInteractionCounts:', error);
+      return new Map(); // Return empty map on error
+    }
+  }
+
+  async getUserInteractionStates(userId: string, entryIds: string[]): Promise<Map<string, UserInteractionState>> {
+    try {
+      const { data, error } = await this.client.rpc('get_user_interaction_states', {
+        target_user_id: userId,
+        entry_ids: entryIds
+      });
+
+      if (error) {
+        console.error('❌ Error fetching user interaction states:', error);
+        throw new Error(`Failed to fetch user interaction states: ${error.message}`);
+      }
+
+      const statesMap = new Map<string, UserInteractionState>();
+      
+      if (data) {
+        data.forEach((row: any) => {
+          statesMap.set(row.entry_id, {
+            hasResonated: row.has_resonated || false,
+            hasAmplified: row.has_amplified || false
+          });
+        });
+      }
+
+      return statesMap;
+    } catch (error) {
+      console.error('❌ Error in getUserInteractionStates:', error);
+      return new Map(); // Return empty map on error
+    }
+  }
+
+  // ========== BRANCH QUERY METHODS ==========
+
+  async getBranchChildren(parentId: string): Promise<string[]> {
+    try {
+      const { data, error } = await this.client
+        .from('entry_branches')
+        .select('child_entry_id')
+        .eq('parent_entry_id', parentId)
+        .order('branch_order', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching branch children:', error);
+        throw new Error(`Failed to fetch branch children: ${error.message}`);
+      }
+
+      return (data || []).map(row => row.child_entry_id);
+    } catch (error) {
+      console.error('❌ Error in getBranchChildren:', error);
+      return [];
+    }
+  }
+
+  async getBranchParent(childId: string): Promise<string | null> {
+    try {
+      const { data, error } = await this.client
+        .from('entry_branches')
+        .select('parent_entry_id')
+        .eq('child_entry_id', childId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        console.error('❌ Error fetching branch parent:', error);
+        throw new Error(`Failed to fetch branch parent: ${error.message}`);
+      }
+
+      return data?.parent_entry_id || null;
+    } catch (error) {
+      console.error('❌ Error in getBranchParent:', error);
+      return null;
+    }
+  }
+
+  async getBranchTree(rootId: string, maxDepth: number = 10): Promise<BranchNode[]> {
+    try {
+      // Recursive CTE query to build tree structure
+      const { data, error } = await this.client.rpc('get_branch_tree', {
+        root_id: rootId,
+        max_depth: maxDepth
+      });
+
+      if (error) {
+        console.error('❌ Error fetching branch tree:', error);
+        // Fallback to manual tree building if function doesn't exist
+        return this.buildBranchTreeManually(rootId, maxDepth);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error in getBranchTree:', error);
+      return this.buildBranchTreeManually(rootId, maxDepth);
+    }
+  }
+
+  private async buildBranchTreeManually(rootId: string, maxDepth: number, currentDepth = 0): Promise<BranchNode[]> {
+    if (currentDepth >= maxDepth) return [];
+
+    const children = await this.getBranchChildren(rootId);
+    const nodes: BranchNode[] = [];
+
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i];
+      const childNodes = await this.buildBranchTreeManually(childId, maxDepth, currentDepth + 1);
+      
+      nodes.push({
+        entryId: childId,
+        parentId: rootId,
+        depth: currentDepth + 1,
+        branchOrder: i,
+        children: childNodes
+      });
+    }
+
+    return nodes;
+  }
+
+  // ========== LEGACY METHODS (for backward compatibility) ==========
+
   async addUserResonance(userId: string, entryId: string): Promise<void> {
     const { error } = await this.client
-      .from('user_interactions')
+      .from('user_resonances')
       .insert([{
         user_id: userId,
-        entry_id: entryId,
-        interaction_type: 'resonance'
+        entry_id: entryId
       }]);
 
-    if (error) {
+    if (error && error.code !== '23505') { // Ignore unique constraint violations
       console.error('❌ Error adding resonance:', error);
       throw new Error(`Failed to add resonance: ${error.message}`);
     }
@@ -207,11 +455,10 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async removeUserResonance(userId: string, entryId: string): Promise<void> {
     const { error } = await this.client
-      .from('user_interactions')
+      .from('user_resonances')
       .delete()
       .eq('user_id', userId)
-      .eq('entry_id', entryId)
-      .eq('interaction_type', 'resonance');
+      .eq('entry_id', entryId);
 
     if (error) {
       console.error('❌ Error removing resonance:', error);
@@ -221,10 +468,9 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getUserResonances(userId: string): Promise<string[]> {
     const { data, error } = await this.client
-      .from('user_interactions')
+      .from('user_resonances')
       .select('entry_id')
-      .eq('user_id', userId)
-      .eq('interaction_type', 'resonance');
+      .eq('user_id', userId);
 
     if (error) {
       console.error('❌ Error fetching user resonances:', error);
@@ -236,14 +482,13 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async addUserAmplification(userId: string, entryId: string): Promise<void> {
     const { error } = await this.client
-      .from('user_interactions')
+      .from('user_amplifications')
       .insert([{
         user_id: userId,
-        entry_id: entryId,
-        interaction_type: 'amplification'
+        entry_id: entryId
       }]);
 
-    if (error) {
+    if (error && error.code !== '23505') { // Ignore unique constraint violations
       console.error('❌ Error adding amplification:', error);
       throw new Error(`Failed to add amplification: ${error.message}`);
     }
@@ -251,11 +496,10 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async removeUserAmplification(userId: string, entryId: string): Promise<void> {
     const { error } = await this.client
-      .from('user_interactions')
+      .from('user_amplifications')
       .delete()
       .eq('user_id', userId)
-      .eq('entry_id', entryId)
-      .eq('interaction_type', 'amplification');
+      .eq('entry_id', entryId);
 
     if (error) {
       console.error('❌ Error removing amplification:', error);
@@ -265,10 +509,9 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getUserAmplifications(userId: string): Promise<string[]> {
     const { data, error } = await this.client
-      .from('user_interactions')
+      .from('user_amplifications')
       .select('entry_id')
-      .eq('user_id', userId)
-      .eq('interaction_type', 'amplification');
+      .eq('user_id', userId);
 
     if (error) {
       console.error('❌ Error fetching user amplifications:', error);
@@ -279,30 +522,29 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   async updateEntryInteractions(entryId: string, type: InteractionType, delta: number): Promise<void> {
-    // Get current interactions
-    const { data: entry, error: fetchError } = await this.client
-      .from('stream_entries')
-      .select('interactions')
-      .eq('id', entryId)
-      .single();
-
-    if (fetchError) {
-      console.error('❌ Error fetching entry for interaction update:', fetchError);
-      throw new Error(`Failed to fetch entry: ${fetchError.message}`);
-    }
-
-    // Update interactions
-    const newInteractions = { ...entry.interactions };
-    newInteractions[type] = Math.max(0, newInteractions[type] + delta);
-
-    const { error: updateError } = await this.client
-      .from('stream_entries')
-      .update({ interactions: newInteractions })
-      .eq('id', entryId);
-
-    if (updateError) {
-      console.error('❌ Error updating entry interactions:', updateError);
-      throw new Error(`Failed to update interactions: ${updateError.message}`);
+    // Legacy method - now using atomic counter functions
+    console.warn('⚠️ Using legacy updateEntryInteractions - consider migrating to new atomic methods');
+    
+    try {
+      if (type === 'resonances') {
+        await this.client.rpc('update_resonance_count', {
+          target_entry_id: entryId,
+          delta: delta
+        });
+      } else if (type === 'amplifications') {
+        await this.client.rpc('update_amplification_count', {
+          target_entry_id: entryId,
+          delta: delta
+        });
+      } else if (type === 'branches') {
+        await this.client.rpc('update_branch_count', {
+          target_entry_id: entryId,
+          delta: delta
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error updating entry interactions:', error);
+      throw new Error(`Failed to update entry interactions: ${error}`);
     }
   }
 } 

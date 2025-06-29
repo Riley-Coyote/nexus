@@ -14,7 +14,7 @@ import {
 import { authService } from './authService';
 import { StreamEntryData } from '../../components/StreamEntry';
 import { DatabaseFactory } from '../database/factory';
-import { DatabaseProvider } from '../database/types';
+import { DatabaseProvider, InteractionCounts, UserInteractionState } from '../database/types';
 import {
   mockLogbookState,
   mockNetworkStatus,
@@ -34,11 +34,22 @@ import {
 
 // 🚩 DEBUG FLAG - Quick toggle for local development
 // Set to 'true' for in-memory mock data, 'false' for database
-const DEBUG_USE_MOCK_DATA = true; // 👈 CHANGE THIS FOR QUICK TESTING
+const DEBUG_USE_MOCK_DATA = true; // 👈 Switch to false to use new database system
 
 // Configuration for switching between mock and database
 const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+
+// Threading configuration
+const THREADING_CONFIG = {
+  // 'dfs' = Depth-First (traditional forum style - follow conversations deep)
+  // 'bfs' = Breadth-First (show conversation width before depth)
+  // 'adaptive' = Automatically choose best algorithm based on conversation shape
+  mode: (process.env.NEXT_PUBLIC_THREADING_MODE as 'dfs' | 'bfs' | 'adaptive') || 'dfs',
+  enableStats: process.env.NODE_ENV === 'development', // Only log stats in dev
+  maxDepth: parseInt(process.env.NEXT_PUBLIC_MAX_THREAD_DEPTH || '100'),
+  maxEntries: parseInt(process.env.NEXT_PUBLIC_MAX_THREAD_ENTRIES || '10000'),
+};
 
 // Utility function to convert StreamEntry to StreamEntryData
 export const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData => ({
@@ -82,9 +93,18 @@ class DataService {
   private userResonances: Map<string, Set<string>> = new Map(); // userId -> Set of entryIds
   private userAmplifications: Map<string, Set<string>> = new Map(); // userId -> Set of entryIds
   
+  // Branch relationship tracking for mock mode
+  private branchRelationships: Map<string, string[]> = new Map(); // parentId -> childIds[]
+  
   // Database provider for persistent storage
   private database: DatabaseProvider | null = null;
   private isInitialized = false;
+
+  // Cache for efficient batch operations
+  private interactionCountsCache: Map<string, InteractionCounts> = new Map();
+  private userInteractionStatesCache: Map<string, Map<string, UserInteractionState>> = new Map();
+  private cacheExpiry = 30000; // 30 seconds
+  private lastCacheUpdate = 0;
 
   constructor() {
     // Initialize data will be called lazily when first method is accessed
@@ -99,7 +119,8 @@ class DataService {
         this.database = DatabaseFactory.getInstance();
         await this.database.connect();
         console.log('✅ Database connected successfully');
-        console.log('🗄️ Data Source: Supabase Database');
+        console.log('🗄️ Data Source: Supabase Database (New Efficient System)');
+        console.log('🚀 Features: Atomic operations, batch fetching, proper branching');
       } else {
         // Initialize with mock data if no entries exist (mock mode)
         if (this.logbookEntries.length === 0) {
@@ -108,6 +129,8 @@ class DataService {
         if (this.sharedDreams.length === 0) {
           this.sharedDreams = [...mockSharedDreams];
         }
+        // Initialize branch relationships from existing parent-child data
+        this.initializeMockBranchRelationships();
         console.log('📝 Using mock data mode');
         console.log('🧪 Data Source: In-Memory Mock Data');
         if (DEBUG_USE_MOCK_DATA) {
@@ -128,10 +151,374 @@ class DataService {
         if (this.sharedDreams.length === 0) {
           this.sharedDreams = [...mockSharedDreams];
         }
+        this.initializeMockBranchRelationships();
       }
       this.isInitialized = true;
     }
   }
+
+  // Initialize branch relationships from existing parent-child data (mock mode)
+  private initializeMockBranchRelationships() {
+    const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+    
+    allEntries.forEach(entry => {
+      if (entry.parentId) {
+        if (!this.branchRelationships.has(entry.parentId)) {
+          this.branchRelationships.set(entry.parentId, []);
+        }
+        const children = this.branchRelationships.get(entry.parentId)!;
+        if (!children.includes(entry.id)) {
+          children.push(entry.id);
+        }
+      }
+    });
+  }
+
+  // ========== ADVANCED THREADING UTILITIES ==========
+
+  // Build threaded conversation tree with optimal performance
+  private buildThreadedEntries(entries: StreamEntry[], mode?: 'dfs' | 'bfs'): StreamEntry[] {
+    if (entries.length === 0) return [];
+    
+    const startTime = performance.now();
+    
+    // Performance safeguards
+    if (entries.length > THREADING_CONFIG.maxEntries) {
+      console.warn(`⚠️ Large dataset detected (${entries.length} entries). Consider pagination.`);
+    }
+    
+    // Determine threading mode (adaptive, explicit, or default)
+    let selectedMode: 'dfs' | 'bfs';
+    if (mode) {
+      selectedMode = mode; // Explicit mode override
+    } else if (THREADING_CONFIG.mode === 'adaptive') {
+      selectedMode = this.getOptimalThreadingMode(entries);
+    } else {
+      selectedMode = THREADING_CONFIG.mode as 'dfs' | 'bfs';
+    }
+    
+    // Build efficient lookup structures
+    const entryMap = new Map<string, StreamEntry>();
+    const childrenMap = new Map<string, string[]>();
+    const rootIds: string[] = [];
+    
+    // Single pass: build all relationships
+    entries.forEach(entry => {
+      // Store original entry (avoid unnecessary copying)
+      entryMap.set(entry.id, entry);
+      
+      if (!entry.parentId) {
+        rootIds.push(entry.id);
+      } else {
+        // Build parent → children mapping
+        if (!childrenMap.has(entry.parentId)) {
+          childrenMap.set(entry.parentId, []);
+        }
+        childrenMap.get(entry.parentId)!.push(entry.id);
+      }
+    });
+    
+    // Choose traversal strategy
+    const result = selectedMode === 'bfs' 
+      ? this.buildThreadedBFS(entryMap, childrenMap, rootIds, THREADING_CONFIG.maxDepth)
+      : this.buildThreadedDFS(entryMap, childrenMap, rootIds, THREADING_CONFIG.maxDepth);
+    
+    // Performance monitoring and stats logging
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    if (THREADING_CONFIG.enableStats) {
+      const stats = this.getThreadingStats(result);
+      const modeLabel = mode ? `${mode.toUpperCase()}` : `${selectedMode.toUpperCase()}${THREADING_CONFIG.mode === 'adaptive' ? ' (auto)' : ''}`;
+      console.log(`🧵 Threading Performance [${modeLabel}]:`, {
+        duration: `${duration.toFixed(2)}ms`,
+        entriesProcessed: entries.length,
+        resultEntries: result.length,
+        ...stats
+      });
+    }
+    
+    return result;
+  }
+
+  // Depth-First Search (traditional forum threading)
+  private buildThreadedDFS(
+    entryMap: Map<string, StreamEntry>, 
+    childrenMap: Map<string, string[]>, 
+    rootIds: string[], 
+    maxDepth: number
+  ): StreamEntry[] {
+    const result: StreamEntry[] = [];
+    const visited = new Set<string>(); // Cycle detection
+    
+    // Iterative DFS to avoid stack overflow
+    const stack: Array<{ entryId: string; depth: number }> = [];
+    
+    // Start with roots (newest first for better UX)
+    const sortedRoots = [...rootIds].sort((a, b) => {
+      const entryA = entryMap.get(a);
+      const entryB = entryMap.get(b);
+      if (!entryA || !entryB) return 0;
+      return new Date(entryB.timestamp).getTime() - new Date(entryA.timestamp).getTime();
+    });
+    
+    sortedRoots.reverse().forEach(rootId => {
+      stack.push({ entryId: rootId, depth: 0 });
+    });
+    
+    while (stack.length > 0) {
+      const { entryId, depth } = stack.pop()!;
+      
+      // Cycle detection
+      if (visited.has(entryId)) {
+        console.warn(`🔄 Cycle detected at entry ${entryId}, skipping...`);
+        continue;
+      }
+      
+      // Depth limit protection
+      if (depth > maxDepth) {
+        console.warn(`📏 Max depth (${maxDepth}) reached at entry ${entryId}, truncating...`);
+        continue;
+      }
+      
+      const entry = entryMap.get(entryId);
+      if (!entry) continue;
+      
+      visited.add(entryId);
+      
+      // Add to result with depth
+      result.push({
+        ...entry,
+        depth,
+        children: childrenMap.get(entryId) || []
+      });
+      
+      // Add children to stack (reverse order for DFS)
+      const children = childrenMap.get(entryId) || [];
+      const sortedChildren = [...children].sort((a, b) => {
+        const entryA = entryMap.get(a);
+        const entryB = entryMap.get(b);
+        if (!entryA || !entryB) return 0;
+        return new Date(entryA.timestamp).getTime() - new Date(entryB.timestamp).getTime();
+      });
+      
+      sortedChildren.reverse().forEach(childId => {
+        if (!visited.has(childId)) {
+          stack.push({ entryId: childId, depth: depth + 1 });
+        }
+      });
+    }
+    
+    return result;
+  }
+
+  // Breadth-First Search (shows conversation width before depth)
+  private buildThreadedBFS(
+    entryMap: Map<string, StreamEntry>, 
+    childrenMap: Map<string, string[]>, 
+    rootIds: string[], 
+    maxDepth: number
+  ): StreamEntry[] {
+    const result: StreamEntry[] = [];
+    const visited = new Set<string>();
+    
+    // BFS queue
+    const queue: Array<{ entryId: string; depth: number }> = [];
+    
+    // Start with roots (newest first)
+    const sortedRoots = [...rootIds].sort((a, b) => {
+      const entryA = entryMap.get(a);
+      const entryB = entryMap.get(b);
+      if (!entryA || !entryB) return 0;
+      return new Date(entryB.timestamp).getTime() - new Date(entryA.timestamp).getTime();
+    });
+    
+    sortedRoots.forEach(rootId => {
+      queue.push({ entryId: rootId, depth: 0 });
+    });
+    
+    while (queue.length > 0) {
+      const { entryId, depth } = queue.shift()!;
+      
+      // Cycle detection
+      if (visited.has(entryId)) continue;
+      
+      // Depth limit protection
+      if (depth > maxDepth) continue;
+      
+      const entry = entryMap.get(entryId);
+      if (!entry) continue;
+      
+      visited.add(entryId);
+      
+      // Add to result with depth
+      result.push({
+        ...entry,
+        depth,
+        children: childrenMap.get(entryId) || []
+      });
+      
+      // Add children to queue (preserve chronological order)
+      const children = childrenMap.get(entryId) || [];
+      const sortedChildren = [...children].sort((a, b) => {
+        const entryA = entryMap.get(a);
+        const entryB = entryMap.get(b);
+        if (!entryA || !entryB) return 0;
+        return new Date(entryA.timestamp).getTime() - new Date(entryB.timestamp).getTime();
+      });
+      
+      sortedChildren.forEach(childId => {
+        if (!visited.has(childId)) {
+          queue.push({ entryId: childId, depth: depth + 1 });
+        }
+      });
+    }
+    
+    return result;
+  }
+
+  // Get conversation stats for debugging/optimization
+  private getThreadingStats(entries: StreamEntry[]): {
+    totalEntries: number;
+    maxDepth: number;
+    rootCount: number;
+    avgChildrenPerEntry: number;
+    deepestThreads: Array<{ entryId: string; depth: number }>;
+  } {
+    const childrenMap = new Map<string, string[]>();
+    let maxDepth = 0;
+    let rootCount = 0;
+    
+    entries.forEach(entry => {
+      if (!entry.parentId) {
+        rootCount++;
+      } else {
+        if (!childrenMap.has(entry.parentId)) {
+          childrenMap.set(entry.parentId, []);
+        }
+        childrenMap.get(entry.parentId)!.push(entry.id);
+      }
+      
+      if (entry.depth && entry.depth > maxDepth) {
+        maxDepth = entry.depth;
+      }
+    });
+    
+    const totalChildren = Array.from(childrenMap.values()).reduce((sum, children) => sum + children.length, 0);
+    const avgChildrenPerEntry = childrenMap.size > 0 ? totalChildren / childrenMap.size : 0;
+    
+    const deepestThreads = entries
+      .filter(e => e.depth && e.depth > 5)
+      .sort((a, b) => (b.depth || 0) - (a.depth || 0))
+      .slice(0, 5)
+      .map(e => ({ entryId: e.id, depth: e.depth || 0 }));
+    
+    return {
+      totalEntries: entries.length,
+      maxDepth,
+      rootCount,
+      avgChildrenPerEntry: Math.round(avgChildrenPerEntry * 100) / 100,
+      deepestThreads
+    };
+  }
+
+  // ========== EFFICIENT INTERACTION CACHE MANAGEMENT ==========
+
+  private isCacheValid(): boolean {
+    return Date.now() - this.lastCacheUpdate < this.cacheExpiry;
+  }
+
+  private async refreshInteractionCache(entryIds: string[], userId?: string): Promise<void> {
+    if (!this.database || USE_MOCK_DATA) return;
+
+    try {
+      // Batch fetch interaction counts
+      const interactionCounts = await this.database.getInteractionCounts(entryIds);
+      
+      // Update cache
+      interactionCounts.forEach((counts, entryId) => {
+        this.interactionCountsCache.set(entryId, counts);
+      });
+
+      // Batch fetch user interaction states if user provided
+      if (userId) {
+        const userStates = await this.database.getUserInteractionStates(userId, entryIds);
+        this.userInteractionStatesCache.set(userId, userStates);
+      }
+
+      this.lastCacheUpdate = Date.now();
+    } catch (error) {
+      console.error('❌ Error refreshing interaction cache:', error);
+    }
+  }
+
+  private async enrichEntriesWithInteractions(entries: StreamEntry[], userId?: string): Promise<StreamEntry[]> {
+    if (USE_MOCK_DATA || !this.database) {
+      return entries; // Mock data already has interactions
+    }
+
+    const entryIds = entries.map(e => e.id);
+    
+    // Refresh cache if needed
+    if (!this.isCacheValid() || entryIds.some(id => !this.interactionCountsCache.has(id))) {
+      await this.refreshInteractionCache(entryIds, userId);
+    }
+
+    // Enrich entries with cached interaction data
+    return entries.map(entry => {
+      const counts = this.interactionCountsCache.get(entry.id);
+      if (counts) {
+        entry.interactions = {
+          resonances: counts.resonanceCount,
+          branches: counts.branchCount,
+          amplifications: counts.amplificationCount,
+          shares: counts.shareCount
+        };
+      }
+      return entry;
+    });
+  }
+
+  // ========== THREADING MODE MANAGEMENT ==========
+
+  // Dynamically choose best threading mode based on conversation characteristics
+  private getOptimalThreadingMode(entries: StreamEntry[]): 'dfs' | 'bfs' {
+    if (entries.length === 0) {
+      // If no entries, default to DFS unless explicitly configured to BFS
+      return THREADING_CONFIG.mode === 'bfs' ? 'bfs' : 'dfs';
+    }
+    
+    const stats = this.getThreadingStats(entries);
+    
+    // Use BFS for wide conversations (lots of parallel discussions)
+    // Use DFS for deep conversations (focused threads)
+    if (stats.avgChildrenPerEntry > 3 && stats.maxDepth < 5) {
+      return 'bfs'; // Wide, shallow conversations benefit from BFS
+    } else if (stats.maxDepth > 8 && stats.avgChildrenPerEntry < 2) {
+      return 'dfs'; // Deep, narrow conversations benefit from DFS
+    }
+    
+    // Default to DFS unless explicitly configured to BFS
+    return THREADING_CONFIG.mode === 'bfs' ? 'bfs' : 'dfs';
+  }
+
+  // Allow runtime switching of threading mode
+  setThreadingMode(mode: 'dfs' | 'bfs' | 'adaptive'): void {
+    if (mode === 'adaptive') {
+      console.log('🤖 Adaptive threading mode enabled - will choose best algorithm per conversation');
+    } else {
+      console.log(`🧵 Threading mode set to: ${mode.toUpperCase()}`);
+    }
+    // Store the configuration mode (including 'adaptive')
+    Object.assign(THREADING_CONFIG, { mode });
+  }
+
+  // Get current threading configuration
+  getThreadingConfig() {
+    return { ...THREADING_CONFIG };
+  }
+
+  // ========== EXISTING DATA METHODS (Updated) ==========
 
   // Logbook Data
   async getLogbookState(): Promise<LogbookState> {
@@ -183,21 +570,32 @@ class DataService {
     
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      // Sort by timestamp desc (newest first) for consistent behavior
-      return [...this.logbookEntries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      // Sort by timestamp desc (newest first) and build threaded structure
+      const sortedEntries = [...this.logbookEntries].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return this.buildThreadedEntries(sortedEntries);
     }
     
     try {
-      return await this.database.getEntries('logbook', {
+      const entries = await this.database.getEntries('logbook', {
         page,
         limit,
         sortBy: 'timestamp',
         sortOrder: 'desc'
       });
+      
+      // Enrich with interaction data and build threaded structure
+      const currentUser = authService.getCurrentUser();
+      const enrichedEntries = await this.enrichEntriesWithInteractions(entries, currentUser?.id);
+      return this.buildThreadedEntries(enrichedEntries);
     } catch (error) {
       console.error('❌ Database error, falling back to mock data:', error);
       // Sort fallback data too
-      return [...this.logbookEntries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const sortedEntries = [...this.logbookEntries].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return this.buildThreadedEntries(sortedEntries);
     }
   }
 
@@ -229,21 +627,32 @@ class DataService {
     
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      // Sort by timestamp desc (newest first) for consistent behavior
-      return [...this.sharedDreams].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      // Sort by timestamp desc (newest first) and build threaded structure
+      const sortedEntries = [...this.sharedDreams].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return this.buildThreadedEntries(sortedEntries);
     }
     
     try {
-      return await this.database.getEntries('dream', {
+      const entries = await this.database.getEntries('dream', {
         page,
         limit,
         sortBy: 'timestamp',
         sortOrder: 'desc'
       });
+      
+      // Enrich with interaction data and build threaded structure
+      const currentUser = authService.getCurrentUser();
+      const enrichedEntries = await this.enrichEntriesWithInteractions(entries, currentUser?.id);
+      return this.buildThreadedEntries(enrichedEntries);
     } catch (error) {
       console.error('❌ Database error, falling back to mock data:', error);
       // Sort fallback data too
-      return [...this.sharedDreams].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const sortedEntries = [...this.sharedDreams].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return this.buildThreadedEntries(sortedEntries);
     }
   }
 
@@ -255,7 +664,10 @@ class DataService {
       await simulateApiDelay();
       // Combine both arrays and sort by timestamp desc (newest first)
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      return allEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const sortedEntries = allEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return this.buildThreadedEntries(sortedEntries);
     }
     
     try {
@@ -267,12 +679,69 @@ class DataService {
       
       // Combine and sort by timestamp
       const allEntries = [...logbookEntries, ...dreamEntries];
-      return allEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const sortedEntries = allEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      // Enrich with interaction data and build threaded structure
+      const currentUser = authService.getCurrentUser();
+      const enrichedEntries = await this.enrichEntriesWithInteractions(sortedEntries, currentUser?.id);
+      return this.buildThreadedEntries(enrichedEntries);
     } catch (error) {
       console.error('❌ Database error, falling back to mock data:', error);
       // Fallback: combine mock data and sort
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      return allEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const sortedEntries = allEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return this.buildThreadedEntries(sortedEntries);
+    }
+  }
+
+  // Get resonated entries for resonance field
+  async getResonatedEntries(userId: string): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      
+      // Get user's resonated entry IDs
+      const userResonances = this.userResonances.get(userId) || new Set();
+      
+      // Find all entries that user has resonated with
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      const resonatedEntries = allEntries.filter(entry => userResonances.has(entry.id));
+      
+      // Sort by timestamp desc (newest first)
+      return resonatedEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }
+    
+    try {
+      // Get user's resonated entry IDs from database
+      const resonatedEntryIds = await this.database.getUserResonances(userId);
+      
+      if (resonatedEntryIds.length === 0) {
+        return [];
+      }
+      
+      // Fetch all resonated entries
+      const resonatedEntries: StreamEntry[] = [];
+      for (const entryId of resonatedEntryIds) {
+        const entry = await this.database.getEntryById(entryId);
+        if (entry) {
+          resonatedEntries.push(entry);
+        }
+      }
+      
+      // Sort by timestamp desc (newest first)
+      return resonatedEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    } catch (error) {
+      console.error('❌ Database error fetching resonated entries:', error);
+      return [];
     }
   }
 
@@ -304,7 +773,8 @@ class DataService {
     return mockEmergingSymbols;
   }
 
-  // Actions
+  // ========== NEW EFFICIENT INTERACTION METHODS ==========
+
   async submitEntry(content: string, type: string, isPublic: boolean, mode: 'logbook' | 'dream'): Promise<StreamEntry> {
     await this.initializeData();
     
@@ -362,6 +832,10 @@ class DataService {
       // Use database
       const newEntry = await this.database.createEntry(entryData);
       authService.updateUserStats(mode === 'logbook' ? 'entries' : 'dreams');
+      
+      // Clear cache to force refresh on next fetch
+      this.lastCacheUpdate = 0;
+      
       return newEntry;
     } catch (error) {
       console.error('❌ Database error during submission, falling back to mock:', error);
@@ -382,7 +856,7 @@ class DataService {
     }
   }
 
-  async resonateWithEntry(entryId: string): Promise<void> {
+  async resonateWithEntry(entryId: string): Promise<boolean> {
     await this.initializeData();
     
     const currentUser = authService.getCurrentUser();
@@ -403,31 +877,33 @@ class DataService {
         // User already resonated, so remove resonance
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
+        return false;
       } else {
         // Add resonance
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
         authService.updateUserStats('connections');
+        return true;
       }
-      
-      return;
     }
     
     try {
-      // Check if user has already resonated using database
-      const existingResonances = await this.database.getUserResonances(currentUser.id);
-      const hasResonated = existingResonances.includes(entryId);
+      // Use new efficient toggle method
+      const newState = await this.database.toggleUserResonance(currentUser.id, entryId);
       
-      if (hasResonated) {
-        // Remove resonance
-        await this.database.removeUserResonance(currentUser.id, entryId);
-        await this.database.updateEntryInteractions(entryId, 'resonances', -1);
-      } else {
-        // Add resonance
-        await this.database.addUserResonance(currentUser.id, entryId);
-        await this.database.updateEntryInteractions(entryId, 'resonances', 1);
+      if (newState) {
         authService.updateUserStats('connections');
       }
+      
+      // Clear cache to force refresh
+      this.lastCacheUpdate = 0;
+      this.interactionCountsCache.delete(entryId);
+      
+      if (this.userInteractionStatesCache.has(currentUser.id)) {
+        this.userInteractionStatesCache.get(currentUser.id)?.delete(entryId);
+      }
+      
+      return newState;
     } catch (error) {
       console.error('❌ Database error during resonance, falling back to mock:', error);
       // Fallback to in-memory handling
@@ -439,23 +915,27 @@ class DataService {
       if (userResonances.has(entryId)) {
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
+        return false;
       } else {
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
         authService.updateUserStats('connections');
+        return true;
       }
     }
   }
 
-  async amplifyEntry(entryId: string): Promise<void> {
-    if (USE_MOCK_DATA) {
+  async amplifyEntry(entryId: string): Promise<boolean> {
+    await this.initializeData();
+    
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User must be authenticated to amplify');
+    }
+
+    if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
       
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User must be authenticated to amplify');
-      }
-
       // Check if user has already amplified
       if (!this.userAmplifications.has(currentUser.id)) {
         this.userAmplifications.set(currentUser.id, new Set());
@@ -467,27 +947,199 @@ class DataService {
         userAmplifications.delete(entryId);
         this.updateEntryInteraction(entryId, 'amplifications', -1);
         this.updateEntryAmplified(entryId, false);
+        return false;
       } else {
         // Add amplification
         userAmplifications.add(entryId);
         this.updateEntryInteraction(entryId, 'amplifications', 1);
         this.updateEntryAmplified(entryId, true);
         authService.updateUserStats('connections');
+        return true;
       }
-      
-      return;
     }
     
-    const response = await fetch(`${API_BASE_URL}/entries/${entryId}/amplify`, {
-      method: 'POST'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to amplify entry');
+    try {
+      // Use new efficient toggle method
+      const newState = await this.database.toggleUserAmplification(currentUser.id, entryId);
+      
+      if (newState) {
+        authService.updateUserStats('connections');
+      }
+      
+      // Clear cache to force refresh
+      this.lastCacheUpdate = 0;
+      this.interactionCountsCache.delete(entryId);
+      
+      if (this.userInteractionStatesCache.has(currentUser.id)) {
+        this.userInteractionStatesCache.get(currentUser.id)?.delete(entryId);
+      }
+      
+      return newState;
+    } catch (error) {
+      console.error('❌ Database error during amplification, falling back to mock:', error);
+      // Fallback to in-memory handling
+      if (!this.userAmplifications.has(currentUser.id)) {
+        this.userAmplifications.set(currentUser.id, new Set());
+      }
+      
+      const userAmplifications = this.userAmplifications.get(currentUser.id)!;
+      if (userAmplifications.has(entryId)) {
+        userAmplifications.delete(entryId);
+        this.updateEntryInteraction(entryId, 'amplifications', -1);
+        this.updateEntryAmplified(entryId, false);
+        return false;
+      } else {
+        userAmplifications.add(entryId);
+        this.updateEntryInteraction(entryId, 'amplifications', 1);
+        this.updateEntryAmplified(entryId, true);
+        authService.updateUserStats('connections');
+        return true;
+      }
     }
   }
 
-  // Helper methods for updating entry interactions
+  async createBranch(parentId: string, childContent: string): Promise<StreamEntry> {
+    await this.initializeData();
+    
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User must be authenticated to create branches');
+    }
+    
+    // Create the child entry first
+    const parentEntry = await this.getEntryById(parentId);
+    if (!parentEntry) {
+      throw new Error('Parent entry not found');
+    }
+    
+    const branchEntry: Omit<StreamEntry, 'id'> = {
+      parentId: parentId,
+      children: [],
+      depth: parentEntry.depth + 1,
+      type: "BRANCH THREAD",
+      agent: currentUser.name,
+      connections: 0,
+      metrics: { c: 0.7, r: 0.7, x: 0.7 },
+      timestamp: formatTimestamp(),
+      content: childContent,
+      actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
+      privacy: parentEntry.privacy,
+      interactions: {
+        resonances: 0,
+        branches: 0,
+        amplifications: 0,
+        shares: 0
+      },
+      threads: [],
+      isAmplified: false,
+      userId: currentUser.id
+    };
+    
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock implementation
+      const newBranch: StreamEntry = {
+        id: `branch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        ...branchEntry
+      };
+      
+      // Add to appropriate storage and update parent
+      if (parentEntry.type.toLowerCase().includes('dream')) {
+        this.sharedDreams.push(newBranch);
+      } else {
+        this.logbookEntries.push(newBranch);
+      }
+      
+      // Update parent's children array and interactions
+      const parent = [...this.logbookEntries, ...this.sharedDreams].find(e => e.id === parentId);
+      if (parent) {
+        if (!parent.children.includes(newBranch.id)) {
+          parent.children.push(newBranch.id);
+        }
+        parent.interactions.branches = (parent.interactions.branches || 0) + 1;
+      }
+      
+      // Update branch relationships tracking
+      if (!this.branchRelationships.has(parentId)) {
+        this.branchRelationships.set(parentId, []);
+      }
+      this.branchRelationships.get(parentId)!.push(newBranch.id);
+      
+      authService.updateUserStats('entries');
+      return newBranch;
+    }
+    
+    try {
+      // Create the branch entry in database
+      const newBranch = await this.database.createEntry(branchEntry);
+      
+      // Create the branch relationship
+      await this.database.createBranch(parentId, newBranch.id);
+      
+      // Clear cache to force refresh
+      this.lastCacheUpdate = 0;
+      this.interactionCountsCache.delete(parentId);
+      
+      authService.updateUserStats('entries');
+      return newBranch;
+    } catch (error) {
+      console.error('❌ Database error during branch creation:', error);
+      throw new Error(`Failed to create branch: ${error}`);
+    }
+  }
+
+  // ========== USER INTERACTION STATE METHODS ==========
+
+  async getUserInteractionState(userId: string, entryId: string): Promise<UserInteractionState> {
+    if (USE_MOCK_DATA || !this.database) {
+      return {
+        hasResonated: this.hasUserResonated(userId, entryId),
+        hasAmplified: this.hasUserAmplified(userId, entryId)
+      };
+    }
+    
+    // Check cache first
+    const userCache = this.userInteractionStatesCache.get(userId);
+    if (userCache && userCache.has(entryId) && this.isCacheValid()) {
+      return userCache.get(entryId)!;
+    }
+    
+    // Fetch from database
+    try {
+      const states = await this.database.getUserInteractionStates(userId, [entryId]);
+      const state = states.get(entryId) || { hasResonated: false, hasAmplified: false };
+      
+      // Update cache
+      if (!this.userInteractionStatesCache.has(userId)) {
+        this.userInteractionStatesCache.set(userId, new Map());
+      }
+      this.userInteractionStatesCache.get(userId)!.set(entryId, state);
+      
+      return state;
+    } catch (error) {
+      console.error('❌ Error fetching user interaction state:', error);
+      return { hasResonated: false, hasAmplified: false };
+    }
+  }
+
+  async getEntryById(entryId: string): Promise<StreamEntry | null> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      return allEntries.find(e => e.id === entryId) || null;
+    }
+    
+    try {
+      return await this.database.getEntryById(entryId);
+    } catch (error) {
+      console.error('❌ Error fetching entry by ID:', error);
+      return null;
+    }
+  }
+
+  // ========== LEGACY METHODS (for backward compatibility) ==========
+
+  // Helper methods for updating entry interactions (legacy)
   private updateEntryInteraction(entryId: string, type: keyof StreamEntry['interactions'], delta: number): void {
     // Update in logbook entries
     const logbookEntry = this.logbookEntries.find(entry => entry.id === entryId);
@@ -518,7 +1170,7 @@ class DataService {
     }
   }
 
-  // Get user-specific data
+  // Get user-specific data (legacy)
   async getUserResonatedEntries(userId: string): Promise<string[]> {
     await this.initializeData();
     

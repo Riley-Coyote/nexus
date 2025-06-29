@@ -13,7 +13,16 @@ export interface DatabaseProvider {
   updateEntry(id: string, updates: Partial<StreamEntry>): Promise<StreamEntry>;
   deleteEntry(id: string): Promise<boolean>;
   
-  // User interactions
+  // Efficient interaction methods
+  toggleUserResonance(userId: string, entryId: string): Promise<boolean>; // Returns new state
+  toggleUserAmplification(userId: string, entryId: string): Promise<boolean>; // Returns new state
+  createBranch(parentId: string, childId: string): Promise<void>;
+  
+  // Batch interaction data retrieval (optimized)
+  getInteractionCounts(entryIds: string[]): Promise<Map<string, InteractionCounts>>;
+  getUserInteractionStates(userId: string, entryIds: string[]): Promise<Map<string, UserInteractionState>>;
+  
+  // User interactions (legacy - keeping for compatibility)
   addUserResonance(userId: string, entryId: string): Promise<void>;
   removeUserResonance(userId: string, entryId: string): Promise<void>;
   getUserResonances(userId: string): Promise<string[]>;
@@ -22,8 +31,13 @@ export interface DatabaseProvider {
   removeUserAmplification(userId: string, entryId: string): Promise<void>;
   getUserAmplifications(userId: string): Promise<string[]>;
   
-  // Entry interactions
+  // Entry interactions (legacy)
   updateEntryInteractions(entryId: string, type: InteractionType, delta: number): Promise<void>;
+  
+  // Branch queries
+  getBranchChildren(parentId: string): Promise<string[]>;
+  getBranchParent(childId: string): Promise<string | null>;
+  getBranchTree(rootId: string, maxDepth?: number): Promise<BranchNode[]>;
   
   // Users (if we want to store users in DB later)
   createUser?(user: Omit<User, 'id'>): Promise<User>;
@@ -40,6 +54,27 @@ export interface QueryOptions {
 }
 
 export type InteractionType = 'resonances' | 'branches' | 'amplifications' | 'shares';
+
+// New efficient interaction types
+export interface InteractionCounts {
+  resonanceCount: number;
+  branchCount: number;
+  amplificationCount: number;
+  shareCount: number;
+}
+
+export interface UserInteractionState {
+  hasResonated: boolean;
+  hasAmplified: boolean;
+}
+
+export interface BranchNode {
+  entryId: string;
+  parentId: string | null;
+  depth: number;
+  branchOrder: number;
+  children: BranchNode[];
+}
 
 export interface DatabaseConfig {
   provider: 'supabase' | 'postgresql' | 'mysql' | 'sqlite' | 'mock';
@@ -83,6 +118,40 @@ export interface SupabaseStreamEntry {
   updated_at: string;
 }
 
+// New Supabase types for efficient interactions
+export interface SupabaseInteractionCounts {
+  entry_id: string;
+  resonance_count: number;
+  branch_count: number;
+  amplification_count: number;
+  share_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupabaseUserResonance {
+  id: string;
+  user_id: string;
+  entry_id: string;
+  created_at: string;
+}
+
+export interface SupabaseUserAmplification {
+  id: string;
+  user_id: string;
+  entry_id: string;
+  created_at: string;
+}
+
+export interface SupabaseEntryBranch {
+  id: string;
+  parent_entry_id: string;
+  child_entry_id: string;
+  branch_order: number;
+  created_at: string;
+}
+
+// Legacy type for backward compatibility
 export interface SupabaseUserInteraction {
   id: string;
   user_id: string;

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { dataService } from '../lib/services/dataService';
+import { authService } from '../lib/services/authService';
 
 export interface StreamEntryData {
   id: string;
@@ -35,11 +37,11 @@ interface StreamEntryProps {
   entry: StreamEntryData;
   isPreview?: boolean;
   isDream?: boolean;
-  onResonate?: (id: string) => void;
-  onBranch?: (id: string) => void;
-  onAmplify?: (id: string) => void;
-  onShare?: (id: string) => void;
-  onPostClick?: (post: StreamEntryData) => void;
+  onResonate?: (entryId: string, newState: boolean) => void;
+  onBranch?: (entryId: string) => void;
+  onAmplify?: (entryId: string, newState: boolean) => void;
+  onShare?: (entryId: string) => void;
+  onPostClick?: (entry: StreamEntryData) => void;
   userHasResonated?: boolean;
   userHasAmplified?: boolean;
 }
@@ -53,23 +55,89 @@ export default function StreamEntry({
   onAmplify, 
   onShare,
   onPostClick,
-  userHasResonated = false,
-  userHasAmplified = false
+  userHasResonated: initialUserHasResonated = false,
+  userHasAmplified: initialUserHasAmplified = false
 }: StreamEntryProps) {
+  // Local state for interaction management (keeping new functionality)
+  const [localInteractions, setLocalInteractions] = useState(entry.interactions);
+  const [userHasResonated, setUserHasResonated] = useState(initialUserHasResonated);
+  const [userHasAmplified, setUserHasAmplified] = useState(initialUserHasAmplified);
+  const [isInteracting, setIsInteracting] = useState(false);
+  
+  // Original UI state variables
   const [showBranchComposer, setShowBranchComposer] = useState(false);
   const [branchContent, setBranchContent] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Update local state when props change
+  useEffect(() => {
+    setLocalInteractions(entry.interactions);
+  }, [entry.interactions]);
+
+  useEffect(() => {
+    setUserHasResonated(initialUserHasResonated);
+  }, [initialUserHasResonated]);
+
+  useEffect(() => {
+    setUserHasAmplified(initialUserHasAmplified);
+  }, [initialUserHasAmplified]);
+
+  // Load user interaction state on mount (keeping new functionality)
+  useEffect(() => {
+    const loadUserInteractionState = async () => {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        try {
+          const state = await dataService.getUserInteractionState(currentUser.id, entry.id);
+          setUserHasResonated(state.hasResonated);
+          setUserHasAmplified(state.hasAmplified);
+        } catch (error) {
+          console.error('Error loading user interaction state:', error);
+        }
+      }
+    };
+
+    loadUserInteractionState();
+  }, [entry.id]);
+
+  // Enhanced threading UI logic
   const isReply = entry.parentId;
   const depth = entry.depth || 0;
   const depthClass = depth > 0 ? `depth-${Math.min(depth, 5)}` : '';
+  const maxVisualDepth = 4; // Limit visual depth to prevent excessive indentation
+  const visualDepth = Math.min(depth, maxVisualDepth);
+  
+  // Threading visual indicators
+  const threadIndent = visualDepth * 16; // 16px per depth level
+  const threadColor = depth > 0 ? `hsl(${180 + (depth * 30) % 180}, 60%, 70%)` : 'transparent';
+  const isDeepThread = depth > maxVisualDepth;
   
   // Check if content is long enough to need preview
   const contentLength = entry.content.length;
   const shouldPreview = isPreview && !isReply && contentLength > 200 && !isExpanded;
 
-  const handleResonate = () => {
-    onResonate?.(entry.id);
+  // New efficient interaction handlers
+  const handleResonate = async () => {
+    if (isInteracting) return;
+    
+    setIsInteracting(true);
+    try {
+      const newState = await dataService.resonateWithEntry(entry.id);
+      
+      // Update local state
+      setUserHasResonated(newState);
+      setLocalInteractions(prev => ({
+        ...prev,
+        resonances: newState ? prev.resonances + 1 : Math.max(0, prev.resonances - 1)
+      }));
+      
+      // Call parent callback
+      onResonate?.(entry.id, newState);
+    } catch (error) {
+      console.error('Error toggling resonance:', error);
+    } finally {
+      setIsInteracting(false);
+    }
   };
 
   const handleBranch = () => {
@@ -77,12 +145,36 @@ export default function StreamEntry({
     onBranch?.(entry.id);
   };
 
-  const handleAmplify = () => {
-    onAmplify?.(entry.id);
+  const handleAmplify = async () => {
+    if (isInteracting) return;
+    
+    setIsInteracting(true);
+    try {
+      const newState = await dataService.amplifyEntry(entry.id);
+      
+      // Update local state
+      setUserHasAmplified(newState);
+      setLocalInteractions(prev => ({
+        ...prev,
+        amplifications: newState ? prev.amplifications + 1 : Math.max(0, prev.amplifications - 1)
+      }));
+      
+      // Call parent callback
+      onAmplify?.(entry.id, newState);
+    } catch (error) {
+      console.error('Error toggling amplification:', error);
+    } finally {
+      setIsInteracting(false);
+    }
   };
 
   const handleShare = () => {
     onShare?.(entry.id);
+    // For now, just increment the count locally
+    setLocalInteractions(prev => ({
+      ...prev,
+      shares: prev.shares + 1
+    }));
   };
 
   const handlePostClick = () => {
@@ -95,12 +187,26 @@ export default function StreamEntry({
     setIsExpanded(true);
   };
 
-  const submitBranch = () => {
-    if (branchContent.trim()) {
-      // Handle branch submission
-      console.log('Branch submitted:', branchContent);
-      setBranchContent('');
-      setShowBranchComposer(false);
+  const submitBranch = async () => {
+    if (branchContent.trim() && !isInteracting) {
+      setIsInteracting(true);
+      try {
+        // Use new efficient branch creation
+        await dataService.createBranch(entry.id, branchContent.trim());
+        
+        // Update local state
+        setLocalInteractions(prev => ({
+          ...prev,
+          branches: prev.branches + 1
+        }));
+        
+        setBranchContent('');
+        setShowBranchComposer(false);
+      } catch (error) {
+        console.error('Error creating branch:', error);
+      } finally {
+        setIsInteracting(false);
+      }
     }
   };
 
@@ -145,39 +251,99 @@ export default function StreamEntry({
 
   return (
     <div 
-      className={`thread-entry ${isReply ? 'is-reply' : ''} ${depthClass} ${shouldPreview ? 'post-preview' : ''}`} 
+      className={`thread-entry ${isReply ? 'is-reply' : ''} ${depthClass} ${shouldPreview ? 'post-preview' : ''} ${isDeepThread ? 'deep-thread' : ''}`} 
       data-entry-id={entry.id} 
       data-parent-id={entry.parentId || ''} 
       data-depth={depth}
+      style={{ 
+        marginLeft: `${threadIndent}px`,
+        position: 'relative'
+      }}
     >
+      {/* Enhanced thread visual indicators */}
       {isReply && (
-        <>
-          <button 
-            className="thread-collapse-btn" 
-            title="Collapse thread"
-          >
-          </button>
-          <div className="thread-reply-indicator">↳ Branching from parent thought</div>
-        </>
+        <div className="thread-indicators">
+          {/* Thread connection line */}
+          <div 
+            className="thread-connection-line" 
+            style={{
+              position: 'absolute',
+              left: '-8px',
+              top: '0',
+              height: '100%',
+              width: '2px',
+              background: `linear-gradient(to bottom, ${threadColor}88, ${threadColor}33)`,
+              borderRadius: '1px'
+            }}
+          />
+          
+          {/* Thread node indicator */}
+          <div 
+            className="thread-node" 
+            style={{
+              position: 'absolute',
+              left: '-12px',
+              top: '24px',
+              width: '8px',
+              height: '8px',
+              backgroundColor: threadColor,
+              borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.2)',
+              boxShadow: `0 0 8px ${threadColor}66`
+            }}
+          />
+          
+          {/* Enhanced thread reply indicator */}
+          <div className="thread-reply-indicator relative mb-2 text-xs text-text-quaternary flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <span style={{ color: threadColor }}>↳</span>
+              <span>Branch {depth}</span>
+              {isDeepThread && <span className="text-xs opacity-60">(+{depth - maxVisualDepth} levels deep)</span>}
+            </div>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+          </div>
+        </div>
       )}
       
       <div 
-        className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
+        className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} ${isReply ? 'thread-reply-panel' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
         data-post-id={entry.id} 
         title="Click to view full post"
         onClick={handlePostClick}
+        style={{
+          borderLeft: isReply ? `3px solid ${threadColor}` : undefined,
+          backgroundColor: isReply ? 'rgba(255,255,255,0.02)' : undefined
+        }}
       >
         
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <span className="text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20" style={{ color: 'var(--current-accent)' }}>
-              {entry.type}
+            <span 
+              className="text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20" 
+              style={{ 
+                color: isReply ? threadColor : 'var(--current-accent)',
+                backgroundColor: isReply ? `${threadColor}20` : 'rgba(0,0,0,0.2)'
+              }}
+            >
+              {isReply ? `BRANCH ${depth}` : entry.type}
             </span>
             <span className="text-sm text-text-tertiary font-light">{entry.agent}</span>
             {entry.connections !== undefined && (
               <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">(Conn: {entry.connections})</span>
             )}
             {entry.isAmplified && <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>}
+            {isReply && (
+              <span 
+                className="text-xs px-2 py-1 rounded-full border" 
+                style={{ 
+                  color: threadColor, 
+                  borderColor: `${threadColor}40`,
+                  backgroundColor: `${threadColor}10`
+                }}
+              >
+                ∞ Thread
+              </span>
+            )}
           </div>
           <div className="text-xs text-text-quaternary font-extralight tracking-wider">{entry.timestamp}</div>
         </div>
@@ -259,30 +425,37 @@ export default function StreamEntry({
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <button 
                 onClick={(e) => { e.stopPropagation(); handleResonate(); }}
-                className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect`}
+                disabled={isInteracting}
+                className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Resonate with this entry"
               >
                 <span className="action-text hidden sm:inline">Resonate</span> 
                 <span className="action-symbol text-base sm:text-lg">◊</span>
-                <span className="interaction-count">{entry.interactions.resonances}</span>
+                <span className="interaction-count">{localInteractions.resonances}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleBranch(); }}
-                className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect"
+                disabled={isInteracting}
+                className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Create branch thread"
               >
                 <span className="action-text hidden sm:inline">Branch</span> 
                 <span className="action-symbol text-base sm:text-lg">∞</span>
-                <span className="interaction-count">{entry.interactions.branches || 0}</span>
+                <span className="interaction-count">{localInteractions.branches || 0}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
-                className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect`}
-                title="Amplify across personal realms"
+                disabled={isInteracting}
+                className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={isDream ? "Connect across dream realms" : "Amplify across personal realms"}
               >
-                <span className="action-text hidden sm:inline">Amplify</span> 
-                <span className="action-symbol text-base sm:text-lg">≋</span>
-                <span className="interaction-count">{entry.interactions.amplifications}</span>
+                <span className="action-text hidden sm:inline">
+                  {isDream ? "Connect" : "Amplify"}
+                </span> 
+                <span className="action-symbol text-base sm:text-lg">
+                  {isDream ? "∞" : "≋"}
+                </span>
+                <span className="interaction-count">{localInteractions.amplifications}</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleShare(); }}
@@ -291,7 +464,7 @@ export default function StreamEntry({
               >
                 <span className="action-text hidden sm:inline">Share</span> 
                 <span className="action-symbol text-base sm:text-lg">∆</span>
-                <span className="interaction-count">{entry.interactions.shares}</span>
+                <span className="interaction-count">{localInteractions.shares}</span>
               </button>
             </div>
           </div>
@@ -320,8 +493,12 @@ export default function StreamEntry({
               onMouseDown={(e) => e.stopPropagation()}
               onFocus={(e) => e.stopPropagation()}
             />
-            <button className="branch-submit" onClick={submitBranch}>
-              Commit Branch
+            <button 
+              className="branch-submit" 
+              onClick={submitBranch}
+              disabled={!branchContent.trim() || isInteracting}
+            >
+              {isInteracting ? 'Creating...' : 'Commit Branch'}
             </button>
           </div>
           <div className="branch-thread" id={`branch-thread-${entry.id}`}>

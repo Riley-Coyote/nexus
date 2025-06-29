@@ -3314,3 +3314,81 @@
           font-weight: 500;
           box-shadow: 0 4px 12px -2px var(--current-accent);
         }
+
+        /* Enhanced Threading Styles */
+        .thread-entry {
+          transition: all 0.3s ease;
+          position: relative;
+        }
+
+        .thread-entry.is-reply {
+          margin-top: 8px;
+          margin-bottom: 8px;
+        }
+
+        .thread-entry.deep-thread {
+          opacity: 0.95;
+        }
+
+        .thread-indicators {
+          position: relative;
+          z-index: 1;
+        }
+
+        .thread-connection-line {
+          opacity: 0.6;
+          transition: opacity 0.3s ease;
+        }
+
+        .thread-entry:hover .thread-connection-line {
+          opacity: 1;
+        }
+
+        .thread-node {
+          transition: all 0.3s ease;
+          z-index: 2;
+        }
+
+        .thread-entry:hover .thread-node {
+          transform: scale(1.2);
+          box-shadow: 0 0 12px currentColor;
+        }
+
+        .thread-reply-panel {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .thread-reply-panel::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -3px;
+          width: 3px;
+          height: 100%;
+          background: linear-gradient(to bottom, transparent, currentColor 20%, currentColor 80%, transparent);
+          opacity: 0.3;
+          transition: opacity 0.3s ease;
+        }
+
+        .thread-reply-panel:hover::before {
+          opacity: 0.6;
+        }
+
+        /* Thread depth responsiveness */
+        @media (max-width: 768px) {
+          .thread-entry {
+            margin-left: 8px !important;
+          }
+          
+          .thread-connection-line {
+            left: -4px !important;
+            width: 1px !important;
+          }
+          
+          .thread-node {
+            left: -6px !important;
+            width: 4px !important;
+            height: 4px !important;
+          }
+        }
