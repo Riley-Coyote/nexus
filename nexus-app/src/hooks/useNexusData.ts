@@ -53,6 +53,7 @@ export interface NexusData {
   // Actions
   refreshData: () => Promise<void>;
   submitEntry: (content: string, type: string, isPublic: boolean, mode: JournalMode) => Promise<void>;
+  createBranch: (parentId: string, content: string) => Promise<void>;
   resonateWithEntry: (entryId: string) => Promise<void>;
   amplifyEntry: (entryId: string) => Promise<void>;
   
@@ -212,6 +213,21 @@ export const useNexusData = (): NexusData => {
       throw error;
     }
   }, [loadLogbookData, loadDreamData]);
+
+  // Create branch
+  const createBranch = useCallback(async (parentId: string, content: string) => {
+    try {
+      await dataService.createBranch(parentId, content);
+      
+      // Refresh data to show the new branch
+      await refreshData();
+      // Update auth state to reflect new stats
+      setAuthState(authService.getAuthState());
+    } catch (error) {
+      console.error('Failed to create branch:', error);
+      throw error;
+    }
+  }, [refreshData]);
   
     // Resonate with entry
   const resonateWithEntry = useCallback(async (entryId: string) => {
@@ -356,6 +372,7 @@ export const useNexusData = (): NexusData => {
     // Actions
     refreshData,
     submitEntry,
+    createBranch,
     resonateWithEntry,
     amplifyEntry,
     

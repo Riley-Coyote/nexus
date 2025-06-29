@@ -130,6 +130,7 @@ export default function Home() {
               dreamEntries={nexusData.dreamEntriesData}
               onPostClick={handleOpenPost}
               getFlattenedStreamEntries={nexusData.getFlattenedStreamEntries}
+              createBranch={nexusData.createBranch}
             />
           </div>
         ) : viewMode === 'resonance-field' ? (
@@ -154,6 +155,7 @@ export default function Home() {
                   onPostClick={handleOpenPost}
                   onSubmitEntry={(content, type, isPublic) => nexusData.submitEntry(content, type, isPublic, 'logbook')}
                   onResonate={nexusData.resonateWithEntry}
+                  onBranch={nexusData.createBranch}
                   onAmplify={nexusData.amplifyEntry}
                 />
                 <RightSidebar 
@@ -173,6 +175,7 @@ export default function Home() {
                   sharedDreams={nexusData.sharedDreams}
                   onPostClick={handleOpenPost}
                   onSubmitEntry={(content, type, isPublic) => nexusData.submitEntry(content, type, isPublic, 'dream')}
+                  onBranch={nexusData.createBranch}
                 />
                 <DreamRightSidebar 
                   dreamAnalytics={nexusData.dreamAnalytics!}

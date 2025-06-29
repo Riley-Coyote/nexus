@@ -11,7 +11,7 @@ interface MainContentProps {
   stream: StreamEntryType[];
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
   onResonate?: (id: string) => void;
-  onBranch?: (id: string) => void;
+  onBranch?: (parentId: string, content: string) => void;
   onAmplify?: (id: string) => void;
   onShare?: (id: string) => void;
   onPostClick?: (post: StreamEntryType) => void;
@@ -37,9 +37,9 @@ export default function MainContent({
     onResonate?.(id);
   };
 
-  const handleBranch = (id: string) => {
-    console.log('Branched entry:', id);
-    onBranch?.(id);
+  const handleBranch = (parentId: string, content: string) => {
+    console.log('Branched entry:', parentId, 'with content:', content);
+    onBranch?.(parentId, content);
   };
 
   const handleAmplify = (id: string) => {

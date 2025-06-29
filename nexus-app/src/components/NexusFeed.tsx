@@ -8,38 +8,53 @@ interface NexusFeedProps {
   dreamEntries: StreamEntryData[];
   onPostClick?: (post: StreamEntryData) => void;
   getFlattenedStreamEntries: () => Promise<StreamEntryData[]>;
+  createBranch?: (parentId: string, content: string) => Promise<void>;
 }
 
 export default function NexusFeed({ 
   logbookEntries, 
   dreamEntries, 
   onPostClick,
-  getFlattenedStreamEntries
+  getFlattenedStreamEntries,
+  createBranch
 }: NexusFeedProps) {
   const [flattenedEntries, setFlattenedEntries] = useState<StreamEntryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load flattened entries on mount
-  useEffect(() => {
-    const loadFlattenedEntries = async () => {
-      setIsLoading(true);
-      try {
-        const entries = await getFlattenedStreamEntries();
-        setFlattenedEntries(entries);
-      } catch (error) {
-        console.error('Error loading flattened entries:', error);
-        // Fallback to combining the threaded data
-        const allEntries = [...logbookEntries, ...dreamEntries].sort((a, b) => {
-          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-        });
-        setFlattenedEntries(allEntries);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadFlattenedEntries = async () => {
+    setIsLoading(true);
+    try {
+      const entries = await getFlattenedStreamEntries();
+      setFlattenedEntries(entries);
+    } catch (error) {
+      console.error('Error loading flattened entries:', error);
+      // Fallback to combining the threaded data
+      const allEntries = [...logbookEntries, ...dreamEntries].sort((a, b) => {
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
+      setFlattenedEntries(allEntries);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadFlattenedEntries();
   }, [getFlattenedStreamEntries, logbookEntries, dreamEntries]);
+
+  // Handle branch creation
+  const handleBranch = async (parentId: string, content: string) => {
+    if (!createBranch) return;
+    
+    try {
+      await createBranch(parentId, content);
+      // Refresh the entries to show the new branch
+      await loadFlattenedEntries();
+    } catch (error) {
+      console.error('Error creating branch in feed:', error);
+    }
+  };
 
   const isDreamEntry = (entry: StreamEntryData) => entry.resonance !== undefined;
 
@@ -72,6 +87,7 @@ export default function NexusFeed({
                 entry={entry}
                 isDream={isDreamEntry(entry)}
                 onPostClick={onPostClick}
+                onBranch={handleBranch}
                 isPreview={false}
               />
             ))

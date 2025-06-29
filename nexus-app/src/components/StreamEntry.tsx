@@ -38,7 +38,7 @@ interface StreamEntryProps {
   isPreview?: boolean;
   isDream?: boolean;
   onResonate?: (entryId: string, newState: boolean) => void;
-  onBranch?: (entryId: string) => void;
+  onBranch?: (parentId: string, content: string) => void;
   onAmplify?: (entryId: string, newState: boolean) => void;
   onShare?: (entryId: string) => void;
   onPostClick?: (entry: StreamEntryData) => void;
@@ -142,7 +142,7 @@ export default function StreamEntry({
 
   const handleBranch = () => {
     setShowBranchComposer(!showBranchComposer);
-    onBranch?.(entry.id);
+    // onBranch will be called in submitBranch after content is entered
   };
 
   const handleAmplify = async () => {
@@ -199,6 +199,9 @@ export default function StreamEntry({
           ...prev,
           branches: prev.branches + 1
         }));
+        
+        // Call parent callback to refresh data
+        onBranch?.(entry.id, branchContent.trim());
         
         setBranchContent('');
         setShowBranchComposer(false);

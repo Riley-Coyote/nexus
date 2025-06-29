@@ -11,13 +11,15 @@ interface DreamMainContentProps {
   sharedDreams: StreamEntryType[];
   onPostClick?: (post: StreamEntryType | StreamEntryData) => void;
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
+  onBranch?: (parentId: string, content: string) => void;
 }
 
 export default function DreamMainContent({ 
   dreamComposer, 
   sharedDreams,
   onPostClick,
-  onSubmitEntry
+  onSubmitEntry,
+  onBranch
 }: DreamMainContentProps) {
   const handleDreamSubmit = (content: string, type: string, isPublic: boolean) => {
     console.log('Dream submitted:', { content, type, isPublic });
@@ -68,6 +70,7 @@ export default function DreamMainContent({
               entry={dreamData}
               isDream={true}
               onPostClick={(post) => onPostClick?.(dream)} // Pass original StreamEntry
+              onBranch={onBranch}
             />
           );
         })}
