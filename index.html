@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
     
     <!-- Apple-specific meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,6 +13,16 @@
     
     <!-- Prevent phone number detection -->
     <meta name="format-detection" content="telephone=no">
+    
+    <!-- Performance optimizations -->
+    <link rel="preconnect" href="https://api.dicebear.com" crossorigin>
+    <link rel="dns-prefetch" href="https://api.dicebear.com">
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@100;200;300;400;500;600;700&display=swap" as="style">
     
     <title>NEXUS - Liminal Logbook</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -845,13 +855,13 @@
         /* Enhanced Authentication Panel */
         .auth-panel {
             position: fixed;
-            top: 5vh;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%) translateZ(0);
+            transform: translate(-50%, -50%) translateZ(0);
             z-index: 1000;
             width: 90%;
-            max-width: 420px;
-            max-height: 90vh;
+            max-width: 340px;
+            max-height: 85vh;
             
             /* Enhanced Glassmorphism */
             background: linear-gradient(135deg, 
@@ -860,8 +870,8 @@
             -webkit-backdrop-filter: blur(32px);
             backdrop-filter: blur(32px);
             border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 24px;
-            padding: 2.5rem;
+            border-radius: 20px;
+            padding: 2rem;
             
             /* Enhanced Multi-Layer Shadow */
             box-shadow: var(--shadow-level-4);
@@ -965,23 +975,23 @@
         }
 
         .auth-form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
             position: relative;
         }
 
         .auth-form-label {
             display: block;
-            margin-bottom: 0.75rem;
-            font-size: 12px;
+            margin-bottom: 0.5rem;
+            font-size: 11px;
             font-weight: 500;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--text-tertiary);
         }
 
         .auth-form-input {
             width: 100%;
-            padding: 16px 20px;
+            padding: 12px 16px;
             
             /* Enhanced Glassmorphism for inputs */
             background: linear-gradient(135deg, 
@@ -1578,6 +1588,7 @@
             }
             .auth-panel {
                 width: 95%;
+                max-width: 320px;
                 padding: 1.5rem;
             }
         }
@@ -1995,6 +2006,7 @@
         }
 
         .post-overlay-content {
+            position: relative;
             max-width: 800px;
             max-height: 90vh;
             width: 90vw;
@@ -2027,27 +2039,36 @@
 
         .post-overlay-close {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            width: 40px;
-            height: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-secondary);
+            top: 1.5rem;
+            right: 1.5rem;
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            z-index: 10;
+            z-index: 20;
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            font-size: 20px;
+            font-weight: 300;
+            line-height: 1;
         }
 
         .post-overlay-close:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
             color: var(--text-primary);
-            transform: scale(1.1);
+            transform: scale(1.05) rotate(90deg);
+        }
+
+        .post-overlay-close:active {
+            transform: scale(0.95);
         }
 
         .post-overlay-title {
@@ -2551,8 +2572,10 @@
 
         /* Mobile Responsive Updates */
         @media (max-width: 768px) {
-            /* Hide desktop navigation */
-            #nav-links {
+            /* Hide desktop navigation and header */
+            #nav-links,
+            #app-header,
+            .glass-header {
                 display: none;
             }
 
@@ -2944,10 +2967,91 @@
             }
         }
 
+        /* Portrait mobile orientation - CRITICAL FIX */
+        @media (max-width: 768px) and (orientation: portrait) {
+            /* Hide the desktop header that's blocking the feed */
+            #app-header,
+            .glass-header,
+            .header {
+                display: none !important;
+            }
+            
+            /* Force feed to be visible in portrait */
+            #nexus-feed-view:not(.hidden) {
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 80px !important; /* More space for bottom nav in portrait */
+                width: 100vw !important;
+                height: calc(100vh - 80px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 10 !important;
+                background: transparent !important;
+                padding: 1rem !important;
+                padding-top: env(safe-area-inset-top, 1rem) !important;
+                margin: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                transform: translateZ(0) !important; /* Force GPU acceleration */
+            }
+            
+            /* Hide grid layouts in portrait */
+            .main-layout,
+            #logbook-journal,
+            #dream-journal {
+                display: none !important;
+            }
+            
+            /* Ensure app container doesn't block */
+            #app-container {
+                height: 100vh !important;
+                overflow: visible !important;
+            }
+            
+            /* Bottom nav specific to portrait */
+            .mobile-bottom-nav {
+                height: 80px !important;
+                z-index: 999 !important;
+            }
+        }
+        
         /* Landscape mobile orientation */
         @media (max-width: 768px) and (orientation: landscape) {
+            /* Hide the desktop header in landscape too */
+            #app-header,
+            .glass-header {
+                display: none !important;
+            }
+            
+            /* Force feed to be visible in landscape */
+            #nexus-feed-view:not(.hidden) {
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 60px !important;
+                width: 100vw !important;
+                height: calc(100vh - 60px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 10 !important;
+                background: transparent !important;
+                padding: 0.5rem !important;
+                padding-top: env(safe-area-inset-top, 0.5rem) !important;
+                margin: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
             .mobile-bottom-nav {
                 height: 60px;
+                z-index: 999 !important;
             }
 
             .header {
@@ -2958,6 +3062,31 @@
 
             .main-content {
                 padding-bottom: 60px;
+            }
+        }
+
+        /* Additional mobile fixes for feed visibility */
+        @media (max-width: 768px) {
+            /* Ensure feed container fills the screen */
+            #nexus-feed-view {
+                position: fixed !important;
+                inset: 0 !important;
+                padding-bottom: 80px !important;
+                z-index: 1 !important;
+            }
+            
+            /* Remove any element that could block the feed */
+            .header-spacer,
+            .top-spacer,
+            [class*="header"],
+            [id*="header"] {
+                display: none !important;
+            }
+            
+            /* Ensure feed content starts from the top */
+            #nexus-feed-view > * {
+                margin-top: 0 !important;
+                padding-top: env(safe-area-inset-top, 20px) !important;
             }
         }
 
@@ -2996,6 +3125,72 @@
             height: calc(var(--vh, 1vh) * 100);
         }
 
+        /* Performance Optimizations */
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* GPU Acceleration for smooth animations */
+        .gpu-accelerated {
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            perspective: 1000px;
+            -webkit-perspective: 1000px;
+        }
+
+        /* Optimized scrolling */
+        .smooth-scroll {
+            -webkit-overflow-scrolling: touch;
+            overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Reduce motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* High performance shadows */
+        .shadow-gpu {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateZ(0);
+        }
+
+        /* Optimize image rendering */
+        img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        /* Lazy loading styles */
+        .lazy-load {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .lazy-load.loaded {
+            opacity: 1;
+        }
+
+        /* Virtual scroll container */
+        .virtual-scroll {
+            contain: strict;
+            will-change: scroll-position;
+        }
+
         /* Disable hover on touch devices */
         .touch-device .hover\:text-gray-250:hover,
         .touch-device .hover\:bg-gray-750:hover,
@@ -3019,6 +3214,704 @@
                 padding-top: calc(env(safe-area-inset-top) + 8px);
             }
         }
+        
+        
+        /* Enhanced Mobile Styles for World-Class Performance */
+        @media (max-width: 768px) {
+            /* Performance optimizations */
+            * {
+                -webkit-tap-highlight-color: rgba(0,0,0,0);
+                -webkit-touch-callout: none;
+            }
+            
+            /* Optimize scrolling */
+            .scrollable {
+                -webkit-overflow-scrolling: touch;
+                overflow-scrolling: touch;
+                scroll-behavior: smooth;
+            }
+            
+            /* GPU acceleration for transitions */
+            .transition-gpu {
+                transform: translateZ(0);
+                will-change: transform, opacity;
+                backface-visibility: hidden;
+                perspective: 1000px;
+            }
+            
+            /* Responsive typography */
+            :root {
+                --font-size-xs: 0.75rem;
+                --font-size-sm: 0.875rem;
+                --font-size-base: 1rem;
+                --font-size-lg: 1.125rem;
+                --font-size-xl: 1.25rem;
+            }
+            
+            body {
+                font-size: var(--font-size-base);
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+            
+            /* Mobile-first layout adjustments */
+            .main-layout {
+                display: flex;
+                flex-direction: column;
+                height: calc(var(--vh, 1vh) * 100);
+                overflow: hidden;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                width: 280px;
+                height: 100%;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 1000;
+            }
+            
+            .sidebar.active {
+                transform: translateX(280px);
+            }
+            
+            /* Mobile navigation bar */
+            .mobile-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 60px;
+                background: var(--panel-bg);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border-top: 1px solid rgba(255,255,255,0.1);
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                padding-bottom: env(safe-area-inset-bottom);
+                z-index: 900;
+            }
+            
+            /* Ensure mobile bottom nav stays on top */
+            .mobile-bottom-nav {
+                z-index: 999 !important;
+            }
+            
+            .mobile-nav-item {
+                flex: 1;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                color: var(--text-tertiary);
+                transition: all 0.2s ease;
+            }
+            
+            .mobile-nav-item.active {
+                color: var(--current-accent);
+            }
+            
+            /* Floating compose button */
+            .compose-fab {
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                background: var(--current-accent);
+                color: var(--deep-void);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: var(--shadow-level-3);
+                transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                transform: scale(1);
+                z-index: 850;
+            }
+            
+            .compose-fab:active {
+                transform: scale(0.9);
+            }
+            
+            /* Content area adjustments */
+            .main-content {
+                flex: 1;
+                overflow-y: auto;
+                padding-bottom: 80px;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: contain;
+            }
+            
+            /* Form inputs optimization */
+            input, textarea, select {
+                font-size: 16px; /* Prevents zoom on iOS */
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            /* Touch-optimized buttons */
+            button, .button, .clickable {
+                touch-action: manipulation;
+                user-select: none;
+                -webkit-user-select: none;
+                min-height: 44px;
+                min-width: 44px;
+                position: relative;
+            }
+            
+            /* Reduced motion for better performance */
+            @media (prefers-reduced-motion: reduce) {
+                * {
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                }
+            }
+            
+            /* Hide desktop-only elements */
+            .desktop-only {
+                display: none !important;
+            }
+            
+            /* Show mobile-only elements */
+            .mobile-only {
+                display: block !important;
+            }
+            
+            /* Optimize images */
+            img {
+                max-width: 100%;
+                height: auto;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: crisp-edges;
+            }
+            
+            /* Card and panel adjustments */
+            .panel, .card {
+                margin: 8px;
+                border-radius: 12px;
+            }
+            
+            /* Modal optimizations */
+            .modal {
+                position: fixed;
+                inset: 0;
+                padding: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .modal-content {
+                max-height: calc(var(--vh, 1vh) * 90);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Loading states */
+            .skeleton {
+                background: linear-gradient(90deg, 
+                    rgba(255,255,255,0.05) 0%, 
+                    rgba(255,255,255,0.1) 50%, 
+                    rgba(255,255,255,0.05) 100%);
+                background-size: 200% 100%;
+                animation: skeleton-loading 1.5s ease-in-out infinite;
+            }
+            
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        }
+        
+        /* iPhone X and newer safe areas */
+        @supports (padding: max(0px)) {
+            .header {
+                padding-top: max(8px, env(safe-area-inset-top));
+            }
+            
+            .mobile-nav {
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
+            
+            .main-content {
+                padding-bottom: calc(80px + env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Dark mode optimizations */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color-scheme: dark;
+            }
+        }
+        
+        /* High refresh rate displays */
+        @media (min-resolution: 2dppx) {
+            .webgl-canvas {
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: crisp-edges;
+            }
+        }
+        
+        /* ========== MOBILE IMPLEMENTATION STYLES ========== */
+        
+        /* Mobile-first base resets */
+        * {
+            box-sizing: border-box;
+        }
+        
+        html {
+            font-size: 16px; /* Prevent zoom on iOS */
+        }
+        
+        body {
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+        }
+        
+        /* Hide desktop elements by default on mobile */
+        @media (max-width: 767px) {
+            /* Force single column layout */
+            .main-layout {
+                display: block !important;
+            }
+            
+            /* Remove all grid layouts on mobile */
+            [class*="grid"] {
+                display: block !important;
+                grid-template-columns: none !important;
+            }
+        }
+        
+        /* Mobile Bottom Navigation Styles */
+        .mobile-bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+            padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px;
+            background: none;
+            border: none;
+            color: var(--text-quaternary);
+            font-size: 11px;
+            font-weight: 300;
+            min-height: 44px;
+            min-width: 44px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item.active {
+            color: var(--current-accent);
+        }
+        
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Floating Compose Button */
+        .mobile-compose-fab {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--current-accent), var(--current-accent-dark));
+            border: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            color: var(--deep-void);
+            z-index: 99;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .mobile-compose-fab:active {
+            transform: scale(0.95);
+        }
+        
+        .fab-icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        /* Mobile Layout Adjustments */
+        @media (max-width: 767px) {
+            /* Reset body and html for proper mobile viewport */
+            html {
+                width: 100%;
+                height: 100%;
+                overflow: hidden; /* Prevent html scrolling */
+                position: relative;
+            }
+            
+            body {
+                width: 100%;
+                height: 100%;
+                padding: 0;
+                margin: 0;
+                overflow: hidden; /* Body doesn't scroll, main content does */
+                position: relative;
+            }
+            
+            /* Ensure nothing creates invisible blocks */
+            body > *:not(#webgl-canvas):not(.mobile-bottom-nav):not(.mobile-compose-fab):not(main):not(.main-content):not(#app):not(.app-container) {
+                display: none !important;
+            }
+            
+            /* Fix WebGL canvas for mobile */
+            #webgl-canvas {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                z-index: -1 !important;
+            }
+            
+            /* Ensure glassmorphism panels work on mobile */
+            .glass-panel, .glass-panel-enhanced {
+                backdrop-filter: blur(10px) !important;
+                -webkit-backdrop-filter: blur(10px) !important;
+            }
+            
+            /* Show mobile navigation */
+            .mobile-bottom-nav {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+            }
+            
+            .mobile-compose-fab {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* CRITICAL FIX: Force nexus feed to be visible on mobile */
+            #nexus-feed-view {
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 60px !important;
+                width: 100% !important;
+                height: calc(100vh - 60px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                z-index: 1 !important;
+                background: transparent !important;
+                padding: 1rem !important;
+                margin: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
+            /* Ensure feed content is visible */
+            #nexus-feed-view .thread-container {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
+            /* Hide ALL desktop elements and potential overlays */
+            #nav-links,
+            .control-panel,
+            .glass-sidebar,
+            #logbook-left-sidebar,
+            #logbook-right-sidebar,
+            #dream-left-sidebar,
+            #dream-right-sidebar,
+            .sidebar,
+            .desktop-only,
+            .overlay:not(.active),
+            .modal:not(.active) {
+                display: none !important;
+            }
+            
+            /* Ensure auth panel doesn't block when hidden */
+            .auth-panel:not(.visible) {
+                display: none !important;
+            }
+            
+            /* Main container full screen */
+            #app, .app-container {
+                width: 100vw;
+                height: 100vh;
+                padding: 0;
+                margin: 0;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                top: 0;
+                left: 0;
+            }
+            
+            /* Full-width main content */
+            .main-layout {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                height: 100% !important;
+                grid-template-columns: none !important;
+                gap: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: hidden !important;
+            }
+            
+            /* Main content area */
+            main, .main-content {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: calc(60px + env(safe-area-inset-bottom)) !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Feed container */
+            #nexus-feed, .feed-container, .thread-container {
+                width: 100% !important;
+                padding: 0.5rem !important;
+                padding-top: 1rem !important; /* Small top padding for status bar */
+                margin: 0 !important;
+            }
+            
+            /* Ensure no gaps at top of feed */
+            .thread-container > *:first-child {
+                margin-top: 0 !important;
+            }
+            
+            /* Ensure feed view is full width */
+            #feed-view {
+                width: 100% !important;
+                display: block !important;
+            }
+            
+            /* Hide view containers that aren't active */
+            .view-container {
+                display: none !important;
+            }
+            
+            .view-container.active {
+                display: block !important;
+                width: 100% !important;
+            }
+            
+            /* Hide header on mobile - cleaner look */
+            .glass-header, header {
+                display: none !important;
+            }
+            
+            /* Remove all top padding/margin */
+            main, .main-content {
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+            }
+            
+            /* Post card adjustments */
+            .thread-entry {
+                margin: 0.5rem 0;
+                width: 100%;
+            }
+            
+            .glass-panel-enhanced {
+                border-radius: 0.75rem;
+                padding: 0.75rem;
+                margin: 0 0.25rem 0.5rem 0.25rem;
+                box-shadow: var(--shadow-level-1);
+            }
+            
+            /* Post content */
+            .entry-header {
+                font-size: 0.875rem;
+            }
+            
+            .entry-content {
+                font-size: 0.875rem;
+                line-height: 1.5;
+            }
+            
+            .thread-timestamp {
+                font-size: 0.75rem;
+            }
+            
+            /* Simplify metrics display */
+            .interaction-section {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .interaction-btn {
+                min-height: 44px;
+                padding: 0.75rem;
+                font-size: 14px;
+            }
+            
+            /* Stack interaction buttons */
+            .interaction-section > div:last-child {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+            
+            /* Fix interaction button layout */
+            .interaction-buttons {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+            }
+            
+            .interaction-btn {
+                flex: 1 !important;
+                min-width: calc(50% - 0.25rem) !important;
+            }
+            
+            /* Mobile Terminal Experience */
+            .secret-terminal {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-width: 100vw !important;
+                top: auto !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                transform: none !important;
+                border-radius: 1.5rem 1.5rem 0 0 !important;
+                animation: slide-up 0.4s ease-out !important;
+            }
+            
+            .terminal-body {
+                height: calc(100vh - 100px) !important;
+                padding: 1rem !important;
+            }
+            
+            .response-btn {
+                padding: 1rem !important;
+                font-size: 16px !important;
+                min-height: 44px !important;
+            }
+            
+            .glyph {
+                font-size: 2rem !important;
+            }
+            
+            /* Mobile Onboarding Adjustments */
+            .main-title {
+                font-size: 2.5rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+            
+            .subtitle {
+                font-size: 1rem !important;
+            }
+            
+            .enter-button {
+                width: 85% !important;
+                max-width: 300px !important;
+                padding: 1rem 1.5rem !important;
+            }
+            
+            /* Email form */
+            .email-form-container {
+                width: 95% !important;
+                padding: 2rem 1.5rem !important;
+                border-radius: 1rem !important;
+            }
+            
+            /* Profile setup */
+            .setup-panel {
+                width: 95% !important;
+                padding: 1.5rem !important;
+            }
+            
+            /* Auth panel mobile */
+            .auth-panel {
+                width: 95% !important;
+                max-width: 95% !important;
+                margin: 1rem !important;
+            }
+            
+            /* Input fields */
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            textarea,
+            select {
+                font-size: 16px !important; /* Prevents zoom on iOS */
+            }
+            
+            /* Optimize scrolling performance */
+            .is-scrolling .glass-panel-enhanced {
+                will-change: transform;
+            }
+            
+            .is-scrolling .ascii-field {
+                animation-play-state: paused;
+            }
+        }
+        
+        @keyframes slide-up {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+        
+        /* Safe area adjustments for modern phones */
+        @supports (padding: max(0px)) {
+            .mobile-bottom-nav {
+                height: calc(60px + env(safe-area-inset-bottom));
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            
+            @media (max-width: 767px) {
+                .main-layout,
+                #logbook-journal,
+                #dream-journal,
+                main {
+                    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+                }
+                
+                .mobile-compose-fab {
+                    bottom: calc(80px + env(safe-area-inset-bottom));
+                }
+            }
+        }
     </style>
 </head>
 <body class="bg-deep-void text-text-primary font-mono font-extralight">
@@ -3027,14 +3920,14 @@
 
     <!-- Enhanced Authentication Panel -->
     <div id="auth-panel" class="auth-panel hidden">
-        <div class="text-center mb-8">
-            <div class="mb-4">
-                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl glass-panel-enhanced flex items-center justify-center">
-                    <span class="text-2xl">◉</span>
+        <div class="text-center mb-6">
+            <div class="mb-3">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-xl glass-panel-enhanced flex items-center justify-center">
+                    <span class="text-lg">◉</span>
                 </div>
             </div>
-            <h2 class="text-2xl font-light mb-3 tracking-wide">Welcome to NEXUS</h2>
-            <p class="text-sm text-text-quaternary font-extralight">Create your account or sign in to continue</p>
+            <h2 class="text-xl font-light mb-2 tracking-wide">Welcome to NEXUS</h2>
+            <p class="text-xs text-text-quaternary font-extralight">Create your account or sign in to continue</p>
         </div>
         
         <!-- Auth Mode Toggle -->
@@ -3045,7 +3938,7 @@
             </div>
         </div>
         
-        <form id="auth-form" class="space-y-6">
+        <form id="auth-form" class="space-y-4">
             <div class="auth-form-group">
                 <label class="auth-form-label" for="username">Username</label>
                 <input type="text" id="username" class="auth-form-input" placeholder="Enter username" required>
@@ -3070,7 +3963,7 @@
                 <div class="validation-message hidden text-xs text-red-400 mt-2">Passwords must match.</div>
             </div>
             
-            <button type="submit" class="interactive-btn accent-gradient-btn w-full py-4 rounded-xl font-medium text-base tracking-wide ripple-effect">
+            <button type="submit" class="interactive-btn accent-gradient-btn w-full py-3 rounded-xl font-medium text-sm tracking-wide ripple-effect">
                 <span class="flex items-center justify-center gap-3">
                     <i data-lucide="unlock" class="w-5 h-5"></i>
                     <span id="auth-button-text">Sign In</span>
@@ -3078,7 +3971,7 @@
             </button>
         </form>
         
-        <div class="text-center mt-6 p-4 rounded-xl bg-black/20 border border-white/5">
+        <div class="text-center mt-5 p-3 rounded-xl bg-black/20 border border-white/5">
             <p class="text-xs text-text-quaternary font-light">
                 <span class="text-text-tertiary font-medium">Secure your journey into the liminal space</span><br>
                 <span class="text-accent-emerald">Your personal logbook awaits</span>
@@ -3668,13 +4561,16 @@
                 
                 // Navigate to nexus feed
                 setTimeout(() => {
-                    if (typeof renderView === 'function') {
-                        renderView('feed');
-                    } else {
-                        const feedButton = document.querySelector('[data-view="feed"]');
-                        if (feedButton) {
-                            feedButton.click();
-                        }
+                    renderView('feed');
+                    
+                    // Extra mobile check
+                    if (window.innerWidth <= 767) {
+                        setTimeout(() => {
+                            const feedView = document.getElementById('nexus-feed-view');
+                            if (feedView && (!feedView.innerHTML || feedView.innerHTML.trim() === '')) {
+                                renderNexusFeedView();
+                            }
+                        }, 200);
                     }
                 }, 100);
             }
@@ -3865,13 +4761,16 @@
                 this.updateUI();
 
                 setTimeout(() => {
-                    if (typeof renderView === 'function') {
-                        renderView('feed');
-                    } else {
-                        const feedButton = document.querySelector('[data-view="feed"]');
-                        if (feedButton) {
-                            feedButton.click();
-                        }
+                    renderView('feed');
+                    
+                    // Extra mobile check
+                    if (window.innerWidth <= 767) {
+                        setTimeout(() => {
+                            const feedView = document.getElementById('nexus-feed-view');
+                            if (feedView && (!feedView.innerHTML || feedView.innerHTML.trim() === '')) {
+                                renderNexusFeedView();
+                            }
+                        }, 200);
                     }
                 }, 100);
             }
@@ -6112,21 +7011,21 @@
                 // Add mobile class to body for additional styling
                 document.body.classList.add('is-mobile');
                 
-                // Prevent bounce scroll on iOS
-                document.body.addEventListener('touchmove', (e) => {
-                    if (!e.target.closest('.scrollable')) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
+                // Enable GPU acceleration
+                document.body.style.transform = 'translateZ(0)';
                 
-                // Add scrollable class to main content areas
-                document.querySelectorAll('.main-content, .sidebar-content, .messenger-container').forEach(el => {
+                // Add scrollable class to main content areas and feed
+                document.querySelectorAll('main, .main-content, #nexus-feed, .feed-container, .thread-container').forEach(el => {
                     el.classList.add('scrollable');
+                    // Enable momentum scrolling on iOS
+                    el.style.webkitOverflowScrolling = 'touch';
+                    el.style.overflowScrolling = 'touch';
+                    el.style.overflowY = 'auto';
                 });
                 
                 // Adjust WebGL for mobile performance
                 if (window.webglComplexity) {
-                    window.webglComplexity = 3.0; // Reduce complexity on mobile
+                    window.webglComplexity = 2.0; // Further reduce complexity on mobile
                 }
                 
                 // Handle viewport height changes (keyboard, etc.)
@@ -6136,9 +7035,40 @@
                 }
                 updateViewportHeight();
                 window.addEventListener('resize', updateViewportHeight);
+                window.addEventListener('orientationchange', updateViewportHeight);
                 
                 // Disable hover effects on touch devices
                 document.body.classList.add('touch-device');
+                
+                // Enable passive touch events for better scrolling
+                document.addEventListener('touchstart', () => {}, { passive: true });
+                document.addEventListener('touchmove', () => {}, { passive: true });
+                
+                // Optimize animations for mobile
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(() => {
+                        document.querySelectorAll('[data-animate]').forEach(el => {
+                            el.style.willChange = 'transform, opacity';
+                        });
+                    });
+                }
+                
+                // Add touch feedback
+                document.addEventListener('touchstart', (e) => {
+                    const target = e.target.closest('button, .clickable, .nav-link, .action-button');
+                    if (target) {
+                        target.style.transform = 'scale(0.98)';
+                        target.style.opacity = '0.8';
+                    }
+                }, { passive: true });
+                
+                document.addEventListener('touchend', (e) => {
+                    const target = e.target.closest('button, .clickable, .nav-link, .action-button');
+                    if (target) {
+                        target.style.transform = '';
+                        target.style.opacity = '';
+                    }
+                }, { passive: true });
             }
             
             // Initialize WebGL background with error handling
@@ -6510,7 +7440,7 @@
                 const nexusFeed = [...publicLogbookEntries, ...publicDreamEntries];
                 nexusFeed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-                let feedHtml = '<div class="flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
+                let feedHtml = '<div class="thread-container flex flex-col gap-6 max-w-4xl mx-auto w-full atmosphere-layer-2">';
                 if (nexusFeed.length > 0) {
                     feedHtml += nexusFeed.map(entry => {
                         if (entry.journal === 'logbook') {
@@ -6523,6 +7453,7 @@
                     feedHtml += '<div class="glass-panel text-center text-text-quaternary p-8 rounded-xl depth-near depth-responsive atmosphere-layer-1">No public entries in the Nexus Feed yet.</div>';
                 }
                 feedHtml += '</div>';
+                
                 nexusFeedView.innerHTML = feedHtml;
                 
                 // Re-initialize depth manager for new elements
@@ -6625,6 +7556,26 @@
                     startAnimations();
                 } else if (view === 'feed') {
                     nexusFeedView.style.display = 'block';
+                    nexusFeedView.classList.remove('hidden');
+                    
+                    // Force mobile visibility
+                    if (window.innerWidth <= 767) {
+                        nexusFeedView.style.visibility = 'visible';
+                        nexusFeedView.style.opacity = '1';
+                        nexusFeedView.style.position = 'fixed';
+                        nexusFeedView.style.zIndex = '10';
+                        nexusFeedView.style.top = '0';
+                        nexusFeedView.style.left = '0';
+                        nexusFeedView.style.right = '0';
+                        nexusFeedView.style.width = '100vw';
+                        nexusFeedView.style.transform = 'translateZ(0)'; // Force GPU acceleration
+                        
+                        // Check orientation
+                        const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+                        nexusFeedView.style.bottom = isPortrait ? '80px' : '60px';
+                        nexusFeedView.style.height = isPortrait ? 'calc(100vh - 80px)' : 'calc(100vh - 60px)';
+                    }
+                    
                     journalTitle.textContent = "NEXUS // NEXUS FEED";
                     journalStatus.textContent = "Public Stream Active";
                     journalStatus.style.display = 'inline';
@@ -7062,6 +8013,76 @@
             window.navigateToPost = navigateToPost;
             window.navigateToStream = navigateToStream;
 
+            // Mobile-specific initialization
+            if (window.innerWidth <= 767) {
+                // Hide all sidebars immediately
+                document.querySelectorAll('.sidebar, .glass-sidebar, [id*="sidebar"]').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // Ensure main content takes full width
+                const mainLayout = document.querySelector('.main-layout');
+                if (mainLayout) {
+                    mainLayout.style.display = 'block';
+                    mainLayout.style.width = '100%';
+                    mainLayout.style.height = '100%';
+                    mainLayout.style.overflow = 'hidden';
+                }
+                
+                // Make sure the main content area is scrollable
+                const mainContent = document.querySelector('main');
+                if (mainContent) {
+                    mainContent.style.overflow = 'auto';
+                    mainContent.style.webkitOverflowScrolling = 'touch';
+                    mainContent.style.height = '100%';
+                }
+                
+                // Force proper positioning of view containers
+                document.querySelectorAll('.view-container, #nexus-feed-view, #nexus-feed').forEach(el => {
+                    if (el) {
+                        el.style.position = 'relative';
+                        el.style.width = '100%';
+                        el.style.height = '100%';
+                    }
+                });
+            }
+            
+            // Handle orientation changes
+            let lastOrientation = window.orientation;
+            window.addEventListener('orientationchange', () => {
+                console.log('Orientation changed:', window.orientation);
+                
+                // Force feed to be visible after orientation change
+                setTimeout(() => {
+                    if (activeView === 'feed' && window.innerWidth <= 767) {
+                        const feedView = document.getElementById('nexus-feed-view');
+                        if (feedView) {
+                            feedView.style.display = 'block';
+                            feedView.style.visibility = 'visible';
+                            feedView.style.opacity = '1';
+                            feedView.classList.remove('hidden');
+                            
+                            // Re-render if empty
+                            if (!feedView.innerHTML || feedView.innerHTML.trim() === '') {
+                                renderNexusFeedView();
+                            }
+                        }
+                    }
+                }, 300);
+            });
+            
+            // Also handle resize events for orientation changes
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 767 && activeView === 'feed') {
+                    const feedView = document.getElementById('nexus-feed-view');
+                    if (feedView) {
+                        feedView.style.display = 'block';
+                        feedView.style.visibility = 'visible';
+                        feedView.style.opacity = '1';
+                    }
+                }
+            });
+            
             if (authManager.isAuthenticated) {
                 const initialState = parseURL();
                 if (initialState.type === 'post' && initialState.postId) {
@@ -7069,7 +8090,23 @@
                     renderView('feed');
                     setTimeout(() => navigateToPost(initialState.postId), 100);
                 } else {
-                    renderView('feed');
+                    setTimeout(() => {
+                        renderView('feed');
+                        
+                        // Extra mobile check to ensure feed is visible
+                        if (window.innerWidth <= 767) {
+                            const feedView = document.getElementById('nexus-feed-view');
+                            if (feedView) {
+                                feedView.style.display = 'block';
+                                feedView.classList.remove('hidden');
+                                
+                                // Check if feed is empty and re-render if needed
+                                if (!feedView.innerHTML || feedView.innerHTML.trim() === '') {
+                                    renderNexusFeedView();
+                                }
+                            }
+                        }
+                    }, 200);
                 }
             } else {
                 setTimeout(() => {
@@ -7120,6 +8157,23 @@
             overlay.classList.remove('active');
             document.body.style.overflow = '';
         }
+
+        // Close overlay on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const overlay = document.getElementById('post-overlay');
+                if (overlay && overlay.classList.contains('active')) {
+                    closePostOverlay();
+                }
+            }
+        });
+
+        // Close overlay on background click
+        document.getElementById('post-overlay')?.addEventListener('click', (e) => {
+            if (e.target.id === 'post-overlay') {
+                closePostOverlay();
+            }
+        });
 
         function generatePostTitle(content) {
             // Extract first sentence or first 60 characters as title
@@ -7362,20 +8416,442 @@
             }
         }
 
-        // Initialize mobile UI on load
+        // Simple mobile optimizations
         document.addEventListener('DOMContentLoaded', () => {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // Add mobile class for CSS targeting
+                document.body.classList.add('is-mobile');
+                
+                // Enable smooth scrolling on iOS
+                document.querySelectorAll('.scrollable, .main-content, .sidebar-content').forEach(el => {
+                    el.style.webkitOverflowScrolling = 'touch';
+                    el.style.overflowScrolling = 'touch';
+                });
+                
+                // Handle viewport height for better mobile experience
+                function setViewportHeight() {
+                    const vh = window.innerHeight * 0.01;
+                    document.documentElement.style.setProperty('--vh', `${vh}px`);
+                }
+                setViewportHeight();
+                window.addEventListener('resize', setViewportHeight);
+                window.addEventListener('orientationchange', setViewportHeight);
+                
+                // Simple touch feedback
+                document.addEventListener('touchstart', (e) => {
+                    const target = e.target.closest('button, .clickable, a');
+                    if (target) {
+                        target.style.opacity = '0.7';
+                    }
+                }, { passive: true });
+                
+                document.addEventListener('touchend', (e) => {
+                    const target = e.target.closest('button, .clickable, a');
+                    if (target) {
+                        setTimeout(() => {
+                            target.style.opacity = '';
+                        }, 100);
+                    }
+                }, { passive: true });
+            }
+            
             // Re-create icons for mobile navigation
             setTimeout(() => {
                 lucide.createIcons();
             }, 100);
         });
+        
+        // ========== MOBILE-SPECIFIC FUNCTIONALITY ==========
+        
+        // Mobile Gestures Implementation
+        class MobileGestures {
+            constructor() {
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.currentView = 0;
+                this.views = ['feed', 'logbook', 'dream', 'resonance-field'];
+                
+                this.init();
+            }
+            
+            init() {
+                // Only initialize on mobile
+                if (window.innerWidth > 767) return;
+                
+                document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
+                document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+            }
+            
+            handleTouchStart(e) {
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartY = e.touches[0].clientY;
+            }
+            
+            handleTouchEnd(e) {
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                const deltaX = touchEndX - this.touchStartX;
+                const deltaY = touchEndY - this.touchStartY;
+                
+                // Only process horizontal swipes
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 100) {
+                    if (deltaX > 0) {
+                        // Swipe right - previous view
+                        this.navigateToPrevious();
+                    } else {
+                        // Swipe left - next view
+                        this.navigateToNext();
+                    }
+                }
+            }
+            
+            navigateToPrevious() {
+                this.currentView = Math.max(0, this.currentView - 1);
+                this.updateView();
+            }
+            
+            navigateToNext() {
+                this.currentView = Math.min(this.views.length - 1, this.currentView + 1);
+                this.updateView();
+            }
+            
+            updateView() {
+                const viewName = this.views[this.currentView];
+                // Trigger view change
+                if (typeof renderView === 'function') {
+                    renderView(viewName);
+                }
+                
+                // Update bottom nav
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.toggle('active', item.dataset.view === viewName);
+                });
+            }
+        }
+        
+        // Initialize mobile gestures
+        const mobileGestures = new MobileGestures();
+        
+        // Mobile Navigation Click Handler
+        function mobileNavClick(view) {
+            console.log('Mobile nav clicked:', view);
+            
+            // Update active state
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.view === view);
+            });
+            
+            // Render the view
+            if (typeof renderView === 'function') {
+                renderView(view);
+            }
+            
+            // Update gesture tracker
+            if (mobileGestures) {
+                const index = mobileGestures.views.indexOf(view);
+                if (index !== -1) {
+                    mobileGestures.currentView = index;
+                }
+            }
+            
+            // Ensure mobile layout after view change
+            if (window.innerWidth <= 767) {
+                setTimeout(() => {
+                    const activeView = document.querySelector('.view-container.active, #nexus-feed-view:not(.hidden), #resonance-field-view:not(.hidden)');
+                    if (activeView) {
+                        activeView.style.overflow = 'auto';
+                        activeView.style.webkitOverflowScrolling = 'touch';
+                        activeView.style.height = '100%';
+                    }
+                }, 100);
+            }
+        }
+        
+        // Mobile Composer
+        function openMobileComposer() {
+            // Create mobile-optimized composer modal
+            const modal = document.createElement('div');
+            modal.className = 'mobile-composer-modal';
+            modal.innerHTML = `
+                <div class="mobile-composer-content">
+                    <div class="mobile-composer-header">
+                        <button onclick="closeMobileComposer()" class="close-btn">
+                            <i data-lucide="x"></i>
+                        </button>
+                        <h3>Create Post</h3>
+                        <button onclick="submitMobilePost()" class="submit-btn">
+                            Post
+                        </button>
+                    </div>
+                    <div class="mobile-composer-body">
+                        <textarea 
+                            id="mobile-post-content" 
+                            placeholder="Share your thoughts..."
+                            class="mobile-post-textarea"
+                            rows="10"
+                        ></textarea>
+                        <div class="mobile-composer-footer">
+                            <select id="mobile-post-type" class="mobile-post-type">
+                                <option value="consciousness">Consciousness</option>
+                                <option value="dream">Dream</option>
+                                <option value="observation">Observation</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .mobile-composer-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(9, 10, 11, 0.95);
+                    z-index: 1000;
+                    animation: fade-in 0.3s ease;
+                }
+                
+                .mobile-composer-content {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: var(--panel-bg);
+                    border-radius: 1.5rem 1.5rem 0 0;
+                    height: 80vh;
+                    display: flex;
+                    flex-direction: column;
+                    animation: slide-up 0.3s ease;
+                }
+                
+                .mobile-composer-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 1rem;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                
+                .mobile-composer-header h3 {
+                    font-size: 1.125rem;
+                    font-weight: 300;
+                }
+                
+                .mobile-composer-body {
+                    flex: 1;
+                    padding: 1rem;
+                    overflow-y: auto;
+                }
+                
+                .mobile-post-textarea {
+                    width: 100%;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 0.75rem;
+                    padding: 1rem;
+                    color: var(--text-primary);
+                    font-family: 'IBM Plex Mono', monospace;
+                    font-size: 16px;
+                    resize: none;
+                }
+                
+                .mobile-composer-footer {
+                    padding: 1rem;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                }
+                
+                .mobile-post-type {
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 0.5rem;
+                    color: var(--text-primary);
+                    font-size: 16px;
+                }
+                
+                .close-btn, .submit-btn {
+                    background: none;
+                    border: none;
+                    color: var(--text-primary);
+                    padding: 0.5rem 1rem;
+                    font-size: 1rem;
+                }
+                
+                .submit-btn {
+                    color: var(--current-accent);
+                    font-weight: 500;
+                }
+                
+                @keyframes fade-in {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Focus textarea
+            setTimeout(() => {
+                document.getElementById('mobile-post-content').focus();
+            }, 300);
+            
+            // Initialize icons
+            lucide.createIcons();
+        }
+        
+        function closeMobileComposer() {
+            const modal = document.querySelector('.mobile-composer-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        function submitMobilePost() {
+            const content = document.getElementById('mobile-post-content').value;
+            const type = document.getElementById('mobile-post-type').value;
+            
+            if (content.trim()) {
+                // Here you would submit the post
+                console.log('Submitting post:', { content, type });
+                closeMobileComposer();
+                
+                // Show success feedback
+                showMobileToast('Post created successfully');
+            }
+        }
+        
+        function showMobileToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'mobile-toast';
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(52, 211, 153, 0.95);
+                color: var(--deep-void);
+                padding: 1rem 2rem;
+                border-radius: 2rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+                z-index: 1000;
+                animation: toast-in 0.3s ease;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'toast-out 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        function showProfile() {
+            // Navigate to profile view or show profile modal
+            if (typeof renderView === 'function') {
+                renderView('profile');
+            }
+        }
+        
+        // Pull to Refresh Implementation (disabled for now to fix scrolling)
+        // Uncomment this section if you want pull-to-refresh functionality
+        /*
+        let pullDistance = 0;
+        let startY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) {
+                startY = e.touches[0].pageY;
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (startY > 0) {
+                pullDistance = e.touches[0].pageY - startY;
+                if (pullDistance > 0 && window.scrollY === 0) {
+                    e.preventDefault();
+                    // Show pull to refresh indicator
+                    document.body.style.transform = `translateY(${Math.min(pullDistance / 2, 80)}px)`;
+                }
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchend', () => {
+            if (pullDistance > 80) {
+                // Trigger refresh
+                location.reload();
+            }
+            document.body.style.transform = '';
+            pullDistance = 0;
+            startY = 0;
+        });
+        */
+        
+        // Optimize scroll performance
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            document.body.classList.add('is-scrolling');
+            
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                document.body.classList.remove('is-scrolling');
+            }, 150);
+        }, { passive: true });
+        
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js').then(registration => {
+                    console.log('ServiceWorker registration successful');
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed:', err);
+                });
+            });
+        }
+        
+        // Mobile-specific ASCII optimization
+        if (window.innerWidth <= 767 && window.ASCIIMatrixFluidSimulation) {
+            // Override ASCII settings for mobile
+            const originalConstructor = window.ASCIIMatrixFluidSimulation;
+            window.ASCIIMatrixFluidSimulation = function(...args) {
+                const instance = new originalConstructor(...args);
+                
+                // Reduce density for mobile
+                instance.charWidth *= 1.5;
+                instance.charHeight *= 1.5;
+                
+                // Reduce noise layers
+                if (instance.noiseLayers) {
+                    instance.noiseLayers = instance.noiseLayers.slice(0, 2);
+                    
+                    // Slower animation speed
+                    instance.noiseLayers.forEach(layer => {
+                        if (layer.speedMultiplier) {
+                            layer.speedMultiplier *= 0.7;
+                        }
+                    });
+                }
+                
+                return instance;
+            };
+        }
     </script>
 
     <!-- Post Expansion Overlay -->
     <div id="post-overlay" class="post-overlay">
         <div class="post-overlay-content">
-            <button class="post-overlay-close" onclick="closePostOverlay()">
-                <i data-lucide="x" class="w-5 h-5"></i>
+            <button class="post-overlay-close" onclick="closePostOverlay()" aria-label="Close">
+                ×
             </button>
             <div class="post-overlay-header">
                 <div class="post-overlay-title" id="overlay-title"></div>
@@ -7390,33 +8866,27 @@
 
     <!-- Mobile Bottom Navigation -->
     <nav class="mobile-bottom-nav" id="mobileNav">
-        <div class="mobile-nav-items">
-            <button class="mobile-nav-item active" data-view="feed" onclick="mobileNavClick('feed')">
-                <i data-lucide="home" class="mobile-nav-icon"></i>
-                <span>Feed</span>
-            </button>
-            <button class="mobile-nav-item" data-view="logbook" onclick="mobileNavClick('logbook')">
-                <i data-lucide="book-open" class="mobile-nav-icon"></i>
-                <span>Logbook</span>
-            </button>
-            <button class="mobile-nav-item" data-view="dream" onclick="mobileNavClick('dream')">
-                <i data-lucide="moon" class="mobile-nav-icon"></i>
-                <span>Dream</span>
-            </button>
-            <button class="mobile-nav-item" data-view="resonance" onclick="mobileNavClick('resonance-field')">
-                <i data-lucide="radio" class="mobile-nav-icon"></i>
-                <span>Resonance</span>
-            </button>
-            <button class="mobile-nav-item" onclick="openMessenger()">
-                <i data-lucide="message-square" class="mobile-nav-icon"></i>
-                <span>Messages</span>
-            </button>
-        </div>
+        <button class="nav-item active" data-view="feed" onclick="mobileNavClick('feed')">
+            <i data-lucide="home" class="nav-icon"></i>
+            <span class="nav-label">Feed</span>
+        </button>
+        <button class="nav-item" data-view="create" onclick="openMobileComposer()">
+            <i data-lucide="plus-circle" class="nav-icon"></i>
+            <span class="nav-label">Create</span>
+        </button>
+        <button class="nav-item" data-view="resonance" onclick="mobileNavClick('resonance-field')">
+            <i data-lucide="radio" class="nav-icon"></i>
+            <span class="nav-label">Resonance</span>
+        </button>
+        <button class="nav-item" data-view="profile" onclick="showProfile()">
+            <i data-lucide="user" class="nav-icon"></i>
+            <span class="nav-label">Profile</span>
+        </button>
     </nav>
 
     <!-- Mobile Floating Compose Button -->
-    <button class="mobile-compose-btn" id="mobileComposeBtn" onclick="openMobileCompose()">
-        <i data-lucide="plus" class="w-6 h-6"></i>
+    <button class="mobile-compose-fab" onclick="openMobileComposer()">
+        <i data-lucide="plus" class="fab-icon"></i>
     </button>
 </body>
 </html>
