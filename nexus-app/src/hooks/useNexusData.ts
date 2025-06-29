@@ -179,18 +179,20 @@ export const useNexusData = (): NexusData => {
     try {
       const newEntry = await dataService.submitEntry(content, type, isPublic, mode);
       
+      // Don't update state here since dataService already handles storage
+      // Instead, refresh the data to get the updated entries from dataService
       if (mode === 'logbook') {
-        setLogbookEntries(prev => [newEntry, ...prev]);
+        await loadLogbookData();
       } else {
-        setSharedDreams(prev => [newEntry, ...prev]);
+        await loadDreamData();
       }
     } catch (error) {
       console.error('Failed to submit entry:', error);
       throw error;
     }
-  }, []);
+  }, [loadLogbookData, loadDreamData]);
   
-  // Resonate with entry
+    // Resonate with entry
   const resonateWithEntry = useCallback(async (entryId: string) => {
     try {
       await dataService.resonateWithEntry(entryId);
@@ -202,8 +204,8 @@ export const useNexusData = (): NexusData => {
       console.error('Failed to resonate with entry:', error);
       throw error;
     }
-  }, []);
-  
+  }, [refreshData]);
+
   // Amplify entry
   const amplifyEntry = useCallback(async (entryId: string) => {
     try {
@@ -216,7 +218,7 @@ export const useNexusData = (): NexusData => {
       console.error('Failed to amplify entry:', error);
       throw error;
     }
-  }, []);
+  }, [refreshData]);
 
   // Auth actions
   const login = useCallback(async (username: string, password: string) => {

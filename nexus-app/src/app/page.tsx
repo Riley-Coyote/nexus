@@ -171,6 +171,7 @@ export default function Home() {
                   dreamComposer={nexusData.dreamComposer}
                   sharedDreams={nexusData.sharedDreams}
                   onPostClick={handleOpenPost}
+                  onSubmitEntry={(content, type, isPublic) => nexusData.submitEntry(content, type, isPublic, 'dream')}
                 />
                 <DreamRightSidebar 
                   dreamAnalytics={nexusData.dreamAnalytics!}

@@ -58,6 +58,17 @@ export const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData =>
 // Simulated API delay for development
 const simulateApiDelay = (ms: number = 100) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Format timestamp to match existing mock data format
+const formatTimestamp = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 class DataService {
   // In-memory storage for user-specific data
   private logbookEntries: StreamEntry[] = [];
@@ -217,7 +228,7 @@ class DataService {
         agent: currentUser.name,
         connections: 0,
         metrics: { c: 0.5, r: 0.5, x: 0.5 },
-        timestamp: new Date().toISOString(),
+        timestamp: formatTimestamp(),
         content: content,
         actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
         privacy: isPublic ? "public" : "private",

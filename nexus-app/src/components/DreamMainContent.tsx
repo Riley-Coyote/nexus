@@ -10,17 +10,24 @@ interface DreamMainContentProps {
   dreamComposer: EntryComposerData;
   sharedDreams: StreamEntryType[];
   onPostClick?: (post: StreamEntryType | StreamEntryData) => void;
+  onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
 }
 
 export default function DreamMainContent({ 
   dreamComposer, 
   sharedDreams,
-  onPostClick
+  onPostClick,
+  onSubmitEntry
 }: DreamMainContentProps) {
   const handleDreamSubmit = (content: string, type: string, isPublic: boolean) => {
     console.log('Dream submitted:', { content, type, isPublic });
-    // Handle dream submission logic here
+    onSubmitEntry?.(content, type, isPublic);
   };
+
+  // Sort dreams by timestamp (newest first)
+  const sortedDreams = [...sharedDreams].sort((a, b) => {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   return (
     <main className="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
@@ -33,7 +40,7 @@ export default function DreamMainContent({
       {/* Shared Dreams Stream */}
       <div className="flex flex-col gap-6">
         <h2 className="text-text-secondary text-sm font-light tracking-wide">SHARED DREAMS</h2>
-        {sharedDreams.map((dream) => {
+        {sortedDreams.map((dream) => {
           // Convert StreamEntry to StreamEntryData for the component
           const dreamData: StreamEntryData = {
             id: dream.id,

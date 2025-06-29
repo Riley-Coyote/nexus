@@ -12,6 +12,10 @@ export default function ResonanceField({
   resonatedEntries, 
   onPostClick 
 }: ResonanceFieldProps) {
+  // Sort entries by timestamp (newest first)
+  const sortedEntries = [...resonatedEntries].sort((a, b) => {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   return (
     <main className="py-4 sm:py-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
@@ -32,8 +36,8 @@ export default function ResonanceField({
 
         {/* Entries List */}
         <div className="flex flex-col gap-4 sm:gap-6">
-          {resonatedEntries.length > 0 ? (
-            resonatedEntries.map((entry) => (
+          {sortedEntries.length > 0 ? (
+            sortedEntries.map((entry) => (
               <StreamEntry
                 key={entry.id}
                 entry={entry}
