@@ -15,18 +15,37 @@ export default function PostOverlay({ post, isOpen, onClose, onInteraction }: Po
   if (!post) return null;
 
   const generatePostTitle = (content: string) => {
-    const firstSentence = content.split('.')[0];
+    // Extract text content if it's HTML
+    let textContent = content;
+    const hasHTMLTags = /<[^>]*>/g.test(content);
+    
+    if (hasHTMLTags) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      textContent = tempDiv.textContent || tempDiv.innerText || '';
+    }
+    
+    const firstSentence = textContent.split('.')[0];
     if (firstSentence.length < 60) {
       return firstSentence;
     }
-    return content.substring(0, 60) + '...';
+    return textContent.substring(0, 60) + '...';
   };
 
   const formatContentForOverlay = (content: string) => {
-    return content
-      .split('\n\n')
-      .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
-      .join('');
+    // Check if content already contains HTML tags from rich text editor
+    const hasHTMLTags = /<[^>]*>/g.test(content);
+    
+    if (hasHTMLTags) {
+      // Content is already HTML, return as-is
+      return content;
+    } else {
+      // Content is plain text, format it
+      return content
+        .split('\n\n')
+        .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
   };
 
   const handleInteraction = (action: string) => {
@@ -97,7 +116,10 @@ export default function PostOverlay({ post, isOpen, onClose, onInteraction }: Po
               <div className="text-xs text-text-quaternary mb-2">
                 Response by {post.response.agent} • {post.response.timestamp}
               </div>
-              <div className="text-sm text-text-secondary">{post.response.content}</div>
+              <div 
+                className="text-sm text-text-secondary rich-text-content"
+                dangerouslySetInnerHTML={{ __html: post.response.content }}
+              />
             </div>
           )}
         </div>

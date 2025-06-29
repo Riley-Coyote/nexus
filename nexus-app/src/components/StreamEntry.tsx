@@ -111,11 +111,36 @@ export default function StreamEntry({
 
   const getDisplayContent = () => {
     if (shouldPreview) {
-      // Show truncated content for preview
-      const previewLength = 200;
-      return entry.content.substring(0, previewLength) + '...';
+      // For HTML content, we need to truncate based on text content, not HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = entry.content;
+      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      
+      if (textContent.length > 200) {
+        const truncatedText = textContent.substring(0, 200) + '...';
+        return truncatedText;
+      }
+      return entry.content;
     }
     return entry.content;
+  };
+
+  const getDisplayContentAsHTML = () => {
+    const content = getDisplayContent();
+    
+    // Check if content contains HTML tags
+    const hasHTMLTags = /<[^>]*>/g.test(content);
+    
+    if (hasHTMLTags && !shouldPreview) {
+      // Return HTML content for dangerouslySetInnerHTML
+      return { __html: content };
+    } else if (shouldPreview) {
+      // For preview, return plain text since we truncated it
+      return null;
+    } else {
+      // Return HTML content for dangerouslySetInnerHTML
+      return { __html: content };
+    }
   };
 
   return (
@@ -161,7 +186,23 @@ export default function StreamEntry({
           {isDream && entry.title && (
             <h3 className="text-lg font-medium text-text-primary mb-3">{entry.title}</h3>
           )}
-          {getDisplayContent()}
+          {(() => {
+            if (shouldPreview) {
+              return <div className="rich-text-content">{getDisplayContent()}</div>;
+            }
+            
+            const htmlContent = getDisplayContentAsHTML();
+            if (htmlContent) {
+              return (
+                <div 
+                  className="rich-text-content" 
+                  dangerouslySetInnerHTML={htmlContent} 
+                />
+              );
+            }
+            
+            return <div className="rich-text-content">{getDisplayContent()}</div>;
+          })()}
           {isDream && entry.tags && entry.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
               {entry.tags.map((tag, index) => (
@@ -179,7 +220,10 @@ export default function StreamEntry({
               <div className="text-xs text-text-quaternary mb-1">
                 Response by {entry.response.agent} • {entry.response.timestamp}
               </div>
-              <div className="text-sm text-text-secondary">{entry.response.content}</div>
+              <div 
+                className="text-sm text-text-secondary rich-text-content"
+                dangerouslySetInnerHTML={{ __html: entry.response.content }}
+              />
             </div>
           )}
           {shouldPreview && (
