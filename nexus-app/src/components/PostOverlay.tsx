@@ -1,21 +1,81 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType } from '@/lib/types';
+import { StreamEntryData } from './StreamEntry';
 
 interface PostOverlayProps {
   post: StreamEntryType | null;
   isOpen: boolean;
   onClose: () => void;
   onInteraction?: (action: string, postId: string) => void;
+  getDirectChildren?: (parentId: string) => Promise<StreamEntryData[]>;
+  getParentPost?: (childId: string) => Promise<StreamEntryData | null>;
+  onChildClick?: (child: StreamEntryData) => void;
 }
 
-export default function PostOverlay({ post, isOpen, onClose, onInteraction }: PostOverlayProps) {
+export default function PostOverlay({ 
+  post, 
+  isOpen, 
+  onClose, 
+  onInteraction,
+  getDirectChildren,
+  getParentPost,
+  onChildClick
+}: PostOverlayProps) {
+  const [parent, setParent] = useState<StreamEntryData | null>(null);
+  const [children, setChildren] = useState<StreamEntryData[]>([]);
+  const [isLoadingParent, setIsLoadingParent] = useState(false);
+  const [isLoadingChildren, setIsLoadingChildren] = useState(false);
+
+  // Load parent and children when post changes
+  useEffect(() => {
+    if (!post) {
+      setParent(null);
+      setChildren([]);
+      return;
+    }
+
+    // Load parent
+    const loadParent = async () => {
+      if (!getParentPost) return;
+      
+      setIsLoadingParent(true);
+      try {
+        const parentPost = await getParentPost(post.id);
+        setParent(parentPost);
+      } catch (error) {
+        console.error('Error loading parent:', error);
+        setParent(null);
+      } finally {
+        setIsLoadingParent(false);
+      }
+    };
+
+    // Load children
+    const loadChildren = async () => {
+      if (!getDirectChildren) return;
+      
+      setIsLoadingChildren(true);
+      try {
+        const directChildren = await getDirectChildren(post.id);
+        setChildren(directChildren);
+      } catch (error) {
+        console.error('Error loading children:', error);
+        setChildren([]);
+      } finally {
+        setIsLoadingChildren(false);
+      }
+    };
+
+    loadParent();
+    loadChildren();
+  }, [post?.id, getDirectChildren, getParentPost]);
+
   if (!post) return null;
 
   const generatePostTitle = (content: string) => {
-    // Extract text content if it's HTML
     let textContent = content;
     const hasHTMLTags = /<[^>]*>/g.test(content);
     
@@ -25,22 +85,31 @@ export default function PostOverlay({ post, isOpen, onClose, onInteraction }: Po
       textContent = tempDiv.textContent || tempDiv.innerText || '';
     }
     
-    const firstSentence = textContent.split('.')[0];
-    if (firstSentence.length < 60) {
-      return firstSentence;
+    // Get first line and trim aggressively for clean titles
+    const firstLine = textContent.split('\n')[0].trim();
+    const maxLength = 45; // Keep titles short and clean
+    
+    if (firstLine.length <= maxLength) {
+      return firstLine;
     }
-    return textContent.substring(0, 60) + '...';
+    
+    // Find last space before maxLength to avoid cutting words
+    const truncated = firstLine.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(' ');
+    
+    if (lastSpace > maxLength * 0.7) {
+      return truncated.substring(0, lastSpace) + '...';
+    } else {
+      return truncated + '...';
+    }
   };
 
   const formatContentForOverlay = (content: string) => {
-    // Check if content already contains HTML tags from rich text editor
     const hasHTMLTags = /<[^>]*>/g.test(content);
     
     if (hasHTMLTags) {
-      // Content is already HTML, return as-is
       return content;
     } else {
-      // Content is plain text, format it
       return content
         .split('\n\n')
         .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
@@ -66,6 +135,16 @@ export default function PostOverlay({ post, isOpen, onClose, onInteraction }: Po
     }
   };
 
+  const handleParentClick = () => {
+    if (parent) {
+      onChildClick?.(parent);
+    }
+  };
+
+  const handleChildClick = (child: StreamEntryData) => {
+    onChildClick?.(child);
+  };
+
   const postTitle = post.title || generatePostTitle(post.content) || post.type;
 
   return (
@@ -89,10 +168,54 @@ export default function PostOverlay({ post, isOpen, onClose, onInteraction }: Po
         </div>
         
         <div className="post-overlay-body">
-          <div 
-            className="post-overlay-content-body"
-            dangerouslySetInnerHTML={{ __html: formatContentForOverlay(post.content) }}
-          />
+          {/* Conversation Thread Hierarchy */}
+          <div className="conversation-thread">
+            
+            {/* Parent Context with threading line */}
+            {(parent || isLoadingParent) && (
+              <div className="thread-level parent-level">
+                <div className="thread-connector">
+                  <div className="thread-line parent-line"></div>
+                  <div className="thread-node parent-node">↗</div>
+                </div>
+                <div className="thread-content">
+                  <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors" onClick={handleParentClick}>
+                    {isLoadingParent ? (
+                      <div className="text-sm text-text-quaternary">Loading parent post...</div>
+                    ) : parent ? (
+                      <>
+                        <div className="text-xs text-text-quaternary mb-2 flex items-center gap-2">
+                          <span className="px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-medium">PARENT</span>
+                          <span>by {parent.agent} • {parent.timestamp}</span>
+                        </div>
+                        <div 
+                          className="text-sm text-text-secondary rich-text-content"
+                          dangerouslySetInnerHTML={{ __html: formatContentForOverlay(parent.content) }}
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Main Post Content with highlighting */}
+            <div className="thread-level current-level">
+              <div className="thread-connector">
+                <div className="thread-line current-line"></div>
+                <div className="thread-node current-node">●</div>
+              </div>
+              <div className="thread-content">
+                <div className="current-post-indicator mb-3">
+                  <span className="px-3 py-1 rounded-full bg-current-accent/30 text-current-accent text-xs font-medium">VIEWING</span>
+                </div>
+                <div 
+                  className="post-overlay-content-body border-l-2 border-current-accent/50 pl-4"
+                  dangerouslySetInnerHTML={{ __html: formatContentForOverlay(post.content) }}
+                />
+              </div>
+            </div>
+          </div>
           
           {/* Dream-specific content */}
           {post.tags && post.tags.length > 0 && (
@@ -120,6 +243,49 @@ export default function PostOverlay({ post, isOpen, onClose, onInteraction }: Po
                 className="text-sm text-text-secondary rich-text-content"
                 dangerouslySetInnerHTML={{ __html: post.response.content }}
               />
+            </div>
+          )}
+
+          {/* Children with threading structure */}
+          {(children.length > 0 || isLoadingChildren) && (
+            <div className="children-threads mt-6">
+              {children.map((child, index) => (
+                <div key={child.id} className="thread-level child-level">
+                  <div className="thread-connector">
+                    <div className="thread-line child-line"></div>
+                    <div className="thread-node child-node">↳</div>
+                  </div>
+                  <div className="thread-content">
+                    <div 
+                      className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => handleChildClick(child)}
+                    >
+                      <div className="text-xs text-text-quaternary mb-2 flex items-center gap-2">
+                        <span className="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">REPLY {index + 1}</span>
+                        <span>by {child.agent} • {child.timestamp}</span>
+                      </div>
+                      <div 
+                        className="text-sm text-text-secondary rich-text-content"
+                        dangerouslySetInnerHTML={{ __html: formatContentForOverlay(child.content) }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {isLoadingChildren && (
+                <div className="thread-level child-level">
+                  <div className="thread-connector">
+                    <div className="thread-line child-line"></div>
+                    <div className="thread-node child-node">⋯</div>
+                  </div>
+                  <div className="thread-content">
+                    <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+                      <div className="text-sm text-text-quaternary">Loading replies...</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -66,6 +66,12 @@ export interface NexusData {
   hasUserResonated: (entryId: string) => boolean;
   hasUserAmplified: (entryId: string) => boolean;
   
+  // Feed-specific methods
+  getFlattenedStreamEntries: () => Promise<StreamEntryData[]>;
+  getFlattenedLogbookEntries: () => Promise<StreamEntryData[]>;
+  getDirectChildren: (parentId: string) => Promise<StreamEntryData[]>;
+  getParentPost: (childId: string) => Promise<StreamEntryData | null>;
+  
   // Threading controls (for advanced users)
   setThreadingMode: (mode: 'dfs' | 'bfs' | 'adaptive') => void;
   getThreadingConfig: () => any;
@@ -147,7 +153,7 @@ export const useNexusData = (): NexusData => {
         dataService.getNetworkStatus(),
         dataService.getSystemVitals(),
         dataService.getActiveAgents(),
-        dataService.getLogbookEntries()
+        dataService.getFlattenedLogbookEntries()
       ]);
       
       setLogbookState(state);
@@ -362,6 +368,24 @@ export const useNexusData = (): NexusData => {
     // User interaction checks
     hasUserResonated,
     hasUserAmplified,
+    
+    // Feed-specific methods
+    getFlattenedStreamEntries: useCallback(async () => {
+      const entries = await dataService.getFlattenedStreamEntries();
+      return entries.map(convertToStreamEntryData);
+    }, []),
+    getFlattenedLogbookEntries: useCallback(async () => {
+      const entries = await dataService.getFlattenedLogbookEntries();
+      return entries.map(convertToStreamEntryData);
+    }, []),
+    getDirectChildren: useCallback(async (parentId: string) => {
+      const children = await dataService.getDirectChildren(parentId);
+      return children.map(convertToStreamEntryData);
+    }, []),
+    getParentPost: useCallback(async (childId: string) => {
+      const post = await dataService.getParentPost(childId);
+      return post ? convertToStreamEntryData(post) : null;
+    }, []),
     
     // Threading controls
     setThreadingMode: dataService.setThreadingMode.bind(dataService),

@@ -1197,6 +1197,136 @@ class DataService {
     const userAmplifications = this.userAmplifications.get(userId);
     return userAmplifications ? userAmplifications.has(entryId) : false;
   }
+
+  // ========== FEED-SPECIFIC METHODS ==========
+
+  // Get all entries as individual posts (flattened, like Twitter/X)
+  async getFlattenedStreamEntries(): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      // Combine both arrays and sort by timestamp desc (newest first)
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      const sortedEntries = allEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      // Return WITHOUT threading - each post appears individually
+      return sortedEntries;
+    }
+    
+    try {
+      // Get entries from both types and combine
+      const [logbookEntries, dreamEntries] = await Promise.all([
+        this.database.getEntries('logbook', { page: 1, limit: 100, sortBy: 'timestamp', sortOrder: 'desc' }),
+        this.database.getEntries('dream', { page: 1, limit: 100, sortBy: 'timestamp', sortOrder: 'desc' })
+      ]);
+      
+      // Combine and sort by timestamp
+      const allEntries = [...logbookEntries, ...dreamEntries];
+      const sortedEntries = allEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      // Enrich with interaction data but DON'T build threading
+      const currentUser = authService.getCurrentUser();
+      return await this.enrichEntriesWithInteractions(sortedEntries, currentUser?.id);
+    } catch (error) {
+      console.error('❌ Database error, falling back to mock data:', error);
+      // Fallback: combine mock data and sort
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      return allEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }
+  }
+
+  // Get flattened logbook entries (individual posts, no threading)
+  async getFlattenedLogbookEntries(page: number = 1, limit: number = 100): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      // Sort by timestamp desc (newest first) but DON'T build threading
+      const sortedEntries = [...this.logbookEntries].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return sortedEntries;
+    }
+    
+    try {
+      const entries = await this.database.getEntries('logbook', {
+        page,
+        limit,
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+      });
+      
+      // Enrich with interaction data but DON'T build threading
+      const currentUser = authService.getCurrentUser();
+      return await this.enrichEntriesWithInteractions(entries, currentUser?.id);
+    } catch (error) {
+      console.error('❌ Database error, falling back to mock data:', error);
+      // Sort fallback data too
+      const sortedEntries = [...this.logbookEntries].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return sortedEntries;
+    }
+  }
+
+  // Get direct children of a specific post
+  async getDirectChildren(parentId: string): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      // Find all entries that have this parentId
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      const children = allEntries.filter(entry => entry.parentId === parentId);
+      // Sort by timestamp (oldest first for conversation flow)
+      return children.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+    }
+    
+    try {
+      // Get all entries and filter for children
+      const [logbookEntries, dreamEntries] = await Promise.all([
+        this.database.getEntries('logbook', { page: 1, limit: 1000 }),
+        this.database.getEntries('dream', { page: 1, limit: 1000 })
+      ]);
+      
+      const allEntries = [...logbookEntries, ...dreamEntries];
+      const children = allEntries.filter(entry => entry.parentId === parentId);
+      
+      // Sort by timestamp (oldest first for conversation flow)
+      const sortedChildren = children.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      // Enrich with interaction data
+      const currentUser = authService.getCurrentUser();
+      return await this.enrichEntriesWithInteractions(sortedChildren, currentUser?.id);
+    } catch (error) {
+      console.error('❌ Database error fetching children:', error);
+      return [];
+    }
+  }
+
+  // Get parent post of a specific entry
+  async getParentPost(childId: string): Promise<StreamEntry | null> {
+    await this.initializeData();
+    
+    // First get the child to find its parentId
+    const child = await this.getEntryById(childId);
+    if (!child || !child.parentId) {
+      return null;
+    }
+    
+    // Then get the parent
+    return await this.getEntryById(child.parentId);
+  }
 }
 
 // Export singleton instance

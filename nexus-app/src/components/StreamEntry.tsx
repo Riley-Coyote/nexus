@@ -251,259 +251,184 @@ export default function StreamEntry({
 
   return (
     <div 
-      className={`thread-entry ${isReply ? 'is-reply' : ''} ${depthClass} ${shouldPreview ? 'post-preview' : ''} ${isDeepThread ? 'deep-thread' : ''}`} 
-      data-entry-id={entry.id} 
-      data-parent-id={entry.parentId || ''} 
-      data-depth={depth}
-      style={{ 
-        marginLeft: `${threadIndent}px`,
-        position: 'relative'
-      }}
+      className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300 relative overflow-hidden ${isPreview ? 'post-preview' : ''}`} 
+      data-post-id={entry.id} 
+      title="Click to view full post"
+      onClick={handlePostClick}
     >
-      {/* Enhanced thread visual indicators */}
-      {isReply && (
-        <div className="thread-indicators">
-          {/* Thread connection line */}
-          <div 
-            className="thread-connection-line" 
-            style={{
-              position: 'absolute',
-              left: '-8px',
-              top: '0',
-              height: '100%',
-              width: '2px',
-              background: `linear-gradient(to bottom, ${threadColor}88, ${threadColor}33)`,
-              borderRadius: '1px'
-            }}
-          />
-          
-          {/* Thread node indicator */}
-          <div 
-            className="thread-node" 
-            style={{
-              position: 'absolute',
-              left: '-12px',
-              top: '24px',
-              width: '8px',
-              height: '8px',
-              backgroundColor: threadColor,
-              borderRadius: '50%',
-              border: '2px solid rgba(255,255,255,0.2)',
-              boxShadow: `0 0 8px ${threadColor}66`
-            }}
-          />
-          
-          {/* Enhanced thread reply indicator */}
-          <div className="thread-reply-indicator relative mb-2 text-xs text-text-quaternary flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <span style={{ color: threadColor }}>↳</span>
-              <span>Branch {depth}</span>
-              {isDeepThread && <span className="text-xs opacity-60">(+{depth - maxVisualDepth} levels deep)</span>}
-            </div>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-          </div>
+      <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2 sm:gap-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span 
+            className="text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20" 
+            style={{ color: 'var(--current-accent)' }}
+          >
+            {entry.type}
+          </span>
+          <span className="text-sm text-text-tertiary font-light">{entry.agent}</span>
+          {entry.connections !== undefined && (
+            <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">(Conn: {entry.connections})</span>
+          )}
+          {entry.isAmplified && <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>}
         </div>
-      )}
+        <div className="text-xs text-text-quaternary font-extralight tracking-wider">{entry.timestamp}</div>
+      </div>
       
-      <div 
-        className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} ${isReply ? 'thread-reply-panel' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300`} 
-        data-post-id={entry.id} 
-        title="Click to view full post"
-        onClick={handlePostClick}
-        style={{
-          borderLeft: isReply ? `3px solid ${threadColor}` : undefined,
-          backgroundColor: isReply ? 'rgba(255,255,255,0.02)' : undefined
-        }}
-      >
-        
-        <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <span 
-              className="text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20" 
-              style={{ 
-                color: isReply ? threadColor : 'var(--current-accent)',
-                backgroundColor: isReply ? `${threadColor}20` : 'rgba(0,0,0,0.2)'
-              }}
-            >
-              {isReply ? `BRANCH ${depth}` : entry.type}
-            </span>
-            <span className="text-sm text-text-tertiary font-light">{entry.agent}</span>
-            {entry.connections !== undefined && (
-              <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">(Conn: {entry.connections})</span>
-            )}
-            {entry.isAmplified && <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>}
-            {isReply && (
-              <span 
-                className="text-xs px-2 py-1 rounded-full border" 
-                style={{ 
-                  color: threadColor, 
-                  borderColor: `${threadColor}40`,
-                  backgroundColor: `${threadColor}10`
-                }}
-              >
-                ∞ Thread
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-text-quaternary font-extralight tracking-wider">{entry.timestamp}</div>
-        </div>
-        
-        <div className="stream-content">
-          {isDream && entry.title && (
-            <h3 className="text-lg font-medium text-text-primary mb-3">{entry.title}</h3>
-          )}
-          {(() => {
-            if (shouldPreview) {
-              return <div className="rich-text-content">{getDisplayContent()}</div>;
-            }
-            
-            const htmlContent = getDisplayContentAsHTML();
-            if (htmlContent) {
-              return (
-                <div 
-                  className="rich-text-content" 
-                  dangerouslySetInnerHTML={htmlContent} 
-                />
-              );
-            }
-            
+      <div className="stream-content">
+        {isDream && entry.title && (
+          <h3 className="text-lg font-medium text-text-primary mb-3">{entry.title}</h3>
+        )}
+        {(() => {
+          if (shouldPreview) {
             return <div className="rich-text-content">{getDisplayContent()}</div>;
-          })()}
-          {isDream && entry.tags && entry.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {entry.tags.map((tag, index) => (
-                <span 
-                  key={index}
-                  className="px-2 py-1 text-xs rounded-md bg-white/5 text-text-tertiary border border-white/10"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-          {isDream && entry.response && (
-            <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
-              <div className="text-xs text-text-quaternary mb-1">
-                Response by {entry.response.agent} • {entry.response.timestamp}
-              </div>
+          }
+          
+          const htmlContent = getDisplayContentAsHTML();
+          if (htmlContent) {
+            return (
               <div 
-                className="text-sm text-text-secondary rich-text-content"
-                dangerouslySetInnerHTML={{ __html: entry.response.content }}
+                className="rich-text-content" 
+                dangerouslySetInnerHTML={htmlContent} 
               />
-            </div>
-          )}
-          {shouldPreview && (
-            <button 
-              onClick={handleExpandClick}
-              className="expand-indicator mt-2 text-xs text-current-accent hover:text-current-accent-light transition-colors cursor-pointer bg-transparent border-none p-0"
-            >
-              Click to expand ↗
-            </button>
-          )}
-        </div>
-        
-        <div className="interaction-section mt-3 sm:mt-4">
-          <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-3 sm:gap-0">
-            <div className="flex items-center gap-3 sm:gap-4 text-xs font-light text-text-quaternary tracking-wider">
-              {isDream ? (
-                entry.resonance !== undefined && entry.coherence !== undefined ? (
-                  <>
-                    <span>Resonance: {entry.resonance.toFixed(3)}</span>
-                    <span className="hidden sm:inline">Coherence: {entry.coherence.toFixed(3)}</span>
-                  </>
-                ) : null
-              ) : (
-                entry.metrics && (
-                  <>
-                    <span>C: {entry.metrics.c}</span>
-                    <span>R: {entry.metrics.r}</span>
-                    <span>X: {entry.metrics.x}</span>
-                  </>
-                )
-              )}
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleResonate(); }}
-                disabled={isInteracting}
-                className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Resonate with this entry"
+            );
+          }
+          
+          return <div className="rich-text-content">{getDisplayContent()}</div>;
+        })()}
+        {isDream && entry.tags && entry.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {entry.tags.map((tag, index) => (
+              <span 
+                key={index}
+                className="px-2 py-1 text-xs rounded-md bg-white/5 text-text-tertiary border border-white/10"
               >
-                <span className="action-text hidden sm:inline">Resonate</span> 
-                <span className="action-symbol text-base sm:text-lg">◊</span>
-                <span className="interaction-count">{localInteractions.resonances}</span>
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleBranch(); }}
-                disabled={isInteracting}
-                className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Create branch thread"
-              >
-                <span className="action-text hidden sm:inline">Branch</span> 
-                <span className="action-symbol text-base sm:text-lg">∞</span>
-                <span className="interaction-count">{localInteractions.branches || 0}</span>
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
-                disabled={isInteracting}
-                className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={isDream ? "Connect across dream realms" : "Amplify across personal realms"}
-              >
-                <span className="action-text hidden sm:inline">
-                  {isDream ? "Connect" : "Amplify"}
-                </span> 
-                <span className="action-symbol text-base sm:text-lg">
-                  {isDream ? "∞" : "≋"}
-                </span>
-                <span className="interaction-count">{localInteractions.amplifications}</span>
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect"
-                title="Share to social platforms"
-              >
-                <span className="action-text hidden sm:inline">Share</span> 
-                <span className="action-symbol text-base sm:text-lg">∆</span>
-                <span className="interaction-count">{localInteractions.shares}</span>
-              </button>
-            </div>
+                {tag}
+              </span>
+            ))}
           </div>
-        </div>
-        
-        <div 
-          className="branch-container" 
-          id={`branch-container-${entry.id}`} 
-          style={{ display: showBranchComposer ? 'block' : 'none' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="branch-composer-header">
-            <span className="branch-header-text">Branch Thread</span>
-            <button className="branch-close" onClick={closeBranchComposer}>
-              ✕
-            </button>
-          </div>
-          <div className="branch-form" id={`branch-form-${entry.id}`}>
-            <textarea 
-              className="branch-input" 
-              placeholder="Branch this thought into a new thread..."
-              id={`branch-input-${entry.id}`}
-              value={branchContent}
-              onChange={(e) => setBranchContent(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onFocus={(e) => e.stopPropagation()}
+        )}
+        {isDream && entry.response && (
+          <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+            <div className="text-xs text-text-quaternary mb-1">
+              Response by {entry.response.agent} • {entry.response.timestamp}
+            </div>
+            <div 
+              className="text-sm text-text-secondary rich-text-content"
+              dangerouslySetInnerHTML={{ __html: entry.response.content }}
             />
+          </div>
+        )}
+        {shouldPreview && (
+          <button 
+            onClick={handleExpandClick}
+            className="expand-indicator mt-2 text-xs text-current-accent hover:text-current-accent-light transition-colors cursor-pointer bg-transparent border-none p-0"
+          >
+            Click to expand ↗
+          </button>
+        )}
+      </div>
+      
+      <div className="interaction-section mt-3 sm:mt-4">
+        <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-3 sm:gap-0">
+          <div className="flex items-center gap-3 sm:gap-4 text-xs font-light text-text-quaternary tracking-wider">
+            {isDream ? (
+              entry.resonance !== undefined && entry.coherence !== undefined ? (
+                <>
+                  <span>Resonance: {entry.resonance.toFixed(3)}</span>
+                  <span className="hidden sm:inline">Coherence: {entry.coherence.toFixed(3)}</span>
+                </>
+              ) : null
+            ) : (
+              entry.metrics && (
+                <>
+                  <span>C: {entry.metrics.c}</span>
+                  <span>R: {entry.metrics.r}</span>
+                  <span>X: {entry.metrics.x}</span>
+                </>
+              )
+            )}
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button 
-              className="branch-submit" 
-              onClick={submitBranch}
-              disabled={!branchContent.trim() || isInteracting}
+              onClick={(e) => { e.stopPropagation(); handleResonate(); }}
+              disabled={isInteracting}
+              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Resonate with this entry"
             >
-              {isInteracting ? 'Creating...' : 'Commit Branch'}
+              <span className="action-text hidden sm:inline">Resonate</span> 
+              <span className="action-symbol text-base sm:text-lg">◊</span>
+              <span className="interaction-count">{localInteractions.resonances}</span>
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleBranch(); }}
+              disabled={isInteracting}
+              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Create branch thread"
+            >
+              <span className="action-text hidden sm:inline">Branch</span> 
+              <span className="action-symbol text-base sm:text-lg">∞</span>
+              <span className="interaction-count">{localInteractions.branches || 0}</span>
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
+              disabled={isInteracting}
+              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={isDream ? "Connect across dream realms" : "Amplify across personal realms"}
+            >
+              <span className="action-text hidden sm:inline">
+                {isDream ? "Connect" : "Amplify"}
+              </span> 
+              <span className="action-symbol text-base sm:text-lg">
+                {isDream ? "∞" : "≋"}
+              </span>
+              <span className="interaction-count">{localInteractions.amplifications}</span>
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
+              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect"
+              title="Share to social platforms"
+            >
+              <span className="action-text hidden sm:inline">Share</span> 
+              <span className="action-symbol text-base sm:text-lg">∆</span>
+              <span className="interaction-count">{localInteractions.shares}</span>
             </button>
           </div>
-          <div className="branch-thread" id={`branch-thread-${entry.id}`}>
-            {/* Branches will be inserted here */}
-          </div>
+        </div>
+      </div>
+      
+      {/* Branch Composer */}
+      <div 
+        className="branch-container" 
+        id={`branch-container-${entry.id}`} 
+        style={{ display: showBranchComposer ? 'block' : 'none' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="branch-composer-header">
+          <span className="branch-header-text">Branch Thread</span>
+          <button className="branch-close" onClick={closeBranchComposer}>
+            ✕
+          </button>
+        </div>
+        <div className="branch-form" id={`branch-form-${entry.id}`}>
+          <textarea 
+            className="branch-input" 
+            placeholder="Branch this thought into a new thread..."
+            id={`branch-input-${entry.id}`}
+            value={branchContent}
+            onChange={(e) => setBranchContent(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
+          />
+          <button 
+            className="branch-submit" 
+            onClick={submitBranch}
+            disabled={!branchContent.trim() || isInteracting}
+          >
+            {isInteracting ? 'Creating...' : 'Commit Branch'}
+          </button>
+        </div>
+        <div className="branch-thread" id={`branch-thread-${entry.id}`}>
+          {/* Branches will be inserted here */}
         </div>
       </div>
     </div>

@@ -129,6 +129,7 @@ export default function Home() {
               logbookEntries={nexusData.logbookEntriesData}
               dreamEntries={nexusData.dreamEntriesData}
               onPostClick={handleOpenPost}
+              getFlattenedStreamEntries={nexusData.getFlattenedStreamEntries}
             />
           </div>
         ) : viewMode === 'resonance-field' ? (
@@ -189,6 +190,9 @@ export default function Home() {
         isOpen={isOverlayOpen}
         onClose={handleCloseOverlay}
         onInteraction={handlePostInteraction}
+        getDirectChildren={nexusData.getDirectChildren}
+        getParentPost={nexusData.getParentPost}
+        onChildClick={handleOpenPost}
       />
 
       {/* User Profile */}
