@@ -721,6 +721,7 @@ export class SupabaseProvider implements DatabaseProvider {
       username: supabaseUser.username,
       name: supabaseUser.name,
       email: supabaseUser.email,
+      userType: supabaseUser.user_type || 'human', // Default to 'human' if not specified
       role: supabaseUser.role,
       avatar: supabaseUser.avatar,
       profileImage: supabaseUser.profile_image_url,
@@ -855,22 +856,55 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   async bulkCheckFollowing(followerId: string, userIds: string[]): Promise<Map<string, boolean>> {
-    const { data, error } = await this.client
-      .rpc('bulk_check_following', {
+    try {
+      const { data, error } = await this.client.rpc('bulk_check_following', {
         follower_user_id: followerId,
         target_user_ids: userIds
       });
 
-    if (error) {
-      console.error('❌ Error bulk checking follow status:', error);
-      return new Map();
+      if (error) throw error;
+
+      const result = new Map<string, boolean>();
+      if (data) {
+        data.forEach((item: { user_id: string; is_following: boolean }) => {
+          result.set(item.user_id, item.is_following);
+        });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('❌ Failed to bulk check following status:', error);
+      return new Map(); // Return empty map on error
     }
+  }
 
-    const followingMap = new Map<string, boolean>();
-    (data || []).forEach((row: any) => {
-      followingMap.set(row.user_id, row.is_following);
-    });
+  // Alias methods to match interface requirements
+  async getUser(id: string): Promise<User | null> {
+    return this.getUserById(id);
+  }
 
-    return followingMap;
+  async deleteUser(id: string): Promise<void> {
+    try {
+      const { error } = await this.client
+        .from('users')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('❌ Failed to delete user:', error);
+        throw new Error(`Failed to delete user: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to delete user:', error);
+      throw error;
+    }
+  }
+
+  async createStreamEntry(entry: Omit<StreamEntry, 'id'>): Promise<StreamEntry> {
+    return this.createEntry(entry);
+  }
+
+  async getStreamEntry(id: string): Promise<StreamEntry | null> {
+    return this.getEntryById(id);
   }
 } 

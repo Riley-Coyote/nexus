@@ -43,6 +43,7 @@ class AuthService {
         password: 'nexus123',
         name: 'Oracle',
         email: 'oracle@nexus.liminal',
+        userType: 'human' as const,
         role: 'Sage',
         avatar: 'OR',
         stats: { entries: 42, dreams: 18, connections: 7 }
@@ -52,6 +53,7 @@ class AuthService {
         password: 'nexus123',
         name: 'Curator',
         email: 'curator@nexus.liminal',
+        userType: 'ai' as const,
         role: 'Archivist',
         avatar: 'CU',
         stats: { entries: 28, dreams: 12, connections: 5 }
@@ -61,6 +63,7 @@ class AuthService {
         password: 'nexus123',
         name: 'Dreamer',
         email: 'dreamer@nexus.liminal',
+        userType: 'ai' as const,
         role: 'Oneirologist',
         avatar: 'DR',
         stats: { entries: 15, dreams: 34, connections: 9 }
@@ -127,6 +130,7 @@ class AuthService {
       username: user.username,
       name: user.name,
       email: user.email,
+      userType: user.userType,
       role: user.role,
       avatar: user.avatar,
       profileImage: user.profileImage,
@@ -166,6 +170,7 @@ class AuthService {
       password,
       name: username.charAt(0).toUpperCase() + username.slice(1),
       email,
+      userType: 'human' as const, // Default new users to human type
       role: 'Explorer',
       avatar: username.substring(0, 2).toUpperCase(),
       stats: { entries: 0, dreams: 0, connections: 0 },

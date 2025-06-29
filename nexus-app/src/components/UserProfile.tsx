@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { authService } from '@/lib/services/authService';
 import { User } from '@/lib/types';
 
@@ -13,6 +13,22 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onClose }: UserProfileProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicking outside to close modal
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleLogout = () => {
@@ -23,7 +39,7 @@ export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-sm mx-4 p-6 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl">
+      <div ref={modalRef} className="w-full max-w-sm mx-4 p-6 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl relative">
         {/* Close Button */}
         <button
           onClick={onClose}

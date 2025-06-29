@@ -29,7 +29,9 @@ import {
   mockSharedDreams,
   mockDreamAnalytics,
   mockEmergingSymbols,
-  mockLogbookField
+  mockLogbookField,
+  mockUsers,
+  getUserByUsername as getMockUserByUsername
 } from '../data/mockData';
 
 // 🚩 DEBUG FLAG - Quick toggle for local development
@@ -51,79 +53,7 @@ const THREADING_CONFIG = {
   maxEntries: parseInt(process.env.NEXT_PUBLIC_MAX_THREAD_ENTRIES || '10000'),
 };
 
-// Mock users for testing username click functionality
-const mockUsers: User[] = [
-  {
-    id: 'user-1',
-    username: 'neural-explorer',
-    name: 'Neural Explorer',
-    email: 'neural@nexus.com',
-    role: 'researcher',
-    avatar: 'NE',
-    bio: 'Exploring the neural pathways of consciousness through digital realms.',
-    location: 'The Digital Nexus',
-    stats: { entries: 42, dreams: 18, connections: 127 },
-    followerCount: 1847,
-    followingCount: 342,
-    createdAt: '2024-01-15T08:30:00Z'
-  },
-  {
-    id: 'user-2', 
-    username: 'dream-weaver',
-    name: 'Dream Weaver',
-    email: 'weaver@nexus.com',
-    role: 'curator',
-    avatar: 'DW',
-    bio: 'Weaving dreams into reality, one neural connection at a time.',
-    location: 'The Liminal Space',
-    stats: { entries: 89, dreams: 67, connections: 234 },
-    followerCount: 2156,
-    followingCount: 189,
-    createdAt: '2024-02-03T14:22:00Z'
-  },
-  {
-    id: 'user-3',
-    username: 'quantum-sage',
-    name: 'Quantum Sage',
-    email: 'sage@nexus.com', 
-    role: 'philosopher',
-    avatar: 'QS',
-    bio: 'Bridging quantum mechanics and consciousness research.',
-    location: 'Probability Fields',
-    stats: { entries: 156, dreams: 23, connections: 456 },
-    followerCount: 3742,
-    followingCount: 278,
-    createdAt: '2024-01-28T11:45:00Z'
-  },
-  {
-    id: 'user-4',
-    username: 'void-walker',
-    name: 'Void Walker',
-    email: 'walker@nexus.com',
-    role: 'explorer',
-    avatar: 'VW',
-    bio: 'Walking through the spaces between thoughts and reality.',
-    location: 'The Deep Void',
-    stats: { entries: 73, dreams: 91, connections: 187 },
-    followerCount: 891,
-    followingCount: 423,
-    createdAt: '2024-03-12T16:18:00Z'
-  },
-  {
-    id: 'user-5',
-    username: 'echo-chamber',
-    name: 'Echo Chamber',
-    email: 'echo@nexus.com',
-    role: 'synthesizer',
-    avatar: 'EC',
-    bio: 'Capturing and amplifying the resonances of collective consciousness.',
-    location: 'Resonance Halls',
-    stats: { entries: 201, dreams: 45, connections: 689 },
-    followerCount: 4523,
-    followingCount: 156,
-    createdAt: '2024-02-20T09:33:00Z'
-  }
-];
+// Using mock users from mockData.ts for consistency
 
 // Utility function to convert StreamEntry to StreamEntryData
 export const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData => ({
@@ -1798,7 +1728,7 @@ class DataService {
     
     if (USE_MOCK_DATA || !this.database) {
       // Mock mode: check mock users
-      const mockUser = mockUsers.find(user => user.username === username);
+      const mockUser = getMockUserByUsername(username);
       if (mockUser) {
         console.log(`👤 Found mock user: ${username}`);
         return mockUser;

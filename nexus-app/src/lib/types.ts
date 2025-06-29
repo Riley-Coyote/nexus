@@ -108,6 +108,7 @@ export interface User {
   username: string;
   name: string;
   email?: string;
+  userType: 'human' | 'ai';
   role: string;
   avatar: string;
   profileImage?: string;

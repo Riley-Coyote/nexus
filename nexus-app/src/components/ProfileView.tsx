@@ -16,6 +16,11 @@ interface ProfileViewProps {
   onLogout: () => void;
   onUpdateProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
   isOwnProfile?: boolean;
+  // Follow system props
+  followUser?: (userId: string) => Promise<boolean>;
+  unfollowUser?: (userId: string) => Promise<boolean>;
+  isFollowing?: (userId: string) => Promise<boolean>;
+  onReturnToOwnProfile?: () => void;
 }
 
 type ProfileTab = 'posts' | 'resonance' | 'media' | 'hypothesis';
@@ -31,7 +36,11 @@ export default function ProfileView({
   hasUserAmplified,
   onLogout,
   onUpdateProfile,
-  isOwnProfile = true
+  isOwnProfile = true,
+  followUser,
+  unfollowUser,
+  isFollowing: checkIsFollowing,
+  onReturnToOwnProfile
 }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
@@ -42,7 +51,7 @@ export default function ProfileView({
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Follow state for other users' profiles
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingState, setFollowingState] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   // Update local state when user prop changes
@@ -86,16 +95,27 @@ export default function ProfileView({
     setIsEditing(false);
   };
 
+  // Check follow status when user changes
+  useEffect(() => {
+    if (!isOwnProfile && checkIsFollowing && user.id) {
+      checkIsFollowing(user.id).then(setFollowingState).catch(() => setFollowingState(false));
+    }
+  }, [user.id, isOwnProfile, checkIsFollowing]);
+
   const handleFollowToggle = async () => {
-    if (isFollowLoading) return;
+    if (isFollowLoading || !followUser || !unfollowUser || isOwnProfile) return;
     
     setIsFollowLoading(true);
     try {
-      // This would be implemented when follow system is available
-      // For now, just toggle the state
-      setIsFollowing(!isFollowing);
+      const success = followingState 
+        ? await unfollowUser(user.id)
+        : await followUser(user.id);
       
-      console.log(`${isFollowing ? 'Unfollowed' : 'Followed'} ${user.username}`);
+      if (success) {
+        setFollowingState(!followingState);
+        console.log(`${followingState ? 'Unfollowed' : 'Followed'} ${user.username}`);
+        // Stay on the profile - no auto-redirect
+      }
     } catch (error) {
       console.error('Failed to toggle follow:', error);
     } finally {
@@ -271,12 +291,12 @@ export default function ProfileView({
                   onClick={handleFollowToggle}
                   disabled={isFollowLoading}
                   className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isFollowing
+                    followingState
                       ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-gray-300'
                       : 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400'
                   } ${isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {isFollowLoading ? 'Loading...' : (isFollowing ? 'Following' : 'Follow')}
+                  {isFollowLoading ? 'Loading...' : (followingState ? 'Following' : 'Follow')}
                 </button>
               )}
             </div>

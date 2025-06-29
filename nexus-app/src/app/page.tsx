@@ -72,6 +72,14 @@ export default function Home() {
     setViewMode('default');
   };
 
+  const handleViewChange = (view: ViewMode) => {
+    // If switching to profile view, always show current user's profile
+    if (view === 'profile') {
+      nexusData.viewSelfProfile();
+    }
+    setViewMode(view);
+  };
+
   const handleAuthSuccess = () => {
     // Force a re-check of auth state to trigger re-render
     nexusData.forceAuthRefresh();
@@ -87,9 +95,8 @@ export default function Home() {
   };
 
   const handleViewProfile = () => {
-    nexusData.viewSelfProfile();
     setIsProfileModalOpen(false);
-    setViewMode('profile');
+    handleViewChange('profile');
   };
 
   const handleUserClick = async (username: string) => {
@@ -142,7 +149,7 @@ export default function Home() {
           currentMode={journalMode}
           currentView={viewMode}
           onModeChange={handleModeChange}
-          onViewChange={setViewMode}
+          onViewChange={handleViewChange}
           currentUser={nexusData.currentUser}
           onProfileClick={handleProfileClick}
         />
@@ -188,6 +195,10 @@ export default function Home() {
               onLogout={nexusData.logout}
               onUpdateProfile={nexusData.updateUserProfile}
               isOwnProfile={nexusData.profileViewState.mode === 'self'}
+              followUser={nexusData.followUser}
+              unfollowUser={nexusData.unfollowUser}
+              isFollowing={nexusData.isFollowing}
+              onReturnToOwnProfile={handleViewProfile}
             />
           </div>
         ) : (
