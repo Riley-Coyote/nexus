@@ -77,6 +77,7 @@ export interface NexusData {
   getDirectChildren: (parentId: string) => Promise<StreamEntryData[]>;
   getParentPost: (childId: string) => Promise<StreamEntryData | null>;
   getEntryType: (entryId: string) => Promise<'logbook' | 'dream' | null>;
+  getUserPosts: () => StreamEntry[];
   
   // Threading controls (for advanced users)
   setThreadingMode: (mode: 'dfs' | 'bfs' | 'adaptive') => void;
@@ -513,6 +514,19 @@ export const useNexusData = (): NexusData => {
     getEntryType: useCallback(async (entryId: string) => {
       return await dataService.getEntryType(entryId);
     }, []),
+    
+    getUserPosts: useCallback(() => {
+      if (!authState.currentUser) return [];
+      
+      // Combine logbook and dream entries, filter by current user
+      const allEntries = [...logbookEntries, ...sharedDreams];
+      const userPosts = allEntries.filter(entry => entry.userId === authState.currentUser?.id);
+      
+      // Sort by timestamp, newest first
+      return userPosts.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }, [authState.currentUser, logbookEntries, sharedDreams]),
     
     // Threading controls (for advanced users)
     setThreadingMode: dataService.setThreadingMode.bind(dataService),

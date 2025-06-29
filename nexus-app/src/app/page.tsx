@@ -13,6 +13,7 @@ import NexusFeed from '@/components/NexusFeed';
 import ResonanceField from '@/components/ResonanceField';
 import AuthPanel from '@/components/AuthPanel';
 import UserProfile from '@/components/UserProfile';
+import ProfileView from '@/components/ProfileView';
 import { StreamEntryData } from '@/components/StreamEntry';
 import { JournalMode, ViewMode, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
@@ -28,8 +29,8 @@ export default function Home() {
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   
-  // Profile state
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  // Profile modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
     // Convert StreamEntryData to StreamEntry if needed
@@ -77,13 +78,20 @@ export default function Home() {
   };
 
   const handleProfileClick = () => {
-    setIsProfileOpen(true);
+    setIsProfileModalOpen(true);
   };
 
   const handleLogout = () => {
     nexusData.logout();
-    setIsProfileOpen(false);
+    setIsProfileModalOpen(false);
   };
+
+  const handleViewProfile = () => {
+    setIsProfileModalOpen(false);
+    setViewMode('profile');
+  };
+
+
 
   // Show authentication panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
@@ -146,6 +154,23 @@ export default function Home() {
               onPostClick={handleOpenPost}
               refreshResonatedEntries={nexusData.refreshResonatedEntries}
               onResonate={nexusData.resonateWithEntry}
+            />
+          </div>
+        ) : viewMode === 'profile' ? (
+          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
+            <ProfileView 
+              user={nexusData.currentUser!}
+              userPosts={nexusData.getUserPosts()}
+              onPostClick={handleOpenPost}
+              onResonate={nexusData.resonateWithEntry}
+              onAmplify={nexusData.amplifyEntry}
+              hasUserResonated={nexusData.hasUserResonated}
+              hasUserAmplified={nexusData.hasUserAmplified}
+              onLogout={nexusData.logout}
+              onUpdateProfile={async (updates) => {
+                console.log('Profile updates:', updates);
+                // TODO: Implement profile update in data service
+              }}
             />
           </div>
         ) : (
@@ -212,15 +237,17 @@ export default function Home() {
         onChildClick={handleOpenPost}
       />
 
-      {/* User Profile */}
+      {/* User Profile Modal */}
       {nexusData.currentUser && (
         <UserProfile
           user={nexusData.currentUser}
           onLogout={handleLogout}
-          isOpen={isProfileOpen}
-          onClose={() => setIsProfileOpen(false)}
+          onViewProfile={handleViewProfile}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
         />
       )}
+
     </div>
   );
 } 

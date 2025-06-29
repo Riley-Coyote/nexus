@@ -7,11 +7,12 @@ import { User } from '@/lib/types';
 interface UserProfileProps {
   user: User;
   onLogout: () => void;
+  onViewProfile: () => void;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function UserProfile({ user, onLogout, isOpen, onClose }: UserProfileProps) {
+export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onClose }: UserProfileProps) {
   if (!isOpen) return null;
 
   const handleLogout = () => {
@@ -68,11 +69,17 @@ export default function UserProfile({ user, onLogout, isOpen, onClose }: UserPro
 
         {/* Actions */}
         <div className="space-y-3">
-          <button className="w-full py-2 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-gray-300 transition-all duration-200 flex items-center gap-2">
+          <button 
+            onClick={() => {
+              onViewProfile();
+              onClose();
+            }}
+            className="w-full py-2 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg text-sm text-emerald-400 transition-all duration-200 flex items-center gap-2"
+          >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            Edit Profile
+            View Profile
           </button>
           
           <button className="w-full py-2 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-gray-300 transition-all duration-200 flex items-center gap-2">

@@ -40,6 +40,8 @@ export default function Header({
       return 'NEXUS FEED';
     } else if (currentView === 'resonance-field') {
       return 'RESONANCE FIELD';
+    } else if (currentView === 'profile') {
+      return 'USER PROFILE';
     }
     return currentMode === 'dream' ? 'NEXUS // DREAM SYNTHESIS' : 'NEXUS // LIMINAL LOGBOOK';
   };
@@ -49,6 +51,8 @@ export default function Header({
       return 'Public Stream Active';
     } else if (currentView === 'resonance-field') {
       return 'Personal Resonances';
+    } else if (currentView === 'profile') {
+      return 'Personal Profile';
     }
     return currentMode === 'dream' ? 'Dream State Active' : 'Logbook State Active';
   };
@@ -131,6 +135,19 @@ export default function Header({
                 </span>
               </li>
               <li 
+                data-view="profile" 
+                className="cursor-pointer"
+                onClick={() => onViewChange('profile')}
+              >
+                <span className={`transition-colors duration-300 ${
+                  currentView === 'profile' 
+                    ? 'text-current-accent' 
+                    : 'text-gray-450 hover:text-gray-250'
+                }`}>
+                  Profile
+                </span>
+              </li>
+              <li 
                 id="open-messenger-btn" 
                 className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer" 
                 title="Messenger"
@@ -138,52 +155,50 @@ export default function Header({
               >
                 <MessageSquare className="w-5 h-5 interactive-icon" />
               </li>
-              <li>
-                <button 
-                  id="profile-toggle-btn" 
-                  className="flex items-center gap-2 text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
-                  title="Profile"
-                  onClick={handleProfileToggle}
-                >
-                  {currentUser ? (
-                    <>
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xs font-medium text-gray-100">
-                        {currentUser.avatar}
-                      </div>
-                      <span className="text-sm font-medium hidden sm:inline">
-                        {currentUser.name}
-                      </span>
-                    </>
-                  ) : (
-                    <User className="w-5 h-5" />
-                  )}
-                </button>
-              </li>
+
             </ul>
           </nav>
           
-          <div id="journal-toggle" className="flex items-center gap-2 p-1 rounded-lg bg-black/20">
+          <div className="flex items-center gap-3">
+            <div id="journal-toggle" className="flex items-center gap-2 p-1 rounded-lg bg-black/20">
+              <button 
+                data-journal="logbook" 
+                className={`journal-toggle-btn ${
+                  currentView === 'default' && currentMode === 'logbook' 
+                    ? 'active-journal-btn' 
+                    : ''
+                } ripple-effect`}
+                onClick={() => onModeChange('logbook')}
+              >
+                Logbook
+              </button>
+              <button 
+                data-journal="dream" 
+                className={`journal-toggle-btn ${
+                  currentView === 'default' && currentMode === 'dream' 
+                    ? 'active-journal-btn' 
+                    : ''
+                } ripple-effect`}
+                onClick={() => onModeChange('dream')}
+              >
+                Dream
+              </button>
+            </div>
+            
+            {/* User Profile Icon */}
             <button 
-              data-journal="logbook" 
-              className={`journal-toggle-btn ${
-                currentView === 'default' && currentMode === 'logbook' 
-                  ? 'active-journal-btn' 
-                  : ''
-              } ripple-effect`}
-              onClick={() => onModeChange('logbook')}
+              id="profile-toggle-btn" 
+              className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+              title="Profile"
+              onClick={handleProfileToggle}
             >
-              Logbook
-            </button>
-            <button 
-              data-journal="dream" 
-              className={`journal-toggle-btn ${
-                currentView === 'default' && currentMode === 'dream' 
-                  ? 'active-journal-btn' 
-                  : ''
-              } ripple-effect`}
-              onClick={() => onModeChange('dream')}
-            >
-              Dream
+              {currentUser ? (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-sm font-medium text-gray-100">
+                  {currentUser.avatar}
+                </div>
+              ) : (
+                <User className="w-6 h-6" />
+              )}
             </button>
           </div>
         </div>

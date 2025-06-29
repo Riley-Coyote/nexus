@@ -1,5 +1,5 @@
 export type JournalMode = 'logbook' | 'dream';
-export type ViewMode = 'feed' | 'resonance-field' | 'default';
+export type ViewMode = 'feed' | 'resonance-field' | 'profile' | 'default';
 
 export interface HeaderProps {
   currentMode: JournalMode;
