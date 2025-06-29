@@ -13,6 +13,8 @@ import {
 } from '../types';
 import { authService } from './authService';
 import { StreamEntryData } from '../../components/StreamEntry';
+import { DatabaseFactory } from '../database/factory';
+import { DatabaseProvider } from '../database/types';
 import {
   mockLogbookState,
   mockNetworkStatus,
@@ -30,8 +32,12 @@ import {
   mockLogbookField
 } from '../data/mockData';
 
-// Configuration for switching between mock and real API
-const USE_MOCK_DATA = true; // Set to false when backend is ready
+// 🚩 DEBUG FLAG - Quick toggle for local development
+// Set to 'true' for in-memory mock data, 'false' for database
+const DEBUG_USE_MOCK_DATA = true; // 👈 CHANGE THIS FOR QUICK TESTING
+
+// Configuration for switching between mock and database
+const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // Utility function to convert StreamEntry to StreamEntryData
@@ -70,23 +76,60 @@ const formatTimestamp = (date: Date = new Date()): string => {
 };
 
 class DataService {
-  // In-memory storage for user-specific data
+  // In-memory storage for user-specific data (fallback/mock mode)
   private logbookEntries: StreamEntry[] = [];
   private sharedDreams: StreamEntry[] = [];
   private userResonances: Map<string, Set<string>> = new Map(); // userId -> Set of entryIds
   private userAmplifications: Map<string, Set<string>> = new Map(); // userId -> Set of entryIds
+  
+  // Database provider for persistent storage
+  private database: DatabaseProvider | null = null;
+  private isInitialized = false;
 
   constructor() {
-    this.initializeData();
+    // Initialize data will be called lazily when first method is accessed
   }
 
-  private initializeData() {
-    // Initialize with mock data if no entries exist
-    if (this.logbookEntries.length === 0) {
-      this.logbookEntries = [...mockLogbookEntries];
-    }
-    if (this.sharedDreams.length === 0) {
-      this.sharedDreams = [...mockSharedDreams];
+  private async initializeData() {
+    if (this.isInitialized) return;
+    
+    try {
+      if (!USE_MOCK_DATA) {
+        // Initialize database connection
+        this.database = DatabaseFactory.getInstance();
+        await this.database.connect();
+        console.log('✅ Database connected successfully');
+        console.log('🗄️ Data Source: Supabase Database');
+      } else {
+        // Initialize with mock data if no entries exist (mock mode)
+        if (this.logbookEntries.length === 0) {
+          this.logbookEntries = [...mockLogbookEntries];
+        }
+        if (this.sharedDreams.length === 0) {
+          this.sharedDreams = [...mockSharedDreams];
+        }
+        console.log('📝 Using mock data mode');
+        console.log('🧪 Data Source: In-Memory Mock Data');
+        if (DEBUG_USE_MOCK_DATA) {
+          console.log('🚩 Debug flag enabled: Change DEBUG_USE_MOCK_DATA in dataService.ts to switch');
+        }
+      }
+      
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('❌ Failed to initialize data service:', error);
+      // Fallback to mock mode if database fails
+      if (!USE_MOCK_DATA) {
+        console.log('⚠️ Database failed, falling back to in-memory mock data');
+        console.log('🧪 Data Source: In-Memory Mock Data (Fallback)');
+        if (this.logbookEntries.length === 0) {
+          this.logbookEntries = [...mockLogbookEntries];
+        }
+        if (this.sharedDreams.length === 0) {
+          this.sharedDreams = [...mockSharedDreams];
+        }
+      }
+      this.isInitialized = true;
     }
   }
 
@@ -136,14 +179,26 @@ class DataService {
   }
 
   async getLogbookEntries(page: number = 1, limit: number = 10): Promise<StreamEntry[]> {
-    if (USE_MOCK_DATA) {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      return this.logbookEntries;
+      // Sort by timestamp desc (newest first) for consistent behavior
+      return [...this.logbookEntries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
     
-    const response = await fetch(`${API_BASE_URL}/logbook/entries?page=${page}&limit=${limit}`);
-    const data = await response.json();
-    return data.entries;
+    try {
+      return await this.database.getEntries('logbook', {
+        page,
+        limit,
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+      });
+    } catch (error) {
+      console.error('❌ Database error, falling back to mock data:', error);
+      // Sort fallback data too
+      return [...this.logbookEntries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
   }
 
   // Dream Data
@@ -170,14 +225,55 @@ class DataService {
   }
 
   async getSharedDreams(page: number = 1, limit: number = 10): Promise<StreamEntry[]> {
-    if (USE_MOCK_DATA) {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      return this.sharedDreams;
+      // Sort by timestamp desc (newest first) for consistent behavior
+      return [...this.sharedDreams].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
     
-    const response = await fetch(`${API_BASE_URL}/dreams/shared?page=${page}&limit=${limit}`);
-    const data = await response.json();
-    return data.dreams;
+    try {
+      return await this.database.getEntries('dream', {
+        page,
+        limit,
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+      });
+    } catch (error) {
+      console.error('❌ Database error, falling back to mock data:', error);
+      // Sort fallback data too
+      return [...this.sharedDreams].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+  }
+
+  // Get all stream entries (for ResonanceField) - combines logbook and dreams
+  async getStreamEntries(): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      // Combine both arrays and sort by timestamp desc (newest first)
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      return allEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+    
+    try {
+      // Get entries from both types and combine
+      const [logbookEntries, dreamEntries] = await Promise.all([
+        this.database.getEntries('logbook', { page: 1, limit: 100, sortBy: 'timestamp', sortOrder: 'desc' }),
+        this.database.getEntries('dream', { page: 1, limit: 100, sortBy: 'timestamp', sortOrder: 'desc' })
+      ]);
+      
+      // Combine and sort by timestamp
+      const allEntries = [...logbookEntries, ...dreamEntries];
+      return allEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch (error) {
+      console.error('❌ Database error, falling back to mock data:', error);
+      // Fallback: combine mock data and sort
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      return allEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
   }
 
   async getDreamAnalytics(): Promise<DreamAnalytics> {
@@ -210,37 +306,44 @@ class DataService {
 
   // Actions
   async submitEntry(content: string, type: string, isPublic: boolean, mode: 'logbook' | 'dream'): Promise<StreamEntry> {
-    if (USE_MOCK_DATA) {
+    await this.initializeData();
+    
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User must be authenticated to submit entries');
+    }
+    
+    // Create entry object
+    const entryData: Omit<StreamEntry, 'id'> = {
+      parentId: null,
+      children: [],
+      depth: 0,
+      type: type,
+      agent: currentUser.name,
+      connections: 0,
+      metrics: { c: 0.5, r: 0.5, x: 0.5 },
+      timestamp: formatTimestamp(),
+      content: content,
+      actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
+      privacy: isPublic ? "public" : "private",
+      interactions: {
+        resonances: 0,
+        branches: 0,
+        amplifications: 0,
+        shares: 0
+      },
+      threads: [],
+      isAmplified: false,
+      userId: currentUser.id
+    };
+    
+    if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay(300);
       
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User must be authenticated to submit entries');
-      }
-      
-      // Create a new entry with user attribution
+      // Create entry with mock ID for in-memory storage
       const newEntry: StreamEntry = {
         id: `${mode}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        parentId: null,
-        children: [],
-        depth: 0,
-        type: type,
-        agent: currentUser.name,
-        connections: 0,
-        metrics: { c: 0.5, r: 0.5, x: 0.5 },
-        timestamp: formatTimestamp(),
-        content: content,
-        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-        privacy: isPublic ? "public" : "private",
-        interactions: {
-          resonances: 0,
-          branches: 0,
-          amplifications: 0,
-          shares: 0
-        },
-        threads: [],
-        isAmplified: false,
-        userId: currentUser.id // Add user ID for tracking
+        ...entryData
       };
       
       // Add to appropriate storage
@@ -255,31 +358,41 @@ class DataService {
       return newEntry;
     }
     
-    const response = await fetch(`${API_BASE_URL}/${mode}/entries`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        content,
-        type,
-        isPublic
-      })
-    });
-    
-    const data = await response.json();
-    return data;
+    try {
+      // Use database
+      const newEntry = await this.database.createEntry(entryData);
+      authService.updateUserStats(mode === 'logbook' ? 'entries' : 'dreams');
+      return newEntry;
+    } catch (error) {
+      console.error('❌ Database error during submission, falling back to mock:', error);
+      
+      // Fallback to in-memory storage
+      const newEntry: StreamEntry = {
+        id: `${mode}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        ...entryData
+      };
+      
+      if (mode === 'logbook') {
+        this.logbookEntries.unshift(newEntry);
+      } else {
+        this.sharedDreams.unshift(newEntry);
+      }
+      
+      return newEntry;
+    }
   }
 
   async resonateWithEntry(entryId: string): Promise<void> {
-    if (USE_MOCK_DATA) {
+    await this.initializeData();
+    
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User must be authenticated to resonate');
+    }
+
+    if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
       
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User must be authenticated to resonate');
-      }
-
       // Check if user has already resonated
       if (!this.userResonances.has(currentUser.id)) {
         this.userResonances.set(currentUser.id, new Set());
@@ -300,12 +413,37 @@ class DataService {
       return;
     }
     
-    const response = await fetch(`${API_BASE_URL}/entries/${entryId}/resonate`, {
-      method: 'POST'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to resonate with entry');
+    try {
+      // Check if user has already resonated using database
+      const existingResonances = await this.database.getUserResonances(currentUser.id);
+      const hasResonated = existingResonances.includes(entryId);
+      
+      if (hasResonated) {
+        // Remove resonance
+        await this.database.removeUserResonance(currentUser.id, entryId);
+        await this.database.updateEntryInteractions(entryId, 'resonances', -1);
+      } else {
+        // Add resonance
+        await this.database.addUserResonance(currentUser.id, entryId);
+        await this.database.updateEntryInteractions(entryId, 'resonances', 1);
+        authService.updateUserStats('connections');
+      }
+    } catch (error) {
+      console.error('❌ Database error during resonance, falling back to mock:', error);
+      // Fallback to in-memory handling
+      if (!this.userResonances.has(currentUser.id)) {
+        this.userResonances.set(currentUser.id, new Set());
+      }
+      
+      const userResonances = this.userResonances.get(currentUser.id)!;
+      if (userResonances.has(entryId)) {
+        userResonances.delete(entryId);
+        this.updateEntryInteraction(entryId, 'resonances', -1);
+      } else {
+        userResonances.add(entryId);
+        this.updateEntryInteraction(entryId, 'resonances', 1);
+        authService.updateUserStats('connections');
+      }
     }
   }
 
@@ -381,9 +519,21 @@ class DataService {
   }
 
   // Get user-specific data
-  getUserResonatedEntries(userId: string): string[] {
-    const userResonances = this.userResonances.get(userId);
-    return userResonances ? Array.from(userResonances) : [];
+  async getUserResonatedEntries(userId: string): Promise<string[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      const userResonances = this.userResonances.get(userId);
+      return userResonances ? Array.from(userResonances) : [];
+    }
+    
+    try {
+      return await this.database.getUserResonances(userId);
+    } catch (error) {
+      console.error('❌ Database error fetching user resonances:', error);
+      const userResonances = this.userResonances.get(userId);
+      return userResonances ? Array.from(userResonances) : [];
+    }
   }
 
   hasUserResonated(userId: string, entryId: string): boolean {

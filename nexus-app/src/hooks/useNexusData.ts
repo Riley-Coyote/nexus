@@ -111,15 +111,28 @@ export const useNexusData = (): NexusData => {
     [sharedDreams]
   );
   
-  const resonatedEntries = useMemo(() => {
-    if (!authState.currentUser) return [];
+  // Resonated entries state
+  const [resonatedEntries, setResonatedEntries] = useState<StreamEntryData[]>([]);
+  
+  // Load user resonated entries
+  const loadResonatedEntries = useCallback(async () => {
+    if (!authState.currentUser) {
+      setResonatedEntries([]);
+      return;
+    }
     
-    const resonatedIds = dataService.getUserResonatedEntries(authState.currentUser.id);
-    return [
-      ...logbookEntriesData.filter(entry => resonatedIds.includes(entry.id)),
-      ...dreamEntriesData.filter(entry => resonatedIds.includes(entry.id)),
-    ];
-  }, [logbookEntriesData, dreamEntriesData, authState.currentUser]);
+    try {
+      const resonatedIds = await dataService.getUserResonatedEntries(authState.currentUser.id);
+      const filtered = [
+        ...logbookEntriesData.filter(entry => resonatedIds.includes(entry.id)),
+        ...dreamEntriesData.filter(entry => resonatedIds.includes(entry.id)),
+      ];
+      setResonatedEntries(filtered);
+    } catch (error) {
+      console.error('Failed to load resonated entries:', error);
+      setResonatedEntries([]);
+    }
+  }, [authState.currentUser, logbookEntriesData, dreamEntriesData]);
   
   const isLoading = authState.isAuthenticated && (isLoadingLogbook || isLoadingDreams);
   
@@ -198,13 +211,15 @@ export const useNexusData = (): NexusData => {
       await dataService.resonateWithEntry(entryId);
       // Refresh data to reflect the resonance
       await refreshData();
+      // Reload resonated entries
+      await loadResonatedEntries();
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
     } catch (error) {
       console.error('Failed to resonate with entry:', error);
       throw error;
     }
-  }, [refreshData]);
+  }, [refreshData, loadResonatedEntries]);
 
   // Amplify entry
   const amplifyEntry = useCallback(async (entryId: string) => {
@@ -283,6 +298,11 @@ export const useNexusData = (): NexusData => {
       refreshData();
     }
   }, [authState.isAuthenticated, isHydrated, refreshData]);
+  
+  // Load resonated entries when data changes
+  useEffect(() => {
+    loadResonatedEntries();
+  }, [loadResonatedEntries]);
   
   return {
     // Authentication
