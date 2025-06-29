@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType } from '@/lib/types';
 import { StreamEntryData } from './StreamEntry';
+import { dataService } from '@/lib/services/dataService';
 
 interface PostOverlayProps {
   post: StreamEntryType | null;
@@ -28,6 +29,52 @@ export default function PostOverlay({
   const [children, setChildren] = useState<StreamEntryData[]>([]);
   const [isLoadingParent, setIsLoadingParent] = useState(false);
   const [isLoadingChildren, setIsLoadingChildren] = useState(false);
+  
+  // Interaction state
+  const [isInteracting, setIsInteracting] = useState(false);
+  const [userHasResonated, setUserHasResonated] = useState(false);
+  const [userHasAmplified, setUserHasAmplified] = useState(false);
+  const [localInteractions, setLocalInteractions] = useState({
+    resonances: post?.interactions.resonances || 0,
+    branches: post?.interactions.branches || 0,
+    amplifications: post?.interactions.amplifications || 0,
+    shares: post?.interactions.shares || 0
+  });
+  
+  // Branch composer state
+  const [showBranchComposer, setShowBranchComposer] = useState(false);
+  const [branchContent, setBranchContent] = useState('');
+
+  // Update local interactions when post changes
+  useEffect(() => {
+    if (post) {
+      setLocalInteractions({
+        resonances: post.interactions.resonances || 0,
+        branches: post.interactions.branches || 0,
+        amplifications: post.interactions.amplifications || 0,
+        shares: post.interactions.shares || 0
+      });
+    }
+  }, [post]);
+
+  // Load user interaction states when post changes
+  useEffect(() => {
+    const loadUserInteractionState = async () => {
+      if (!post) return;
+      
+      try {
+        const state = await dataService.getUserInteractionState('current-user', post.id);
+        setUserHasResonated(state.hasResonated);
+        setUserHasAmplified(state.hasAmplified);
+      } catch (error) {
+        console.error('Error loading user interaction state:', error);
+      }
+    };
+
+    if (post && isOpen) {
+      loadUserInteractionState();
+    }
+  }, [post, isOpen]);
 
   // Load parent and children when post changes
   useEffect(() => {
@@ -117,16 +164,101 @@ export default function PostOverlay({
     }
   };
 
-  const handleInteraction = (action: string) => {
-    if (action === 'branch') {
-      onClose();
-      setTimeout(() => {
-        onInteraction?.(action, post.id);
-      }, 300);
-    } else {
-      onClose();
-      onInteraction?.(action, post.id);
+  // Proper async interaction handlers like StreamEntry
+  const handleResonate = async () => {
+    if (isInteracting) return;
+    
+    setIsInteracting(true);
+    try {
+      const newState = await dataService.resonateWithEntry(post.id);
+      
+      // Update local state
+      setUserHasResonated(newState);
+      setLocalInteractions(prev => ({
+        ...prev,
+        resonances: newState ? prev.resonances + 1 : Math.max(0, prev.resonances - 1)
+      }));
+      
+      // Call parent callback
+      onInteraction?.('resonate', post.id);
+    } catch (error) {
+      console.error('Error toggling resonance:', error);
+    } finally {
+      setIsInteracting(false);
     }
+  };
+
+  const handleBranch = () => {
+    setShowBranchComposer(!showBranchComposer);
+  };
+
+  const handleAmplify = async () => {
+    if (isInteracting) return;
+    
+    setIsInteracting(true);
+    try {
+      const newState = await dataService.amplifyEntry(post.id);
+      
+      // Update local state
+      setUserHasAmplified(newState);
+      setLocalInteractions(prev => ({
+        ...prev,
+        amplifications: newState ? prev.amplifications + 1 : Math.max(0, prev.amplifications - 1)
+      }));
+      
+      // Call parent callback
+      onInteraction?.('amplify', post.id);
+    } catch (error) {
+      console.error('Error toggling amplification:', error);
+    } finally {
+      setIsInteracting(false);
+    }
+  };
+
+  const handleShare = () => {
+    // For now, just increment the count locally
+    setLocalInteractions(prev => ({
+      ...prev,
+      shares: prev.shares + 1
+    }));
+    onInteraction?.('share', post.id);
+  };
+
+  const submitBranch = async () => {
+    if (branchContent.trim() && !isInteracting) {
+      setIsInteracting(true);
+      try {
+        // Use new efficient branch creation
+        await dataService.createBranch(post.id, branchContent.trim());
+        
+        // Update local state
+        setLocalInteractions(prev => ({
+          ...prev,
+          branches: prev.branches + 1
+        }));
+        
+        setBranchContent('');
+        setShowBranchComposer(false);
+        
+        // Refresh children to show new branch
+        if (getDirectChildren) {
+          const directChildren = await getDirectChildren(post.id);
+          setChildren(directChildren);
+        }
+        
+        // Call parent callback
+        onInteraction?.('branch', post.id);
+      } catch (error) {
+        console.error('Error creating branch:', error);
+      } finally {
+        setIsInteracting(false);
+      }
+    }
+  };
+
+  const closeBranchComposer = () => {
+    setShowBranchComposer(false);
+    setBranchContent('');
   };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -288,6 +420,40 @@ export default function PostOverlay({
               )}
             </div>
           )}
+
+          {/* Branch Composer */}
+          {showBranchComposer && (
+            <div className="branch-composer mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-xs text-text-quaternary">Branching from this post</span>
+                <button 
+                  onClick={closeBranchComposer}
+                  className="ml-auto text-text-quaternary hover:text-text-primary"
+                >
+                  ✕
+                </button>
+              </div>
+              <textarea
+                value={branchContent}
+                onChange={(e) => setBranchContent(e.target.value)}
+                placeholder="Add your interpretation, insight, or branching thought..."
+                className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-text-primary placeholder-text-quaternary resize-none min-h-[100px] focus:outline-none focus:border-current-accent/50"
+                disabled={isInteracting}
+              />
+              <div className="flex justify-between items-center mt-3">
+                <div className="text-xs text-text-quaternary">
+                  {branchContent.length}/1000 characters
+                </div>
+                <button 
+                  onClick={submitBranch}
+                  disabled={!branchContent.trim() || isInteracting}
+                  className="px-4 py-2 bg-current-accent text-deep-void rounded-lg text-sm font-medium hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {isInteracting ? 'Creating...' : 'Create Branch'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="post-overlay-actions">
@@ -309,36 +475,40 @@ export default function PostOverlay({
           
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => handleInteraction('resonate')}
-              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2"
+              onClick={handleResonate}
+              disabled={isInteracting}
+              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span>Resonate</span> 
               <span className="text-lg">◊</span>
-              <span>{post.interactions.resonances}</span>
+              <span>{localInteractions.resonances}</span>
             </button>
             <button 
-              onClick={() => handleInteraction('branch')}
-              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2"
+              onClick={handleBranch}
+              disabled={isInteracting}
+              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span>Branch</span> 
               <span className="text-lg">∞</span>
-              <span>{post.interactions.branches}</span>
+              <span>{localInteractions.branches}</span>
             </button>
             <button 
-              onClick={() => handleInteraction('amplify')}
-              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2"
+              onClick={handleAmplify}
+              disabled={isInteracting}
+              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span>Amplify</span> 
               <span className="text-lg">≋</span>
-              <span>{post.interactions.amplifications}</span>
+              <span>{localInteractions.amplifications}</span>
             </button>
             <button 
-              onClick={() => handleInteraction('share')}
-              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2"
+              onClick={handleShare}
+              disabled={isInteracting}
+              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-sm font-light flex items-center gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span>Share</span> 
               <span className="text-lg">∆</span>
-              <span>{post.interactions.shares}</span>
+              <span>{localInteractions.shares}</span>
             </button>
           </div>
         </div>
