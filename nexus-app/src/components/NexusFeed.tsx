@@ -11,6 +11,10 @@ interface NexusFeedProps {
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
   refreshDreamData?: () => Promise<void>;
+  onResonate?: (entryId: string) => Promise<void>;
+  onAmplify?: (entryId: string) => Promise<void>;
+  hasUserResonated?: (entryId: string) => boolean;
+  hasUserAmplified?: (entryId: string) => boolean;
 }
 
 export default function NexusFeed({ 
@@ -20,7 +24,11 @@ export default function NexusFeed({
   getFlattenedStreamEntries,
   createBranch,
   refreshLogbookData,
-  refreshDreamData
+  refreshDreamData,
+  onResonate,
+  onAmplify,
+  hasUserResonated,
+  hasUserAmplified
 }: NexusFeedProps) {
   const [flattenedEntries, setFlattenedEntries] = useState<StreamEntryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -123,6 +131,10 @@ export default function NexusFeed({
                 isDream={isDreamEntry(entry)}
                 onPostClick={onPostClick}
                 onBranch={handleBranch}
+                onResonate={onResonate}
+                onAmplify={onAmplify}
+                userHasResonated={hasUserResonated?.(entry.id) || false}
+                userHasAmplified={hasUserAmplified?.(entry.id) || false}
                 isPreview={false}
               />
             ))

@@ -39,18 +39,21 @@ export default function ResonanceField({
     }
   };
 
-  // Handle resonance interaction with immediate refresh
+  // Handle resonance interaction - let the parent handle refresh
   const handleResonate = async (entryId: string) => {
     if (!onResonate) return;
     
+    console.log(`🔄 ResonanceField: Processing resonance for entry: ${entryId}`);
+    
     try {
       await onResonate(entryId);
-      // Immediately refresh to show updated resonance status
-      if (refreshResonatedEntries) {
-        await refreshResonatedEntries();
-      }
+      console.log(`✅ ResonanceField: Resonance action completed for entry: ${entryId}`);
+      
+      // Note: Don't call refreshResonatedEntries here as onResonate already handles it
+      // This prevents double refresh and race conditions
+      setLastRefreshTime(Date.now());
     } catch (error) {
-      console.error('Error handling resonance:', error);
+      console.error('❌ ResonanceField: Error handling resonance:', error);
     }
   };
 
@@ -73,22 +76,6 @@ export default function ResonanceField({
             >
               {isRefreshing ? '↻ Refreshing...' : '↻ Refresh'}
             </button>
-            {process.env.NODE_ENV === 'development' && (
-              <button
-                onClick={() => {
-                  // Call debug function if available
-                  if ((window as any).debugResonance) {
-                    const userId = 'test_user_debug';
-                    const entryId = 'logbook_001';
-                    (window as any).debugResonance.addResonance(userId, entryId);
-                    handleRefresh();
-                  }
-                }}
-                className="px-2 py-1 text-xs bg-purple-500/20 text-purple-300 rounded border border-purple-500/30 hover:bg-purple-500/30"
-              >
-                🐛 Test
-              </button>
-            )}
             <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-light bg-current-accent text-deep-void rounded-lg shadow-lg transition-all duration-200 hover:scale-105">
               Timeline
             </button>

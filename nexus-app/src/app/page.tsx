@@ -133,6 +133,10 @@ export default function Home() {
               createBranch={nexusData.createBranch}
               refreshLogbookData={nexusData.refreshLogbookData}
               refreshDreamData={nexusData.refreshDreamData}
+              onResonate={nexusData.resonateWithEntry}
+              onAmplify={nexusData.amplifyEntry}
+              hasUserResonated={nexusData.hasUserResonated}
+              hasUserAmplified={nexusData.hasUserAmplified}
             />
           </div>
         ) : viewMode === 'resonance-field' ? (
@@ -161,6 +165,8 @@ export default function Home() {
                   onResonate={nexusData.resonateWithEntry}
                   onBranch={nexusData.createBranch}
                   onAmplify={nexusData.amplifyEntry}
+                  hasUserResonated={nexusData.hasUserResonated}
+                  hasUserAmplified={nexusData.hasUserAmplified}
                 />
                 <RightSidebar 
                   systemVitals={nexusData.systemVitals}
@@ -180,6 +186,10 @@ export default function Home() {
                   onPostClick={handleOpenPost}
                   onSubmitEntry={(content, type, isPublic) => nexusData.submitEntry(content, type, isPublic, 'dream')}
                   onBranch={nexusData.createBranch}
+                  onResonate={nexusData.resonateWithEntry}
+                  onAmplify={nexusData.amplifyEntry}
+                  hasUserResonated={nexusData.hasUserResonated}
+                  hasUserAmplified={nexusData.hasUserAmplified}
                 />
                 <DreamRightSidebar 
                   dreamAnalytics={nexusData.dreamAnalytics!}

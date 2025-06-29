@@ -12,6 +12,10 @@ interface DreamMainContentProps {
   onPostClick?: (post: StreamEntryType | StreamEntryData) => void;
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
   onBranch?: (parentId: string, content: string) => void;
+  onResonate?: (entryId: string) => Promise<void>;
+  onAmplify?: (entryId: string) => Promise<void>;
+  hasUserResonated?: (entryId: string) => boolean;
+  hasUserAmplified?: (entryId: string) => boolean;
 }
 
 export default function DreamMainContent({ 
@@ -19,11 +23,29 @@ export default function DreamMainContent({
   sharedDreams,
   onPostClick,
   onSubmitEntry,
-  onBranch
+  onBranch,
+  onResonate,
+  onAmplify,
+  hasUserResonated,
+  hasUserAmplified
 }: DreamMainContentProps) {
   const handleDreamSubmit = (content: string, type: string, isPublic: boolean) => {
     console.log('Dream submitted:', { content, type, isPublic });
     onSubmitEntry?.(content, type, isPublic);
+  };
+
+  const handleResonate = async (id: string) => {
+    console.log('Resonated with dream:', id);
+    if (onResonate) {
+      await onResonate(id);
+    }
+  };
+
+  const handleAmplify = async (id: string) => {
+    console.log('Amplified dream:', id);
+    if (onAmplify) {
+      await onAmplify(id);
+    }
   };
 
   // Filter to only show top-level dreams (parent dreams), not branches/replies
@@ -75,6 +97,10 @@ export default function DreamMainContent({
               isDream={true}
               onPostClick={(post) => onPostClick?.(dream)} // Pass original StreamEntry
               onBranch={onBranch}
+              onResonate={handleResonate}
+              onAmplify={handleAmplify}
+              userHasResonated={hasUserResonated?.(dream.id) || false}
+              userHasAmplified={hasUserAmplified?.(dream.id) || false}
             />
           );
         })}

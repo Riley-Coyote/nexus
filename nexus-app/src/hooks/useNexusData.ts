@@ -292,21 +292,25 @@ export const useNexusData = (): NexusData => {
     }
   }, [refreshData, refreshLogbookData, refreshDreamData]);
   
-  // Resonate with entry - OPTIMIZED
+  // Resonate with entry - OPTIMIZED and SIMPLIFIED
   const resonateWithEntry = useCallback(async (entryId: string) => {
     try {
-      await dataService.resonateWithEntry(entryId);
+      console.log(`🔄 Processing resonance for entry: ${entryId}`);
       
-      // Only refresh resonated entries immediately for UI responsiveness
+      // Call dataService and get the result (true = resonated, false = unresonated)
+      const isNowResonated = await dataService.resonateWithEntry(entryId);
+      
+      console.log(`${isNowResonated ? '✅ Resonated with' : '❌ Unresonated from'} entry: ${entryId}`);
+      
+      // Only refresh resonated entries - single refresh call
       await refreshResonatedEntries();
       
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
       
-      // Note: We don't refresh all data here for performance
-      // The interaction counts will be updated on next natural refresh
+      console.log(`✅ Resonance operation complete`);
     } catch (error) {
-      console.error('Failed to resonate with entry:', error);
+      console.error('❌ Failed to resonate with entry:', error);
       throw error;
     }
   }, [refreshResonatedEntries]);
@@ -386,15 +390,19 @@ export const useNexusData = (): NexusData => {
 
   // Load initial data only if authenticated
   useEffect(() => {
-    if (authState.isAuthenticated && isHydrated) {
+    if (authState.isAuthenticated && isHydrated && authState.currentUser) {
+      // Initialize user resonances for demo
+      dataService.initializeUserResonances(authState.currentUser.id);
       refreshData();
     }
   }, [authState.isAuthenticated, isHydrated, refreshData]);
   
-  // Load resonated entries when data changes
+  // Load resonated entries when user changes or on mount - FIXED DEPENDENCY
   useEffect(() => {
-    loadResonatedEntries();
-  }, [loadResonatedEntries]);
+    if (authState.isAuthenticated && authState.currentUser) {
+      loadResonatedEntries();
+    }
+  }, [authState.currentUser?.id]); // Only depend on user ID, not the function
   
   // Expose dataService globally for testing in development
   useEffect(() => {

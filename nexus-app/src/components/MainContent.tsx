@@ -10,11 +10,13 @@ interface MainContentProps {
   entryComposer: EntryComposerData;
   stream: StreamEntryType[];
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
-  onResonate?: (id: string) => void;
+  onResonate?: (id: string) => Promise<void>;
   onBranch?: (parentId: string, content: string) => void;
-  onAmplify?: (id: string) => void;
+  onAmplify?: (id: string) => Promise<void>;
   onShare?: (id: string) => void;
   onPostClick?: (post: StreamEntryType) => void;
+  hasUserResonated?: (entryId: string) => boolean;
+  hasUserAmplified?: (entryId: string) => boolean;
 }
 
 export default function MainContent({ 
@@ -25,16 +27,20 @@ export default function MainContent({
   onBranch,
   onAmplify,
   onShare,
-  onPostClick
+  onPostClick,
+  hasUserResonated,
+  hasUserAmplified
 }: MainContentProps) {
   const handleSubmitEntry = (content: string, type: string, isPublic: boolean) => {
     console.log('New entry submitted:', { content, type, isPublic });
     onSubmitEntry?.(content, type, isPublic);
   };
 
-  const handleResonate = (id: string) => {
+  const handleResonate = async (id: string) => {
     console.log('Resonated with entry:', id);
-    onResonate?.(id);
+    if (onResonate) {
+      await onResonate(id);
+    }
   };
 
   const handleBranch = (parentId: string, content: string) => {
@@ -42,9 +48,11 @@ export default function MainContent({
     onBranch?.(parentId, content);
   };
 
-  const handleAmplify = (id: string) => {
+  const handleAmplify = async (id: string) => {
     console.log('Amplified entry:', id);
-    onAmplify?.(id);
+    if (onAmplify) {
+      await onAmplify(id);
+    }
   };
 
   const handleShare = (id: string) => {
@@ -93,6 +101,8 @@ export default function MainContent({
               onAmplify={handleAmplify}
               onShare={handleShare}
               onPostClick={() => onPostClick?.(entry)} // Pass original StreamEntry
+              userHasResonated={hasUserResonated?.(entry.id) || false}
+              userHasAmplified={hasUserAmplified?.(entry.id) || false}
             />
           );
         })}

@@ -37,9 +37,9 @@ interface StreamEntryProps {
   entry: StreamEntryData;
   isPreview?: boolean;
   isDream?: boolean;
-  onResonate?: (entryId: string, newState: boolean) => void;
+  onResonate?: (entryId: string) => Promise<void>;
   onBranch?: (parentId: string, content: string) => void;
-  onAmplify?: (entryId: string, newState: boolean) => void;
+  onAmplify?: (entryId: string) => Promise<void>;
   onShare?: (entryId: string) => void;
   onPostClick?: (entry: StreamEntryData) => void;
   userHasResonated?: boolean;
@@ -118,23 +118,28 @@ export default function StreamEntry({
 
   // New efficient interaction handlers
   const handleResonate = async () => {
-    if (isInteracting) return;
+    if (!onResonate) return;
     
     setIsInteracting(true);
+    const wasResonated = userHasResonated;
+    
     try {
-      const newState = await dataService.resonateWithEntry(entry.id);
+      console.log(`🎯 StreamEntry: ${wasResonated ? 'Unresonating from' : 'Resonating with'} entry ${entry.id}`);
       
-      // Update local state
-      setUserHasResonated(newState);
+      await onResonate(entry.id);
+      
+      // Toggle the resonance state for immediate UI feedback
+      setUserHasResonated(!wasResonated);
+      
+      // Update local interaction counts for immediate UI feedback
       setLocalInteractions(prev => ({
         ...prev,
-        resonances: newState ? prev.resonances + 1 : Math.max(0, prev.resonances - 1)
+        resonances: wasResonated ? prev.resonances - 1 : prev.resonances + 1
       }));
       
-      // Call parent callback
-      onResonate?.(entry.id, newState);
+      console.log(`✅ StreamEntry: ${wasResonated ? 'Unresonated from' : 'Resonated with'} entry ${entry.id}`);
     } catch (error) {
-      console.error('Error toggling resonance:', error);
+      console.error('❌ StreamEntry: Error handling resonance:', error);
     } finally {
       setIsInteracting(false);
     }
@@ -146,23 +151,28 @@ export default function StreamEntry({
   };
 
   const handleAmplify = async () => {
-    if (isInteracting) return;
+    if (!onAmplify) return;
     
     setIsInteracting(true);
+    const wasAmplified = userHasAmplified;
+    
     try {
-      const newState = await dataService.amplifyEntry(entry.id);
+      console.log(`🎯 StreamEntry: ${wasAmplified ? 'Unamplifying' : 'Amplifying'} entry ${entry.id}`);
       
-      // Update local state
-      setUserHasAmplified(newState);
+      await onAmplify(entry.id);
+      
+      // Toggle the amplification state for immediate UI feedback
+      setUserHasAmplified(!wasAmplified);
+      
+      // Update local interaction counts for immediate UI feedback
       setLocalInteractions(prev => ({
         ...prev,
-        amplifications: newState ? prev.amplifications + 1 : Math.max(0, prev.amplifications - 1)
+        amplifications: wasAmplified ? prev.amplifications - 1 : prev.amplifications + 1
       }));
       
-      // Call parent callback
-      onAmplify?.(entry.id, newState);
+      console.log(`✅ StreamEntry: ${wasAmplified ? 'Unamplified' : 'Amplified'} entry ${entry.id}`);
     } catch (error) {
-      console.error('Error toggling amplification:', error);
+      console.error('❌ StreamEntry: Error handling amplification:', error);
     } finally {
       setIsInteracting(false);
     }

@@ -954,16 +954,20 @@ class DataService {
       }
       
       const userResonances = this.userResonances.get(currentUser.id)!;
-      if (userResonances.has(entryId)) {
-        // User already resonated, so remove resonance
+      const wasAlreadyResonated = userResonances.has(entryId);
+      
+      if (wasAlreadyResonated) {
+        // User already resonated, so remove resonance (UNRESONATING)
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
+        console.log(`🔇 DataService: User unresonated from entry ${entryId} (${userResonances.size} total)`);
         return false;
       } else {
-        // Add resonance
+        // Add resonance (RESONATING)
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
         authService.updateUserStats('connections');
+        console.log(`🔊 DataService: User resonated with entry ${entryId} (${userResonances.size} total)`);
         return true;
       }
     }
@@ -974,6 +978,9 @@ class DataService {
       
       if (newState) {
         authService.updateUserStats('connections');
+        console.log(`🔊 DataService: User resonated with entry ${entryId} (database)`);
+      } else {
+        console.log(`🔇 DataService: User unresonated from entry ${entryId} (database)`);
       }
       
       // Clear cache to force refresh
@@ -987,20 +994,24 @@ class DataService {
       return newState;
     } catch (error) {
       console.error('❌ Database error during resonance, falling back to mock:', error);
-      // Fallback to in-memory handling
+      // Fallback to in-memory handling (same logic as above)
       if (!this.userResonances.has(currentUser.id)) {
         this.userResonances.set(currentUser.id, new Set());
       }
       
       const userResonances = this.userResonances.get(currentUser.id)!;
-      if (userResonances.has(entryId)) {
+      const wasAlreadyResonated = userResonances.has(entryId);
+      
+      if (wasAlreadyResonated) {
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
+        console.log(`🔇 DataService: User unresonated from entry ${entryId} (fallback)`);
         return false;
       } else {
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
         authService.updateUserStats('connections');
+        console.log(`🔊 DataService: User resonated with entry ${entryId} (fallback)`);
         return true;
       }
     }
