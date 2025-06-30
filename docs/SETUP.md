@@ -23,6 +23,7 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+NEXT_PUBLIC_SITE_URL=http://localhost:3002  # for email redirect/callback
 ```
 
 **Get these from:**
@@ -43,13 +44,15 @@ This gives you in-memory data that resets on refresh - perfect for quick testing
 
 ## **3. Database Setup**
 ```bash
-# Setup database schema
+# Run Supabase setup (apply migrations & RLS policies)
+npm run setup          # executes setup-supabase.sh
+
+# (Optional) Generate full SQL schema files for manual copy/paste
+npm run generate-sql
+
+# To apply individual migrations via dbManager:
 npm run db:setup
-
-# Add sample data (optional)
 npm run db:seed
-
-# Verify connection
 npm run db:health
 ```
 
@@ -58,7 +61,7 @@ npm run db:health
 npm run dev
 ```
 
-App runs on `http://localhost:3000` (or next available port)
+App runs on `http://localhost:3002` (or next available port configured in `.env.local`)
 
 **Check console for data source:**
 - `🧪 Data Source: In-Memory Mock Data` = Using debug mode
@@ -87,7 +90,7 @@ npm install
 
 ## **🌐 Development URLs**
 
-- **App**: http://localhost:3000 (or shown in terminal)
+- **App**: http://localhost:3002 (or shown in terminal)
 - **Supabase Dashboard**: https://supabase.com/dashboard
 
 ---

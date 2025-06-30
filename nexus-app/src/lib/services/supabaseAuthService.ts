@@ -106,7 +106,6 @@ class SupabaseAuthService {
       email: supabaseUser.email || '',
       name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
       avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
-      user_type: 'human' as const,
       role: 'Explorer',
       stats: { entries: 0, dreams: 0, connections: 0 },
       created_at: new Date().toISOString()
@@ -132,10 +131,10 @@ class SupabaseAuthService {
       username: supabaseUser.username,
       name: supabaseUser.name,
       email: supabaseUser.email,
-      userType: supabaseUser.user_type,
+      userType: supabaseUser.user_type ?? 'human',
       role: supabaseUser.role,
       avatar: supabaseUser.avatar,
-      profileImage: supabaseUser.profile_image,
+      profileImage: supabaseUser.profile_image_url,
       stats: supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 },
       createdAt: supabaseUser.created_at
     };

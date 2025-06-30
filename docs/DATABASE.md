@@ -46,6 +46,70 @@ intensity        DECIMAL(3,2)   -- 0.0 to 1.0
 timestamp        TIMESTAMPTZ
 ```
 
++### **entry_interaction_counts** (Aggregated counters for fast lookups)
++```sql
++entry_id          BIGINT PRIMARY KEY REFERENCES stream_entries(id)
++resonance_count   INTEGER DEFAULT 0
++branch_count      INTEGER DEFAULT 0
++amplification_count INTEGER DEFAULT 0
++share_count       INTEGER DEFAULT 0
++created_at        TIMESTAMPTZ DEFAULT NOW()
++updated_at        TIMESTAMPTZ DEFAULT NOW()
++```
++
++### **user_resonances** (Track who resonated with what)
++```sql
++id        BIGSERIAL PRIMARY KEY
++user_id   TEXT NOT NULL REFERENCES users(id)
++entry_id  BIGINT NOT NULL REFERENCES stream_entries(id)
++created_at TIMESTAMPTZ DEFAULT NOW()
++UNIQUE(user_id, entry_id)
++```
++
++### **user_amplifications** (Track who amplified what)
++```sql
++id        BIGSERIAL PRIMARY KEY
++user_id   TEXT NOT NULL REFERENCES users(id)
++entry_id  BIGINT NOT NULL REFERENCES stream_entries(id)
++created_at TIMESTAMPTZ DEFAULT NOW()
++UNIQUE(user_id, entry_id)
++```
++
++### **entry_branches** (Branch relationships for entries)
++```sql
++id               BIGSERIAL PRIMARY KEY
++parent_entry_id  BIGINT NOT NULL REFERENCES stream_entries(id)
++child_entry_id   BIGINT NOT NULL REFERENCES stream_entries(id)
++branch_order     INTEGER DEFAULT 0
++created_at       TIMESTAMPTZ DEFAULT NOW()
++UNIQUE(parent_entry_id, child_entry_id)
++```
++
++### **users** (User profiles and stats)
++```sql
++id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4()
++username           TEXT UNIQUE NOT NULL
++email              TEXT UNIQUE
++name               TEXT NOT NULL
++bio                TEXT
++location           TEXT
++profile_image_url  TEXT
++avatar             TEXT NOT NULL
++role               TEXT DEFAULT 'Explorer'
++stats              JSONB DEFAULT '{"entries":0,"dreams":0,"connections":0}'
++created_at         TIMESTAMPTZ DEFAULT NOW()
++updated_at         TIMESTAMPTZ DEFAULT NOW()
++```
++
++### **user_follows** (Follow relationships)
++```sql
++id             UUID PRIMARY KEY DEFAULT uuid_generate_v4()
++follower_id    UUID NOT NULL REFERENCES users(id)
++followed_id    UUID NOT NULL REFERENCES users(id)
++created_at     TIMESTAMPTZ DEFAULT NOW()
++UNIQUE(follower_id, followed_id)
++```
+
 ---
 
 ## **💻 Working with Data**
@@ -84,24 +148,20 @@ npm run db:sql "SELECT title, resonance_field FROM stream_entries WHERE resonanc
 
 ## **🔄 Schema Changes**
 
-### **1. Update Schema File**
-Edit `database/schema.sql` with your changes
+When you update the database schema:
 
-### **2. Test Locally**
+1. **Create a new migration file** in `database/migrations`, e.g. `007_add_new_feature.sql`.
+2. **Add your SQL** for table/column changes in that file.
+3. **Update the SQL generator** (if needed) by adding your migration path to `generate-sql.js`.
+4. **Generate the combined schema**:
 ```bash
-npm run db:setup  # Apply changes
-npm run db:seed   # Test with data
-```
-
-### **3. Create Migration** (for production)
-```bash
-# Create new migration file
-touch database/migrations/003_your_change.sql
-
-# Add your SQL changes to the file
-# Apply when ready:
-npm run db:sql "$(cat database/migrations/003_your_change.sql)"
-```
+npm run generate-sql
+```  
+This updates `supabase-schema.sql` and `supabase-rls.sql` with all migrations and RLS policies.
+5. **Apply changes**:
+   - **Option A (script)**: `npm run setup` (runs `setup-supabase.sh`)
+   - **Option B (dbManager)**: `npm run db:setup`
+   - **Manual**: Copy & paste `supabase-schema.sql` into Supabase SQL Editor.
 
 ---
 
