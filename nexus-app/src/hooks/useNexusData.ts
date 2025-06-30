@@ -389,7 +389,7 @@ export const useNexusData = (): NexusData => {
     setIsLoading(false);
     
     // Set up auth state listener
-    const unsubscribe = authService.onAuthStateChange((newAuthState) => {
+    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
       setAuthState(newAuthState);
     });
     
@@ -484,7 +484,7 @@ export const useNexusData = (): NexusData => {
         throw new Error('No user logged in');
       }
       
-      await dataService.updateUserProfile(authState.currentUser.id, updates);
+      await dataService.updateUserProfile(updates);
       
       // Refresh auth state to get updated user data
       forceAuthRefresh();
@@ -565,7 +565,7 @@ export const useNexusData = (): NexusData => {
         throw new Error('No user logged in');
       }
       
-      return await dataService.followUser(authState.currentUser.id, followedId);
+      return await dataService.followUser(followedId);
     }, [authState.currentUser]),
     
     unfollowUser: useCallback(async (followedId: string) => {
@@ -573,7 +573,7 @@ export const useNexusData = (): NexusData => {
         throw new Error('No user logged in');
       }
       
-      return await dataService.unfollowUser(authState.currentUser.id, followedId);
+      return await dataService.unfollowUser(followedId);
     }, [authState.currentUser]),
     
     isFollowing: useCallback(async (followedId: string) => {
@@ -581,7 +581,7 @@ export const useNexusData = (): NexusData => {
         return false;
       }
       
-      return await dataService.isFollowing(authState.currentUser.id, followedId);
+      return await dataService.isFollowing(followedId);
     }, [authState.currentUser]),
     
     getFollowers: useCallback(async (userId: string, limit?: number, offset?: number) => {
@@ -597,7 +597,11 @@ export const useNexusData = (): NexusData => {
     }, []),
     
     getFollowSuggestions: useCallback(async (userId: string, limit?: number) => {
-      return await dataService.getFollowSuggestions(userId, limit);
+      if (userId !== authState.currentUser?.id) {
+        // Fall back to suggestions for current user if IDs differ (mock implementation)
+        console.warn('getFollowSuggestions no longer requires userId parameter – ignoring provided userId');
+      }
+      return await dataService.getFollowSuggestions(limit);
     }, []),
     
     // Profile viewing state

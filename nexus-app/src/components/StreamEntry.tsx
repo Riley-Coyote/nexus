@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { dataService } from '../lib/services/dataService';
 import { authService } from '../lib/services/authService';
 
@@ -76,6 +76,10 @@ export default function StreamEntry({
   // Mobile collapse state
   const [isMobileCollapsed, setIsMobileCollapsed] = useState(false);
 
+  // Auto-compact mode: hide text on interaction buttons if they wrap
+  const [isCompact, setIsCompact] = useState(false);
+  const interactionContainerRef = useRef<HTMLDivElement>(null);
+
   // Update local state when props change
   useEffect(() => {
     setLocalInteractions(entry.interactions);
@@ -105,6 +109,18 @@ export default function StreamEntry({
     };
 
     loadUserInteractionState();
+  }, [entry.id]);
+
+  useEffect(() => {
+    const checkCompact = () => {
+      const el = interactionContainerRef.current;
+      if (el) {
+        setIsCompact(el.scrollWidth > el.clientWidth);
+      }
+    };
+    checkCompact();
+    window.addEventListener('resize', checkCompact);
+    return () => window.removeEventListener('resize', checkCompact);
   }, [entry.id]);
 
   // Enhanced threading UI logic
@@ -413,43 +429,43 @@ export default function StreamEntry({
               )
             )}
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div ref={interactionContainerRef} className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button 
-              onClick={handleResonate}
+              onClick={(e) => { e.stopPropagation(); handleResonate(); }}
               disabled={isInteracting}
               className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
-              <span className="action-text hidden lg:inline">Resonate</span> 
+              <span className={`action-text ${isCompact ? 'hidden' : 'hidden lg:inline'}`}>Resonate</span>
               <span className="action-symbol text-base sm:text-lg">◊</span>
               <span className="interaction-count font-medium">{localInteractions.resonances}</span>
             </button>
             
             <button 
-              onClick={handleBranch}
+              onClick={(e) => { e.stopPropagation(); handleBranch(); }}
               disabled={isInteracting}
               className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
-              <span className="action-text hidden lg:inline">Branch</span> 
+              <span className={`action-text ${isCompact ? 'hidden' : 'hidden lg:inline'}`}>Branch</span>
               <span className="action-symbol text-base sm:text-lg">∞</span>
               <span className="interaction-count font-medium">{localInteractions.branches}</span>
             </button>
 
             <button 
-              onClick={handleAmplify}
+              onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
               disabled={isInteracting}
               className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
-              <span className="action-text hidden lg:inline">Amplify</span>
+              <span className={`action-text ${isCompact ? 'hidden' : 'hidden lg:inline'}`}>Amplify</span>
               <span className="action-symbol text-base sm:text-lg">≋</span>
               <span className="interaction-count font-medium">{localInteractions.amplifications}</span>
             </button>
 
             <button 
-              onClick={handleShare}
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
               disabled={isInteracting}
               className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
-              <span className="action-text hidden lg:inline">Share</span> 
+              <span className={`action-text ${isCompact ? 'hidden' : 'hidden lg:inline'}`}>Share</span>
               <span className="action-symbol text-base sm:text-lg">∆</span>
               <span className="interaction-count font-medium">{localInteractions.shares}</span>
             </button>
