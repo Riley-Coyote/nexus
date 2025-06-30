@@ -458,14 +458,14 @@ export default function PostOverlay({
         
         <div className="post-overlay-actions">
           <div className="flex items-center gap-4">
-            {post.metrics && (
+            {post.metrics && typeof post.metrics.c === 'number' && typeof post.metrics.r === 'number' && typeof post.metrics.x === 'number' && (
               <div className="flex items-center gap-4 text-sm text-text-quaternary">
                 <span>C: {post.metrics.c}</span>
                 <span>R: {post.metrics.r}</span>
                 <span>X: {post.metrics.x}</span>
               </div>
             )}
-            {post.resonance !== undefined && post.coherence !== undefined && (
+            {post.resonance != null && post.coherence != null && (
               <div className="flex items-center gap-4 text-sm text-text-quaternary">
                 <span>Resonance: {post.resonance.toFixed(3)}</span>
                 <span>Coherence: {post.coherence.toFixed(3)}</span>
@@ -481,7 +481,7 @@ export default function PostOverlay({
             >
               <span className="action-text hidden lg:inline">Resonate</span> 
               <span className="action-symbol text-base sm:text-lg">◊</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.resonances}</span>
+              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.resonances}</span>}
             </button>
             <button 
               onClick={handleBranch}
@@ -490,7 +490,7 @@ export default function PostOverlay({
             >
               <span className="action-text hidden lg:inline">Branch</span> 
               <span className="action-symbol text-base sm:text-lg">∞</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.branches}</span>
+              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.branches}</span>}
             </button>
             <button 
               onClick={handleAmplify}
@@ -499,7 +499,7 @@ export default function PostOverlay({
             >
               <span className="action-text hidden lg:inline">Amplify</span> 
               <span className="action-symbol text-base sm:text-lg">≋</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.amplifications}</span>
+              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.amplifications}</span>}
             </button>
             <button 
               onClick={handleShare}
@@ -508,7 +508,7 @@ export default function PostOverlay({
             >
               <span className="action-text hidden lg:inline">Share</span> 
               <span className="action-symbol text-base sm:text-lg">∆</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.shares}</span>
+              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.shares}</span>}
             </button>
           </div>
         </div>
