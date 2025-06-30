@@ -1,0 +1,425 @@
+/* Mobile Enhancements for Liminal Logbook - Non-Breaking */
+
+@media (max-width: 768px) {
+    /* Fix the invisible post issue */
+    .stream-entry-lazy-load {
+        opacity: 1 !important;
+        transform: none !important;
+    }
+    
+    .stream-entry-lazy-load.in-view {
+        opacity: 1 !important;
+        transform: none !important;
+    }
+    
+    /* Fix text visibility */
+    .stream-content, 
+    .stream-content p, 
+    .stream-content div,
+    .post-content,
+    .branch-content {
+        opacity: 1 !important;
+        color: var(--text-primary) !important;
+        font-size: 15px !important;
+        line-height: 1.6 !important;
+    }
+    
+    /* Mobile-friendly interaction buttons - Refined */
+    .interaction-section {
+        margin-top: 16px !important;
+        padding-top: 12px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    .interaction-section > div:first-child {
+        /* Metrics section */
+        margin-bottom: 12px !important;
+        padding: 0 4px !important;
+        opacity: 0.7 !important;
+    }
+    
+    .interaction-section > div:last-child {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 4px !important;
+        padding: 0 !important;
+        margin: 0 -8px !important;
+    }
+    
+    .interaction-btn {
+        flex: 1 !important;
+        min-height: 44px !important;
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+        border-radius: 12px !important;
+        background: transparent !important;
+        border: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 2px !important;
+        transition: all 0.2s ease !important;
+        position: relative !important;
+    }
+    
+    .interaction-btn:active {
+        background: rgba(255, 255, 255, 0.08) !important;
+        transform: scale(0.95) !important;
+    }
+    
+    .interaction-btn::before {
+        content: '' !important;
+        position: absolute !important;
+        inset: 0 !important;
+        border-radius: 12px !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        opacity: 0 !important;
+        transition: opacity 0.2s ease !important;
+    }
+    
+    .interaction-btn:hover::before {
+        opacity: 1 !important;
+    }
+    
+    .action-text {
+        display: none !important;
+    }
+    
+    .action-symbol {
+        font-size: 22px !important;
+        line-height: 1 !important;
+        margin-bottom: 2px !important;
+    }
+    
+    .interaction-count {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        opacity: 0.8 !important;
+    }
+    
+    /* Color states for interactions */
+    .interaction-btn.resonated {
+        color: var(--accent-emerald) !important;
+    }
+    
+    .interaction-btn.amplified {
+        color: var(--accent-purple) !important;
+    }
+    
+    .interaction-btn.resonated .action-symbol,
+    .interaction-btn.amplified .action-symbol {
+        opacity: 1 !important;
+    }
+    
+    /* Mobile composer improvements */
+    .entry-composer-textarea {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 12px !important;
+        min-height: 60px !important;
+    }
+    
+    /* Mobile-only bottom tab bar */
+    .mobile-tab-bar {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 60px !important;
+        background: rgba(12, 15, 22, 0.97) !important;
+        backdrop-filter: blur(20px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+        border-top: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0) !important;
+        z-index: 100 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        padding: 0 8px !important;
+    }
+    
+    .mobile-tab {
+        flex: 1 !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        background: transparent !important;
+        border: none !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer !important;
+        position: relative !important;
+        padding: 8px 0 !important;
+    }
+    
+    .mobile-tab.active {
+        color: var(--current-accent) !important;
+    }
+    
+    .mobile-tab.active::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 32px !important;
+        height: 3px !important;
+        background: var(--current-accent) !important;
+        border-radius: 0 0 3px 3px !important;
+    }
+    
+    .mobile-tab svg {
+        width: 24px !important;
+        height: 24px !important;
+        stroke-width: 2 !important;
+    }
+    
+    .mobile-tab-label {
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.01em !important;
+        opacity: 0.8 !important;
+    }
+    
+    /* Mobile header navigation */
+    #app-header nav {
+        position: static !important;
+        background: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border: none !important;
+        height: auto !important;
+    }
+    
+    #nav-links {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        height: auto !important;
+        justify-content: flex-end !important;
+    }
+    
+    /* Keep only messenger and profile buttons visible */
+    #nav-links li {
+        display: none !important;
+    }
+    
+    #nav-links li:has(#open-messenger-btn),
+    #nav-links li:has(#profile-toggle-btn) {
+        display: flex !important;
+        flex: none !important;
+    }
+    
+    #open-messenger-btn,
+    #profile-toggle-btn {
+        width: 36px !important;
+        height: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: transparent !important;
+        border: none !important;
+        color: var(--text-tertiary) !important;
+        border-radius: 8px !important;
+        transition: all 0.2s ease !important;
+        padding: 0 !important;
+    }
+    
+    #open-messenger-btn:active,
+    #profile-toggle-btn:active {
+        background: rgba(255, 255, 255, 0.05) !important;
+        transform: scale(0.95) !important;
+    }
+    
+    #open-messenger-btn i,
+    #profile-toggle-btn i {
+        width: 20px !important;
+        height: 20px !important;
+    }
+    
+    /* Floating compose button */
+    .mobile-fab {
+        position: fixed !important;
+        bottom: calc(70px + env(safe-area-inset-bottom, 0)) !important;
+        right: 16px !important;
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 28px !important;
+        background: linear-gradient(135deg, var(--current-accent), var(--current-accent-dark)) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
+                    0 0 24px rgba(var(--current-accent-rgb), 0.3) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: white !important;
+        border: none !important;
+        z-index: 90 !important;
+        cursor: pointer !important;
+    }
+    
+    .mobile-fab:active {
+        transform: scale(0.9) !important;
+    }
+    
+    /* Card improvements */
+    .glass-card {
+        border-radius: 16px !important;
+        margin-bottom: 12px !important;
+        background: rgba(20, 24, 34, 0.6) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    /* Remove hover effects on mobile */
+    .glass-card:hover {
+        transform: none !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    /* Hide journal toggle on mobile */
+    #journal-toggle {
+        display: none !important;
+    }
+    
+    /* Adjust content padding for bottom nav */
+    #app-container {
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0)) !important;
+    }
+    
+    /* Make posts more readable */
+    .glass-card > div:first-child {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    
+    /* Type badge styling */
+    span[style*="color: var(--current-accent)"] {
+        padding: 4px 12px !important;
+        border-radius: 16px !important;
+        background: rgba(var(--current-accent-rgb), 0.1) !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Profile overlay fixes */
+    #profile-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        z-index: 1001 !important;
+        padding: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+    }
+    
+    #profile-overlay:not(.hidden) {
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+    }
+    
+    /* Override desktop profile panel positioning */
+    #profile-overlay > #profile-panel {
+        position: relative !important;
+        bottom: auto !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        max-height: 85vh !important;
+        border-radius: 24px 24px 0 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        animation: slide-up 0.3s ease-out !important;
+        padding: 1.5rem !important;
+        padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0)) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        background-color: var(--panel-bg-color) !important;
+        box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    @keyframes slide-up {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    
+    /* Hide desktop search */
+    #search-toggle-btn {
+        display: none !important;
+    }
+    
+    /* Messenger mobile view */
+    #messenger-container {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+    }
+    
+    /* Mobile header refinements */
+    #app-header {
+        height: 56px !important;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    #app-header .header-content {
+        height: 56px !important;
+        padding: 0 16px !important;
+        max-width: 100% !important;
+    }
+    
+    #journal-title {
+        font-size: 17px !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.01em !important;
+    }
+    
+    /* Clean up main content area */
+    .main-layout > main,
+    #consciousness-journal > main,
+    #dream-journal > main {
+        padding: 16px !important;
+        padding-bottom: 80px !important;
+    }
+    
+    /* Post header refinements */
+    .glass-card > div:first-child {
+        margin-bottom: 12px !important;
+    }
+    
+    /* Type badge more prominent */
+    .glass-card span[style*="color: var(--current-accent)"] {
+        padding: 6px 14px !important;
+        border-radius: 20px !important;
+        background: rgba(var(--current-accent-rgb), 0.15) !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+    }
+    
+    /* Timestamp and metadata styling */
+    .text-xs.text-text-quaternary {
+        font-size: 12px !important;
+        opacity: 0.7 !important;
+    }
+    
+    /* Amplified indicator */
+    .amplified-indicator {
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+        margin-left: 8px !important;
+    }
+}

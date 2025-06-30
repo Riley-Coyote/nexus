@@ -1,0 +1,386 @@
+/* World-Class Mobile UI Enhancements */
+
+/* ========== MOBILE-FIRST DESIGN SYSTEM ========== */
+@media (max-width: 768px) {
+    /* --- Enhanced Visual Hierarchy --- */
+    :root {
+        --mobile-spacing-xs: 8px;
+        --mobile-spacing-sm: 12px;
+        --mobile-spacing-md: 16px;
+        --mobile-spacing-lg: 20px;
+        --mobile-spacing-xl: 24px;
+        
+        /* Refined shadows for mobile */
+        --mobile-shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        --mobile-shadow-md: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+        --mobile-shadow-lg: 0 10px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.10);
+        
+        /* Modern border radius */
+        --mobile-radius-sm: 8px;
+        --mobile-radius-md: 12px;
+        --mobile-radius-lg: 16px;
+        --mobile-radius-xl: 24px;
+    }
+
+    /* --- Optimized Content Spacing --- */
+    #app-container {
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+    
+    #consciousness-journal > main,
+    #dream-journal > main,
+    #nexus-feed-view,
+    #resonance-field-view {
+        padding: var(--mobile-spacing-md) !important;
+        gap: var(--mobile-spacing-md) !important;
+    }
+
+    /* --- Modern Card Design --- */
+    .glass-panel,
+    .glass-card {
+        border-radius: var(--mobile-radius-md) !important;
+        padding: var(--mobile-spacing-md) !important;
+        margin-bottom: var(--mobile-spacing-md) !important;
+        box-shadow: var(--mobile-shadow-sm) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        background: linear-gradient(135deg, 
+            rgba(18, 22, 30, 0.95) 0%, 
+            rgba(18, 22, 30, 0.85) 100%) !important;
+    }
+    
+    .glass-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+
+    /* --- Refined Typography --- */
+    body {
+        font-size: 15px !important;
+        line-height: 1.6 !important;
+        -webkit-font-smoothing: antialiased !important;
+    }
+    
+    .panel-title {
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.08em !important;
+        opacity: 0.7 !important;
+    }
+    
+    .stream-content {
+        font-size: 15px !important;
+        line-height: 1.65 !important;
+        color: rgba(229, 231, 235, 0.9) !important;
+        font-weight: 400 !important;
+    }
+    
+    .metric-value {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+    }
+    
+    .metric-label {
+        font-size: 12px !important;
+        opacity: 0.6 !important;
+    }
+
+    /* --- Enhanced Bottom Navigation --- */
+    #app-header nav {
+        height: calc(72px + env(safe-area-inset-bottom)) !important;
+        background: rgba(10, 13, 18, 0.98) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+        backdrop-filter: blur(20px) saturate(180%) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    #nav-links {
+        height: 72px !important;
+        padding: 0 var(--mobile-spacing-sm) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+    
+    #nav-links li {
+        position: relative;
+    }
+    
+    /* Modern tab indicator */
+    #nav-links li[data-view]::after {
+        content: '';
+        position: absolute;
+        bottom: 6px;
+        left: 50%;
+        transform: translateX(-50%) scale(0);
+        width: 48px;
+        height: 3px;
+        background: var(--current-accent);
+        border-radius: 3px;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #nav-links li[data-view].active::after {
+        transform: translateX(-50%) scale(1);
+    }
+    
+    #nav-links .interactive-icon {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        gap: 4px !important;
+        padding: 8px 12px !important;
+        border-radius: 12px !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    #nav-links .interactive-icon i {
+        width: 24px !important;
+        height: 24px !important;
+        stroke-width: 2 !important;
+    }
+    
+    #nav-links li.active .interactive-icon {
+        background: rgba(var(--current-accent-rgb), 0.15) !important;
+        color: var(--current-accent) !important;
+    }
+
+    /* --- Modern Buttons --- */
+    .btn {
+        min-height: 48px !important;
+        padding: 0 24px !important;
+        border-radius: var(--mobile-radius-xl) !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.02em !important;
+        box-shadow: var(--mobile-shadow-sm) !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    .btn:active {
+        transform: scale(0.96) !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    }
+    
+    .btn-primary {
+        background: var(--current-accent) !important;
+        color: var(--deep-void) !important;
+        border: none !important;
+    }
+    
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    }
+
+    /* --- Improved Interaction Buttons --- */
+    .interaction-btn {
+        padding: 10px 16px !important;
+        border-radius: var(--mobile-radius-xl) !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        gap: 6px !important;
+    }
+    
+    .interaction-btn:active {
+        transform: scale(0.95);
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .interaction-btn .action-symbol {
+        font-size: 16px !important;
+    }
+    
+    .interaction-count {
+        background: rgba(255, 255, 255, 0.1) !important;
+        padding: 2px 8px !important;
+        border-radius: 12px !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+    }
+
+    /* --- Entry Composer Enhancement --- */
+    .entry-composer-textarea {
+        min-height: 56px !important;
+        font-size: 15px !important;
+        padding: var(--mobile-spacing-sm) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--mobile-radius-md) !important;
+    }
+    
+    .entry-composer-textarea:focus {
+        min-height: 120px !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        border-color: var(--current-accent) !important;
+    }
+
+    /* --- Stream Entry Cards --- */
+    .thread-entry {
+        margin-bottom: var(--mobile-spacing-sm) !important;
+    }
+    
+    .stream-entry-lazy-load .glass-card {
+        padding: var(--mobile-spacing-lg) !important;
+    }
+    
+    /* Compact metrics display */
+    .interaction-section {
+        margin-top: var(--mobile-spacing-md) !important;
+    }
+    
+    .interaction-section > div:first-child {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: var(--mobile-spacing-sm) !important;
+    }
+    
+    .interaction-section > div:last-child {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: var(--mobile-spacing-xs) !important;
+        margin-top: var(--mobile-spacing-md) !important;
+    }
+
+    /* --- Header Refinements --- */
+    #app-header {
+        height: 56px !important;
+    }
+    
+    #app-header .header-content {
+        height: 56px !important;
+        padding: 0 var(--mobile-spacing-md) !important;
+    }
+    
+    #journal-title {
+        font-size: 17px !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.01em !important;
+    }
+
+    /* --- Performance Optimizations --- */
+    * {
+        -webkit-tap-highlight-color: transparent !important;
+    }
+    
+    .glass-panel,
+    .glass-card {
+        will-change: transform !important;
+        -webkit-transform: translateZ(0) !important;
+        transform: translateZ(0) !important;
+    }
+
+    /* --- Loading States --- */
+    @keyframes skeleton-loading {
+        0% { background-position: -200px 0; }
+        100% { background-position: calc(200px + 100%) 0; }
+    }
+    
+    .skeleton-loading {
+        background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.05) 0%,
+            rgba(255, 255, 255, 0.1) 50%,
+            rgba(255, 255, 255, 0.05) 100%
+        );
+        background-size: 200px 100%;
+        animation: skeleton-loading 1.5s ease-in-out infinite;
+    }
+
+    /* --- Floating Action Button --- */
+    .fab {
+        position: fixed;
+        bottom: calc(88px + env(safe-area-inset-bottom));
+        right: var(--mobile-spacing-lg);
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--current-accent);
+        color: var(--deep-void);
+        box-shadow: var(--mobile-shadow-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .fab:active {
+        transform: scale(0.9);
+    }
+
+    /* --- Pull to Refresh --- */
+    .pull-to-refresh {
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 40px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .pull-to-refresh.active {
+        opacity: 1;
+    }
+
+    /* --- iOS Specific --- */
+    @supports (-webkit-touch-callout: none) {
+        /* iOS rubber-band scrolling optimization */
+        .main-layout > main {
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* iOS status bar handling */
+        #app-header {
+            padding-top: env(safe-area-inset-top);
+            height: calc(56px + env(safe-area-inset-top)) !important;
+        }
+    }
+
+    /* --- Smooth Scrolling --- */
+    .momentum-scrolling {
+        overflow-y: scroll;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+
+    /* --- Micro-interactions --- */
+    @keyframes tap-feedback {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(0.95); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .tap-feedback {
+        animation: tap-feedback 0.2s ease;
+    }
+
+    /* --- Native-like Sheet Modal --- */
+    .sheet-modal {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--background-primary);
+        border-radius: var(--mobile-radius-lg) var(--mobile-radius-lg) 0 0;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .sheet-modal.active {
+        transform: translateY(0);
+    }
+    
+    .sheet-modal-handle {
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+        margin: 12px auto;
+    }
+}
