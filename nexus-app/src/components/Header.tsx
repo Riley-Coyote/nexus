@@ -37,9 +37,14 @@ export default function Header({
 
   const handleViewChange = (view: string) => {
     onViewChange(view as any);
-    // Close mobile menu after navigation
+    // Force close mobile menu after navigation
     setIsMobileMenuOpen(false);
   };
+  
+  // Force close mobile menu when view changes externally
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [currentView]);
 
   const getTitle = () => {
     if (currentView === 'feed') {
@@ -68,32 +73,34 @@ export default function Header({
   };
 
   return (
-    <header id="app-header" className="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive header">
-      <div className="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-4 sm:px-8 header-content">
-        {/* Page Title - Left side */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-1">
-          <h1 id="journal-title" className="text-lg sm:text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
+    <header id="app-header" className="nexus-header">
+      <div className="header-content">
+        {/* Title Section - Always Left */}
+        <div className="header-title-section">
+          <h1 id="journal-title" className="header-title">
             {getTitle()}
           </h1>
-          <span id="journal-status" className={`text-xs font-extralight tracking-widest uppercase transition-colors duration-500 ${getStatusColor()} hidden sm:inline`}>
+          <span id="journal-status" className={`header-status ${getStatusColor()}`}>
             {getStatus()}
           </span>
         </div>
         
-        {/* Desktop Navigation - Hidden on mobile */}
-        <div className="hidden lg:flex items-center gap-4">
+        {/* Desktop Navigation - Hidden on tablet/mobile */}
+        <div className="desktop-nav">
           {/* Enhanced Search */}
-          <div className={`search-container ${showSearch ? '' : 'hidden'}`} id="search-container">
-            <Search className="search-icon w-4 h-4" />
-            <input 
-              type="text" 
-              id="global-search" 
-              className="search-input" 
-              placeholder="Search entries, dreams, patterns..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          {showSearch && (
+            <div className="search-container" id="search-container">
+              <Search className="search-icon w-4 h-4" />
+              <input 
+                type="text" 
+                id="global-search" 
+                className="search-input" 
+                placeholder="Search entries, dreams, patterns..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          )}
           
           <nav>
             <ul id="nav-links" className="list-none flex items-center gap-6 m-0 p-0">
@@ -197,11 +204,11 @@ export default function Header({
           </div>
         </div>
 
-        {/* Mobile Controls - Right side */}
-        <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
-          {/* Profile/CX Button */}
+        {/* Mobile Controls - Always Right */}
+        <div className="header-mobile-controls">
+          {/* Profile Button */}
           <button 
-            className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon p-2 rounded-lg hover:bg-white/5 min-w-[44px] min-h-[44px] flex items-center justify-center" 
+            className="mobile-profile-btn" 
             title="Profile"
             onClick={handleProfileToggle}
           >
@@ -216,27 +223,27 @@ export default function Header({
           
           {/* Mobile Menu Toggle */}
           <button 
-            className="mobile-menu-toggle text-text-primary hover:text-current-accent transition-colors p-2 rounded-lg hover:bg-white/5 min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0" 
+            className="mobile-menu-toggle" 
             id="mobileMenuToggle" 
             onClick={handleMobileMenuToggle}
             aria-label="Toggle mobile menu"
+            aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden fixed top-full left-0 right-0 bg-black/95 backdrop-blur-lg border-t border-white/10 z-50 max-h-[calc(100vh-60px)] overflow-y-auto">
-          <div className="px-4 py-6 space-y-4">
+      {/* Mobile Menu Overlay - Fixed positioning to match CSS header height */}
+      <div className={`mobile-menu-overlay ${isMobileMenuOpen ? 'active' : ''}`}>
+          <div className="mobile-menu-content">
             {/* Search */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
+            <div className="mobile-search-section">
+              <div className="mobile-search-input-wrapper">
                 <Search className="w-4 h-4 text-gray-450" />
                 <input 
                   type="text" 
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-quaternary focus:outline-none focus:border-current-accent/50" 
+                  className="mobile-search-input" 
                   placeholder="Search entries, dreams, patterns..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -245,32 +252,26 @@ export default function Header({
             </div>
 
             {/* Navigation Links */}
-            <div className="space-y-2">
+            <div className="mobile-nav-section">
               <button 
-                className={`w-full text-left py-3 px-4 rounded-lg transition-colors ${
-                  currentView === 'feed' 
-                    ? 'bg-current-accent/20 text-current-accent' 
-                    : 'text-text-primary hover:bg-white/5'
+                className={`mobile-nav-button ${
+                  currentView === 'feed' ? 'active' : ''
                 }`}
                 onClick={() => handleViewChange('feed')}
               >
                 Nexus Feed
               </button>
               <button 
-                className={`w-full text-left py-3 px-4 rounded-lg transition-colors ${
-                  currentView === 'resonance-field' 
-                    ? 'bg-current-accent/20 text-current-accent' 
-                    : 'text-text-primary hover:bg-white/5'
+                className={`mobile-nav-button ${
+                  currentView === 'resonance-field' ? 'active' : ''
                 }`}
                 onClick={() => handleViewChange('resonance-field')}
               >
                 Resonance Field
               </button>
               <button 
-                className={`w-full text-left py-3 px-4 rounded-lg transition-colors ${
-                  currentView === 'profile' 
-                    ? 'bg-current-accent/20 text-current-accent' 
-                    : 'text-text-primary hover:bg-white/5'
+                className={`mobile-nav-button ${
+                  currentView === 'profile' ? 'active' : ''
                 }`}
                 onClick={() => handleViewChange('profile')}
               >
@@ -279,24 +280,20 @@ export default function Header({
             </div>
 
             {/* Journal Mode Toggle */}
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-4">Mode</div>
-              <div className="flex gap-2">
+            <div className="mobile-mode-section">
+              <div className="mobile-mode-label">Mode</div>
+              <div className="mobile-mode-buttons">
                 <button 
-                  className={`flex-1 py-3 px-4 rounded-lg transition-colors ${
-                    currentView === 'default' && currentMode === 'logbook' 
-                      ? 'bg-emerald-500/20 text-emerald-400' 
-                      : 'text-text-primary hover:bg-white/5 border border-white/10'
+                  className={`mobile-mode-button ${
+                    currentView === 'default' && currentMode === 'logbook' ? 'active logbook' : ''
                   }`}
                   onClick={() => { onModeChange('logbook'); setIsMobileMenuOpen(false); }}
                 >
                   Logbook
                 </button>
                 <button 
-                  className={`flex-1 py-3 px-4 rounded-lg transition-colors ${
-                    currentView === 'default' && currentMode === 'dream' 
-                      ? 'bg-purple-500/20 text-purple-400' 
-                      : 'text-text-primary hover:bg-white/5 border border-white/10'
+                  className={`mobile-mode-button ${
+                    currentView === 'default' && currentMode === 'dream' ? 'active dream' : ''
                   }`}
                   onClick={() => { onModeChange('dream'); setIsMobileMenuOpen(false); }}
                 >
@@ -306,9 +303,9 @@ export default function Header({
             </div>
 
             {/* Quick Actions */}
-            <div className="pt-4 border-t border-white/10">
+            <div className="mobile-actions-section">
               <button 
-                className="w-full flex items-center gap-3 py-3 px-4 rounded-lg text-text-primary hover:bg-white/5 transition-colors"
+                className="mobile-action-button"
                 onClick={() => { handleMessengerOpen(); setIsMobileMenuOpen(false); }}
               >
                 <MessageSquare className="w-5 h-5" />
@@ -317,7 +314,6 @@ export default function Header({
             </div>
           </div>
         </div>
-      )}
     </header>
   );
 } 

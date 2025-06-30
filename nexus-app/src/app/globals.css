@@ -228,6 +228,34 @@
             position: relative;
             z-index: 10;
             opacity: var(--atmosphere-mid);
+            margin-top: 72px; /* Space for header on desktop */
+            padding-top: 1rem;
+        }
+        
+        /* Ensure all page content areas have proper header spacing */
+        .profile-container,
+        .page-container,
+        .app-main,
+        [role="main"] {
+            margin-top: 72px !important;
+            padding-top: 1rem !important;
+        }
+        
+        /* Specific targeting for profile pages and containers */
+        .liminal-logbook .grid.overflow-hidden,
+        .liminal-logbook .flex.flex-col.h-full.overflow-hidden,
+        .bg-deep-void {
+            padding-top: 12px !important; /* Reduced from 72px to remove gap */
+        }
+        
+        /* Additional targeting for profile view components */
+        .max-w-4xl.mx-auto.w-full.flex.flex-col.h-full {
+            padding-top: 0 !important; /* Remove any conflicting padding from child */
+        }
+        
+        /* Ensure profile header isn't hidden */
+        .flex-shrink-0.p-8.border-b {
+            margin-top: 0 !important;
         }
 
         /* Enhanced Typography with IBM Plex Mono */
@@ -322,6 +350,13 @@
             main, .parallax-layer-3 {
                 height: calc(100vh - 56px) !important;
                 margin-top: 56px !important;
+            }
+            
+            /* Small mobile spacing for profile pages */
+            .liminal-logbook .grid.overflow-hidden,
+            .liminal-logbook .flex.flex-col.h-full.overflow-hidden,
+            .bg-deep-void {
+                padding-top: 4px !important; /* Reduced from 56px to remove gap */
             }
             
             /* Ensure content doesn't get hidden behind header */
@@ -1697,18 +1732,9 @@
                 height: 44px !important;
             }
             
-            /* Bulletproof right positioning */
-            @media (max-width: 768px) {
-                #app-header .lg\\:hidden {
-                    margin-left: auto !important;
-                    order: 999 !important;
-                }
-                
-                #app-header .flex.items-center.gap-2:first-child {
-                    order: 1 !important;
-                    margin-right: auto !important;
-                }
-            }
+        /* Bulletproof header layout - ensure title left, buttons right ALWAYS */
+        
+
             
             #messenger-view {
                 padding: 0;
@@ -2927,7 +2953,29 @@
                 -webkit-overflow-scrolling: touch;
                 overflow-y: auto;
                 overscroll-behavior-y: contain;
+                padding-top: 60px; /* Space for fixed header */
                 padding-bottom: 80px; /* Space for bottom nav */
+                margin-top: 0 !important;
+            }
+            
+            /* Ensure all main content areas have proper header spacing */
+            main, 
+            #nexus-feed-view,
+            #resonance-field-view,
+            .profile-view,
+            .page-content,
+            [data-view] main {
+                margin-top: 60px !important;
+                padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+                min-height: calc(100vh - 60px) !important;
+            }
+            
+            /* Mobile spacing for profile pages */
+            .liminal-logbook .grid.overflow-hidden,
+            .liminal-logbook .flex.flex-col.h-full.overflow-hidden,
+            .bg-deep-void {
+                padding-top: 8px !important; /* Reduced from 60px to remove gap */
+                box-sizing: border-box !important;
             }
 
             /* Mobile header */
@@ -2945,62 +2993,7 @@
                 overflow: hidden;
             }
             
-            #app-header {
-                height: 60px !important;
-                min-height: 60px !important;
-            }
-            
-            #app-header .header-content {
-                height: 60px !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: space-between !important;
-                padding: 0 1rem !important;
-                gap: 1rem !important;
-                min-width: 0 !important;
-                width: 100% !important;
-            }
-            
-            /* Mobile title left-aligned */
-            #app-header #journal-title {
-                font-size: 1rem !important;
-                font-weight: 500 !important;
-                margin: 0 !important;
-                white-space: nowrap !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                text-align: left !important;
-                max-width: calc(100vw - 140px) !important;
-            }
-            
-            /* Mobile left title container - flexible but constrained */
-            #app-header .flex.items-center.gap-2:first-child {
-                flex: 1 !important;
-                min-width: 0 !important;
-                overflow: hidden !important;
-                justify-content: flex-start !important;
-            }
-            
-            /* Mobile right controls - always stay on right */
-            #app-header .lg\\:hidden {
-                display: flex !important;
-                align-items: center !important;
-                gap: 0.5rem !important;
-                flex-shrink: 0 !important;
-                flex-basis: auto !important;
-                min-width: 96px !important;
-                justify-content: flex-end !important;
-                position: relative !important;
-                z-index: 10 !important;
-            }
-            
-            /* Mobile button styling */
-            .mobile-menu-toggle,
-            #app-header .lg\\:hidden button {
-                min-width: 44px !important;
-                min-height: 44px !important;
-                flex-shrink: 0 !important;
-            }
+
 
             /* Sidebar as full-screen overlay on mobile */
             .sidebar {
@@ -3853,3 +3846,389 @@
             width: 1px;
           }
         }
+
+        /* ===================================
+           NEXUS HEADER - FIXED & CONSISTENT 
+           =================================== */
+
+        /* Base Header Styles - Override all conflicts */
+        .nexus-header {
+            position: sticky !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            height: 60px !important;
+            min-height: 60px !important;
+            max-height: 60px !important;
+            z-index: 1000 !important;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0.15) 100%) !important;
+            backdrop-filter: blur(32px) !important;
+            -webkit-backdrop-filter: blur(32px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.25), 0 8px 16px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08) !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Header Content Container */
+        .header-content {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            height: 60px !important;
+            max-width: 1600px !important;
+            margin: 0 auto !important;
+            padding: 0 1rem !important;
+            box-sizing: border-box !important;
+        }
+
+                 /* Title Section - Always Left */
+         .header-title-section {
+             display: flex !important;
+             align-items: center !important;
+             gap: 1rem !important;
+             flex: 1 !important;
+             min-width: 0 !important;
+             overflow: hidden !important;
+             justify-content: flex-start !important;
+             order: 1 !important;
+             margin-right: auto !important;
+         }
+
+        .header-title {
+            font-size: 1rem !important;
+            font-weight: 500 !important;
+            color: var(--text-primary) !important;
+            margin: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            text-align: left !important;
+            letter-spacing: 0.05em !important;
+            transition: color 500ms ease !important;
+        }
+
+        .header-status {
+            font-size: 0.75rem !important;
+            font-weight: 200 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
+            transition: color 500ms ease !important;
+            display: none !important;
+        }
+
+                 /* Desktop Navigation - Always Right */
+         .desktop-nav {
+             display: none !important;
+             align-items: center !important;
+             gap: 1rem !important;
+             flex-shrink: 0 !important;
+             order: 3 !important;
+             justify-content: flex-end !important;
+             margin-left: auto !important;
+         }
+
+         /* Mobile Controls - Always Right */
+         .header-mobile-controls {
+             display: none !important;
+             align-items: center !important;
+             gap: 0.5rem !important;
+             flex-shrink: 0 !important;
+             order: 2 !important;
+             justify-content: flex-end !important;
+             margin-left: auto !important;
+             min-width: 96px !important;
+         }
+
+        .mobile-profile-btn {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 44px !important;
+            min-height: 44px !important;
+            padding: 8px !important;
+            border-radius: 12px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: none !important;
+            color: var(--text-secondary) !important;
+            cursor: pointer !important;
+            transition: all 200ms ease !important;
+            flex-shrink: 0 !important;
+        }
+
+        .mobile-profile-btn:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .mobile-menu-toggle {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 44px !important;
+            min-height: 44px !important;
+            padding: 8px !important;
+            border-radius: 12px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: none !important;
+            color: var(--text-primary) !important;
+            cursor: pointer !important;
+            transition: all 200ms ease !important;
+            flex-shrink: 0 !important;
+        }
+
+        .mobile-menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: var(--current-accent) !important;
+        }
+
+        .mobile-menu-toggle:active {
+            transform: scale(0.95) !important;
+        }
+
+                 /* Mobile Menu Overlay - Fixed positioning */
+         .mobile-menu-overlay {
+             position: fixed !important;
+             top: 60px !important;
+             left: 0 !important;
+             right: 0 !important;
+             background: rgba(9, 10, 11, 0.98) !important;
+             backdrop-filter: blur(20px) !important;
+             -webkit-backdrop-filter: blur(20px) !important;
+             border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+             z-index: 9999 !important;
+             max-height: calc(100vh - 60px) !important;
+             overflow-y: auto !important;
+             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+             display: none !important;
+             opacity: 0 !important;
+             transform: translateY(-10px) !important;
+             transition: all 300ms ease-out !important;
+         }
+
+         .mobile-menu-overlay.active {
+             display: block !important;
+             opacity: 1 !important;
+             transform: translateY(0) !important;
+         }
+
+        
+
+        .mobile-menu-content {
+            padding: 1.5rem 1rem !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 1.5rem !important;
+        }
+
+        /* Mobile Search Section */
+        .mobile-search-section {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+        }
+
+        .mobile-search-input-wrapper {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.75rem !important;
+            padding: 0.75rem 1rem !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px !important;
+            transition: all 200ms ease !important;
+        }
+
+        .mobile-search-input-wrapper:focus-within {
+            border-color: var(--current-accent) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        .mobile-search-input {
+            flex: 1 !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            color: var(--text-primary) !important;
+            font-size: 0.875rem !important;
+            font-weight: 400 !important;
+        }
+
+        .mobile-search-input::placeholder {
+            color: var(--text-quaternary) !important;
+        }
+
+        /* Mobile Navigation Section */
+        .mobile-nav-section {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+        }
+
+        .mobile-nav-button {
+            width: 100% !important;
+            text-align: left !important;
+            padding: 0.875rem 1rem !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 12px !important;
+            color: var(--text-primary) !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 200ms ease !important;
+        }
+
+        .mobile-nav-button:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .mobile-nav-button.active {
+            background: rgba(var(--current-accent-rgb), 0.2) !important;
+            color: var(--current-accent) !important;
+        }
+
+        /* Mobile Mode Section */
+        .mobile-mode-section {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+        }
+
+        .mobile-mode-label {
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            color: var(--text-tertiary) !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
+            padding: 0 1rem !important;
+        }
+
+        .mobile-mode-buttons {
+            display: flex !important;
+            gap: 0.5rem !important;
+        }
+
+        .mobile-mode-button {
+            flex: 1 !important;
+            padding: 0.875rem 1rem !important;
+            background: transparent !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px !important;
+            color: var(--text-primary) !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 200ms ease !important;
+        }
+
+        .mobile-mode-button:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .mobile-mode-button.active.logbook {
+            background: rgba(52, 211, 153, 0.2) !important;
+            color: rgba(52, 211, 153, 0.9) !important;
+            border-color: rgba(52, 211, 153, 0.3) !important;
+        }
+
+        .mobile-mode-button.active.dream {
+            background: rgba(139, 92, 246, 0.2) !important;
+            color: rgba(139, 92, 246, 0.9) !important;
+            border-color: rgba(139, 92, 246, 0.3) !important;
+        }
+
+        /* Mobile Actions Section */
+        .mobile-actions-section {
+            padding-top: 1rem !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .mobile-action-button {
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.75rem !important;
+            padding: 0.875rem 1rem !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 12px !important;
+            color: var(--text-primary) !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 200ms ease !important;
+        }
+
+        .mobile-action-button:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+                 /* Responsive Breakpoints - Fixed gap issue */
+         
+         /* Mobile and Tablet - up to 1023px */
+         @media (max-width: 1023px) {
+             .header-mobile-controls {
+                 display: flex !important;
+             }
+             
+             .desktop-nav {
+                 display: none !important;
+             }
+         }
+
+         /* Mobile specific - up to 768px */
+         @media (max-width: 768px) {
+             .header-content {
+                 padding: 0 1rem !important;
+                 gap: 1rem !important;
+             }
+             
+             .header-title {
+                 font-size: 0.875rem !important;
+                 max-width: calc(100vw - 140px) !important;
+             }
+             
+             .header-status {
+                 display: none !important;
+             }
+         }
+
+         /* Tablet specific - 769px to 1023px */
+         @media (min-width: 769px) and (max-width: 1023px) {
+             .header-content {
+                 padding: 0 1.5rem !important;
+             }
+             
+             .header-title {
+                 font-size: 1rem !important;
+             }
+             
+             .header-status {
+                 display: inline !important;
+             }
+         }
+
+         /* Desktop - 1024px and up */
+         @media (min-width: 1024px) {
+             .header-status {
+                 display: inline !important;
+             }
+             
+             .header-mobile-controls {
+                 display: none !important;
+             }
+             
+             .desktop-nav {
+                 display: flex !important;
+             }
+             
+             .mobile-menu-overlay {
+                 display: none !important;
+             }
+             
+             .mobile-menu-overlay.active {
+                 display: none !important;
+             }
+         }
