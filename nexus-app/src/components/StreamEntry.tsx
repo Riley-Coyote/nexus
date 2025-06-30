@@ -224,20 +224,20 @@ export default function StreamEntry({
     if (branchContent.trim() && !isInteracting) {
       setIsInteracting(true);
       try {
-        // Use new efficient branch creation
-        await dataService.createBranch(entry.id, branchContent.trim());
+        // The direct call to dataService.createBranch is removed to prevent duplication.
+        // The onBranch prop, connected to useNexusData, will handle the creation and data refresh.
+        if (onBranch) {
+          await onBranch(entry.id, branchContent.trim());
         
-        // Update local state
-        setLocalInteractions(prev => ({
-          ...prev,
-          branches: prev.branches + 1
-        }));
+          // Update local state only after successful branch creation
+          setLocalInteractions(prev => ({
+            ...prev,
+            branches: prev.branches + 1
+          }));
         
-        // Call parent callback to refresh data
-        onBranch?.(entry.id, branchContent.trim());
-        
-        setBranchContent('');
-        setShowBranchComposer(false);
+          setBranchContent('');
+          setShowBranchComposer(false);
+        }
       } catch (error) {
         console.error('Error creating branch:', error);
       } finally {
