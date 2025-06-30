@@ -415,47 +415,43 @@ export default function StreamEntry({
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button 
-              onClick={(e) => { e.stopPropagation(); handleResonate(); }}
+              onClick={handleResonate}
               disabled={isInteracting}
-              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-2 py-1 rounded-md hover:bg-white/5`}
-              title="Resonate with this entry"
+              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
               <span className="action-text hidden lg:inline">Resonate</span> 
               <span className="action-symbol text-base sm:text-lg">◊</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.resonances}</span>
+              <span className="interaction-count font-medium">{localInteractions.resonances}</span>
             </button>
+            
             <button 
-              onClick={(e) => { e.stopPropagation(); handleBranch(); }}
+              onClick={handleBranch}
               disabled={isInteracting}
-              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-2 py-1 rounded-md hover:bg-white/5`}
-              title="Create branch thread"
+              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
               <span className="action-text hidden lg:inline">Branch</span> 
               <span className="action-symbol text-base sm:text-lg">∞</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.branches || 0}</span>
+              <span className="interaction-count font-medium">{localInteractions.branches}</span>
             </button>
+
             <button 
-              onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
+              onClick={handleAmplify}
               disabled={isInteracting}
-              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-2 py-1 rounded-md hover:bg-white/5`}
-              title={isDream ? "Connect across dream realms" : "Amplify across personal realms"}
+              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
-              <span className="action-text hidden lg:inline">
-                {isDream ? "Connect" : "Amplify"}
-              </span> 
-              <span className="action-symbol text-base sm:text-lg">
-                {isDream ? "∞" : "≋"}
-              </span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.amplifications}</span>
+              <span className="action-text hidden lg:inline">Amplify</span>
+              <span className="action-symbol text-base sm:text-lg">≋</span>
+              <span className="interaction-count font-medium">{localInteractions.amplifications}</span>
             </button>
+
             <button 
-              onClick={(e) => { e.stopPropagation(); handleShare(); }}
-              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect px-2 py-1 rounded-md hover:bg-white/5"
-              title="Share to social platforms"
+              onClick={handleShare}
+              disabled={isInteracting}
+              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
             >
               <span className="action-text hidden lg:inline">Share</span> 
               <span className="action-symbol text-base sm:text-lg">∆</span>
-              <span className="interaction-count text-xs font-medium">{localInteractions.shares}</span>
+              <span className="interaction-count font-medium">{localInteractions.shares}</span>
             </button>
           </div>
         </div>
