@@ -211,7 +211,7 @@ class SupabaseAuthService {
           return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
         }
         if (error.message.includes('Email not confirmed')) {
-          return { success: false, error: 'Please verify your email address before signing in.' };
+          return { success: false, error: 'Please verify your email address before signing in.', needsVerification: true };
         }
         return { success: false, error: error.message };
       }
@@ -222,6 +222,17 @@ class SupabaseAuthService {
           error: 'Please verify your email address before signing in.',
           needsVerification: true
         };
+      }
+
+      // Update auth state now that sign-in succeeded
+      if (data.session) {
+        await this.handleAuthStateChange(data.session);
+      } else {
+        // Fallback: fetch current session and update
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          await this.handleAuthStateChange(sessionData.session);
+        }
       }
 
       return { success: true };

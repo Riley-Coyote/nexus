@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { StreamEntry, User } from '../types';
 import { 
   DatabaseProvider, 
@@ -18,14 +19,11 @@ import {
 } from './types';
 
 export class SupabaseProvider implements DatabaseProvider {
-  private client: SupabaseClient;
-  private isConnected = false;
+  private client: SupabaseClient = supabase;
+  private isConnected = true;
 
-  constructor(
-    private supabaseUrl: string,
-    private supabaseKey: string
-  ) {
-    this.client = createClient(supabaseUrl, supabaseKey);
+  constructor() {
+    // Using shared Supabase client instance from src/lib/supabase.ts
   }
 
   async connect(): Promise<void> {
@@ -35,7 +33,6 @@ export class SupabaseProvider implements DatabaseProvider {
       if (error && !error.message.includes('does not exist')) {
         throw error;
       }
-      this.isConnected = true;
       console.log('✅ Connected to Supabase');
     } catch (error) {
       console.error('❌ Failed to connect to Supabase:', error);

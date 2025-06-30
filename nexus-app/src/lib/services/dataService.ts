@@ -11,7 +11,8 @@ import {
   DreamPatterns,
   User
 } from '../types';
-import { authService } from './authService';
+import { authService } from './supabaseAuthService';
+import { supabase } from '../supabase';
 import { StreamEntryData } from '../../components/StreamEntry';
 import { DatabaseFactory } from '../database/factory';
 import { DatabaseProvider, InteractionCounts, UserInteractionState } from '../database/types';
@@ -40,7 +41,7 @@ const DEBUG_USE_MOCK_DATA = false; // 👈 Switch to false to use new database s
 
 // Configuration for switching between mock and database
 const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // Threading configuration
 const THREADING_CONFIG = {
@@ -863,9 +864,26 @@ class DataService {
   async submitEntry(content: string, type: string, isPublic: boolean, mode: 'logbook' | 'dream'): Promise<StreamEntry> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    // Ensure we have the authenticated user
+    let currentUser = authService.getCurrentUser();
     if (!currentUser) {
-      throw new Error('User must be authenticated to submit entries');
+      // Attempt to rehydrate from Supabase session
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        throw new Error('User must be authenticated to submit entries');
+      }
+      // Construct minimal User object (used for submit only)
+      currentUser = {
+        id: user.id,
+        username: user.user_metadata?.name || user.email?.split('@')[0] || user.id,
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        email: user.email || undefined,
+        userType: 'human',
+        role: 'Explorer',
+        avatar: (user.email?.slice(0, 2) || 'US').toUpperCase(),
+        stats: { entries: 0, dreams: 0, connections: 0 },
+        createdAt: new Date().toISOString()
+      };
     }
     
     // Create entry object
