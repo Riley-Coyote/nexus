@@ -1513,266 +1513,173 @@ class DataService {
   }
 
   // NEW: Profile update functionality
-  async updateUserProfile(userId: string, updates: { name?: string; bio?: string; location?: string }): Promise<User> {
+  async updateUserProfile(updates: { name?: string; bio?: string; location?: string }): Promise<User> {
     await this.initializeData();
     
     const currentUser = authService.getCurrentUser();
-    
+    if (!currentUser) {
+      throw new Error('User not authenticated. Cannot update profile.');
+    }
+
     if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: just log the update (since we don't store user profiles in mock mode)
-      console.log('📝 Profile update in mock mode (no persistence):', { userId, updates });
-      
-      // Update the current user in auth service if it's the same user
-      if (currentUser && currentUser.id === userId) {
-        // This would need to be implemented in authService to persist to localStorage
-        console.log('🔄 Would update current user profile in localStorage');
-        return { ...currentUser, ...updates };
+      const user = mockUsers.find(u => u.id === currentUser.id);
+      if (user) {
+        Object.assign(user, updates, { updated_at: new Date().toISOString() });
+        console.log(`[Mock] Updated profile for user ${currentUser.id}:`, updates);
+        return Promise.resolve(user);
       }
-      
-      throw new Error('User not found');
+      throw new Error('User not found in mock data.');
     }
     
-    try {
-      if (!this.database.updateUser) {
+    if (!this.database.updateUser) {
         throw new Error('User update not supported by current database provider');
-      }
-      
-      const updatedUser = await this.database.updateUser(userId, updates);
-      console.log('✅ Profile updated successfully:', { userId, updates });
-      return updatedUser;
-    } catch (error) {
-      console.error('❌ Failed to update user profile:', error);
-      throw error;
     }
+    return this.database.updateUser(currentUser.id, updates);
   }
 
   async getUserProfile(userId: string): Promise<User | null> {
     await this.initializeData();
-    
+
     if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: return current user if it matches
-      const currentUser = authService.getCurrentUser();
-      if (currentUser && currentUser.id === userId) {
-        return currentUser;
-      }
-      return null;
+      const user = mockUsers.find(u => u.id === userId);
+      return Promise.resolve(user || null);
     }
     
-    try {
-      if (!this.database.getUser) {
-        throw new Error('User retrieval not supported by current database provider');
-      }
-      
-      return await this.database.getUser(userId);
-    } catch (error) {
-      console.error('❌ Failed to get user profile:', error);
-      return null;
+    if (!this.database.getUser) {
+      throw new Error('User retrieval not supported by current database provider');
     }
+    return this.database.getUser(userId);
   }
 
   // === FOLLOW SYSTEM METHODS ===
 
-  async followUser(followerId: string, followedId: string): Promise<boolean> {
+  async followUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    if (USE_MOCK_DATA || !this.database) {
-      console.log('📝 Follow user in mock mode (no persistence):', { followerId, followedId });
-      // In mock mode, we could implement a simple in-memory follow system
-      // For now, just return true to indicate success
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      console.error('Authentication error: Cannot follow user without being logged in.');
+      return false;
+    }
+    if (currentUser.id === followedId) {
+      console.warn('User cannot follow themselves.');
+      return false;
+    }
+
+    if (USE_MOCK_DATA || !this.database || !this.database.followUser) {
+      console.log('📝 Follow user in mock mode (no persistence):', { followerId: currentUser.id, followedId });
       return true;
     }
     
-    try {
-      if (!this.database.followUser) {
-        throw new Error('Follow functionality not supported by current database provider');
-      }
-      
-      const result = await this.database.followUser(followerId, followedId);
-      console.log('✅ User followed successfully:', { followerId, followedId, result });
-      return result;
-    } catch (error) {
-      console.error('❌ Failed to follow user:', error);
-      throw error;
-    }
+    return this.database.followUser(currentUser.id, followedId);
   }
 
-  async unfollowUser(followerId: string, followedId: string): Promise<boolean> {
+  async unfollowUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    if (USE_MOCK_DATA || !this.database) {
-      console.log('📝 Unfollow user in mock mode (no persistence):', { followerId, followedId });
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      console.error('Authentication error: Cannot unfollow user without being logged in.');
+      return false;
+    }
+
+    if (USE_MOCK_DATA || !this.database || !this.database.unfollowUser) {
+      console.log('📝 Unfollow user in mock mode (no persistence):', { followerId: currentUser.id, followedId });
       return true;
     }
     
-    try {
-      if (!this.database.unfollowUser) {
-        throw new Error('Unfollow functionality not supported by current database provider');
-      }
-      
-      const result = await this.database.unfollowUser(followerId, followedId);
-      console.log('✅ User unfollowed successfully:', { followerId, followedId, result });
-      return result;
-    } catch (error) {
-      console.error('❌ Failed to unfollow user:', error);
-      throw error;
-    }
+    return this.database.unfollowUser(currentUser.id, followedId);
   }
 
-  async isFollowing(followerId: string, followedId: string): Promise<boolean> {
+  async isFollowing(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: return false for now
-      return false;
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) return false;
+
+    if (USE_MOCK_DATA || !this.database || !this.database.isFollowing) {
+      return Promise.resolve(currentUser.id === 'user-1' && followedId === 'user-2');
     }
     
-    try {
-      if (!this.database.isFollowing) {
-        return false;
-      }
-      
-      return await this.database.isFollowing(followerId, followedId);
-    } catch (error) {
-      console.error('❌ Failed to check follow status:', error);
-      return false;
-    }
+    return this.database.isFollowing(currentUser.id, followedId);
   }
 
   async getFollowers(userId: string, limit: number = 50, offset: number = 0) {
     await this.initializeData();
-    
-    if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: return empty array
-      console.log('📝 Get followers in mock mode (no data):', { userId, limit, offset });
+    if (USE_MOCK_DATA || !this.database || !this.database.getFollowers) {
       return [];
     }
-    
-    try {
-      if (!this.database.getFollowers) {
-        return [];
-      }
-      
-      return await this.database.getFollowers(userId, limit, offset);
-    } catch (error) {
-      console.error('❌ Failed to get followers:', error);
-      return [];
-    }
+    return this.database.getFollowers(userId, limit, offset);
   }
 
   async getFollowing(userId: string, limit: number = 50, offset: number = 0) {
     await this.initializeData();
-    
-    if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: return empty array
-      console.log('📝 Get following in mock mode (no data):', { userId, limit, offset });
+    if (USE_MOCK_DATA || !this.database || !this.database.getFollowing) {
       return [];
     }
-    
-    try {
-      if (!this.database.getFollowing) {
-        return [];
-      }
-      
-      return await this.database.getFollowing(userId, limit, offset);
-    } catch (error) {
-      console.error('❌ Failed to get following:', error);
-      return [];
-    }
+    return this.database.getFollowing(userId, limit, offset);
   }
 
   async getMutualFollows(userId: string, limit: number = 50) {
     await this.initializeData();
-    
-    if (USE_MOCK_DATA || !this.database) {
-      console.log('📝 Get mutual follows in mock mode (no data):', { userId, limit });
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) return [];
+
+    if (USE_MOCK_DATA || !this.database || !this.database.getMutualFollows) {
       return [];
     }
-    
-    try {
-      if (!this.database.getMutualFollows) {
-        return [];
-      }
-      
-      return await this.database.getMutualFollows(userId, limit);
-    } catch (error) {
-      console.error('❌ Failed to get mutual follows:', error);
-      return [];
-    }
+
+    // @ts-ignore
+    return this.database.getMutualFollows(currentUser.id, userId, limit);
   }
 
-  async getFollowSuggestions(userId: string, limit: number = 10) {
+  async getFollowSuggestions(limit: number = 10) {
     await this.initializeData();
-    
-    if (USE_MOCK_DATA || !this.database) {
-      console.log('📝 Get follow suggestions in mock mode (no data):', { userId, limit });
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      console.warn("Cannot get follow suggestions for a logged-out user.");
       return [];
     }
-    
-    try {
-      if (!this.database.getFollowSuggestions) {
-        return [];
-      }
-      
-      return await this.database.getFollowSuggestions(userId, limit);
-    } catch (error) {
-      console.error('❌ Failed to get follow suggestions:', error);
-      return [];
+
+    if (USE_MOCK_DATA || !this.database || !this.database.getFollowSuggestions) {
+      return mockUsers.filter(u => u.id !== currentUser.id).slice(0, limit);
     }
+    return this.database.getFollowSuggestions(currentUser.id, limit);
   }
 
-  async bulkCheckFollowing(followerId: string, userIds: string[]): Promise<Map<string, boolean>> {
+  async bulkCheckFollowing(userIds: string[]): Promise<Map<string, boolean>> {
     await this.initializeData();
-    
-    if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: return empty map
-      return new Map();
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      return new Map(userIds.map(id => [id, false]));
     }
     
-    try {
-      if (!this.database.bulkCheckFollowing) {
-        return new Map();
-      }
-      
-      return await this.database.bulkCheckFollowing(followerId, userIds);
-    } catch (error) {
-      console.error('❌ Failed to bulk check following:', error);
-      return new Map();
+    if (USE_MOCK_DATA || !this.database || !this.database.bulkCheckFollowing) {
+      const result = new Map<string, boolean>();
+      userIds.forEach(id => result.set(id, id === 'agent-synthesis'));
+      return Promise.resolve(result);
     }
+    return this.database.bulkCheckFollowing(currentUser.id, userIds);
   }
 
-  // User profile methods
   async getUserByUsername(username: string): Promise<User | null> {
     await this.initializeData();
-    
+
     if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: check mock users
-      const mockUser = getMockUserByUsername(username);
-      if (mockUser) {
-        console.log(`👤 Found mock user: ${username}`);
-        return mockUser;
-      }
-      
-      console.log(`👤 Mock user not found: ${username}`);
-      return null;
+      const user = getMockUserByUsername(username);
+      return user || null;
     }
-    
-    try {
-      if (!this.database.getUserByUsername) {
-        throw new Error('User retrieval not supported by current database provider');
-      }
-      
-      return await this.database.getUserByUsername(username);
-    } catch (error) {
-      console.error('❌ Failed to get user by username:', error);
-      return null;
+
+    if (!this.database.getUserByUsername) {
+      throw new Error('User retrieval by username not supported by current database provider');
     }
+    return this.database.getUserByUsername(username);
   }
 
   async getUserPostsByUsername(username: string, limit: number = 50): Promise<StreamEntry[]> {
     await this.initializeData();
-    
+
     if (USE_MOCK_DATA || !this.database) {
-      // Mock mode: filter posts by username
       const userPosts = [...this.logbookEntries, ...this.sharedDreams]
         .filter(entry => entry.agent === username)
         .slice(0, limit)
@@ -1782,18 +1689,12 @@ class DataService {
       return userPosts;
     }
     
-    try {
-      if (!this.database.getUserPostsByUsername) {
-        throw new Error('User posts retrieval not supported by current database provider');
-      }
-      
-      return await this.database.getUserPostsByUsername(username, limit);
-    } catch (error) {
-      console.error('❌ Failed to get user posts:', error);
-      return [];
+    if (!this.database.getUserPostsByUsername) {
+      throw new Error('User posts retrieval not supported by current database provider');
     }
+    return this.database.getUserPostsByUsername(username, limit);
   }
 }
 
 // Export singleton instance
-export const dataService = new DataService(); 
+export const dataService = new DataService();
