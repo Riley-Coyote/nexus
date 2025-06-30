@@ -1,0 +1,254 @@
+/* Mobile Responsiveness Fixes */
+
+/* Fix mobile viewport and prevent horizontal scroll */
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden !important;
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    /* Fix main grid layout - force single column */
+    .main-layout {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        overflow: visible !important;
+        grid-template-columns: none !important;
+        gap: 0 !important;
+    }
+
+    /* Fix app container padding for bottom nav */
+    #app-container {
+        padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Ensure all journal views are block layout on mobile */
+    #consciousness-journal,
+    #dream-journal {
+        display: block !important;
+        grid-template-columns: none !important;
+        width: 100% !important;
+    }
+
+    /* Fix content areas to prevent overflow */
+    #consciousness-journal > main,
+    #dream-journal > main,
+    #nexus-feed-view,
+    #resonance-field-view,
+    #profile-view {
+        width: 100% !important;
+        max-width: 100vw !important;
+        padding: 1rem !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Improve bottom navigation with safe areas */
+    #app-header nav {
+        bottom: 0;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        height: calc(60px + env(safe-area-inset-bottom)) !important;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.2) !important;
+    }
+
+    #nav-links {
+        padding: 0 env(safe-area-inset-left) 0 env(safe-area-inset-right) !important;
+        height: 60px !important;
+    }
+
+    /* Larger touch targets for mobile */
+    .btn {
+        min-height: 48px !important;
+        padding: 0 24px !important;
+        touch-action: manipulation !important;
+    }
+
+    .interaction-btn {
+        min-height: 44px !important;
+        padding: 8px 16px !important;
+        touch-action: manipulation !important;
+    }
+
+    .interactive-icon {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Fix text readability */
+    .stream-content,
+    .post-content,
+    .branch-content {
+        font-size: 0.9375rem !important;
+        line-height: 1.7 !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    /* Fix card and panel overflow */
+    .glass-panel,
+    .glass-card,
+    .glass-sidebar {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Fix horizontal scrolling in posts */
+    .thread-entry,
+    .stream-entry-lazy-load {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Improve interaction button layout on mobile */
+    .interaction-section {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .interaction-section > div {
+        flex-wrap: nowrap !important;
+        min-width: max-content !important;
+    }
+
+    /* Hide action text on mobile, show only icons */
+    .interaction-btn .action-text {
+        display: none !important;
+    }
+
+    .interaction-btn {
+        padding: 8px 12px !important;
+        gap: 4px !important;
+    }
+
+    /* Fix messenger modal on mobile */
+    #messenger-container {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+    }
+
+    /* Fix edit profile modal */
+    #edit-profile-panel {
+        height: calc(100vh - env(safe-area-inset-top)) !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Improve form inputs on mobile */
+    .entry-composer-textarea,
+    input[type="text"],
+    textarea {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        -webkit-appearance: none !important;
+    }
+
+    /* Fix profile view elements */
+    .profile-banner {
+        height: 120px !important;
+    }
+
+    .profile-avatar-lg {
+        width: 80px !important;
+        height: 80px !important;
+        margin-top: -40px !important;
+    }
+
+    /* Performance optimizations for mobile */
+    .parallax-layer-1,
+    .parallax-layer-2,
+    .parallax-layer-3,
+    .parallax-layer-4 {
+        transform: none !important;
+    }
+
+    .depth-responsive:hover {
+        transform: none !important;
+    }
+
+    /* Disable complex animations on mobile */
+    * {
+        animation-duration: 0.2s !important;
+    }
+
+    /* Fix search container */
+    .search-container {
+        width: 100% !important;
+        max-width: 200px !important;
+    }
+
+    /* Journal toggle mobile fix */
+    #journal-toggle {
+        order: -1 !important;
+        margin-right: auto !important;
+    }
+
+    /* Header layout adjustments */
+    #app-header .header-content {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    /* Fix overlapping elements */
+    .z-10 { z-index: 10 !important; }
+    .z-20 { z-index: 20 !important; }
+    .z-30 { z-index: 30 !important; }
+    .z-50 { z-index: 50 !important; }
+    .z-100 { z-index: 100 !important; }
+    .z-200 { z-index: 200 !important; }
+}
+
+/* Small mobile devices */
+@media (max-width: 375px) {
+    /* Even more compact spacing */
+    #consciousness-journal > main,
+    #dream-journal > main,
+    #nexus-feed-view,
+    #resonance-field-view {
+        padding: 0.75rem !important;
+    }
+
+    .glass-panel,
+    .glass-card {
+        padding: 12px !important;
+    }
+
+    .btn {
+        font-size: 0.8125rem !important;
+        padding: 0 16px !important;
+    }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* Fix iOS rubber-band scrolling */
+    body {
+        position: fixed;
+        width: 100%;
+        height: 100vh;
+    }
+
+    #app-container {
+        height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Android specific fixes */
+@media (hover: none) and (pointer: coarse) {
+    /* Ensure touch interactions work properly */
+    .interactive-card:active,
+    .interactive-panel:active,
+    .btn:active {
+        transform: scale(0.98) !important;
+    }
+}

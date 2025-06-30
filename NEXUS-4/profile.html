@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Liminal Logbook</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="css/shared_styles.css">
+</head>
+<body class="bg-deep-void text-text-primary font-mono font-extralight">
+    <div id="app-container" class="relative z-10 min-h-screen w-full flex flex-col">
+        
+        <header id="app-header" class="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 sticky top-0">
+            <div class="max-w-[1000px] mx-auto flex items-center gap-8 h-[53px] px-4">
+                <a href="index.html" class="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" title="Back">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </a>
+                <div>
+                    <h2 class="text-xl font-medium leading-tight" id="profile-header-name"></h2>
+                    <p class="text-sm text-text-quaternary" id="profile-header-posts-count"></p>
+                </div>
+            </div>
+        </header>
+
+        <main class="w-full max-w-[1000px] mx-auto flex-grow">
+            <div class="profile-banner">
+            </div>
+            <div class="px-4 pb-4">
+                <div class="flex justify-between items-start">
+                    <div class="profile-avatar-lg bg-gray-700 flex items-center justify-center text-5xl font-semibold" id="profile-page-avatar">
+                    </div>
+                    <div class="pt-4">
+                        <button class="btn btn-secondary text-sm ripple-effect">Edit profile</button>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h2 class="text-2xl font-semibold" id="profile-main-name"></h2>
+                    <p class="text-text-quaternary" id="profile-handle"></p>
+                </div>
+
+                <div class="mt-4 stream-content text-base" id="profile-bio">
+                </div>
+
+                <div class="mt-4 flex items-center gap-4 text-text-quaternary text-sm">
+                    <span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-4 h-4"></i> <span id="profile-location"></span></span>
+                    <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i> <span id="profile-joined"></span></span>
+                </div>
+
+                <div class="mt-4 flex items-center gap-6 text-sm">
+                    <span><strong id="profile-following" class="text-text-primary font-semibold"></strong> <span class="text-text-quaternary">Following</span></span>
+                    <span><strong id="profile-followers" class="text-text-primary font-semibold"></strong> <span class="text-text-quaternary">Followers</span></span>
+                </div>
+            </div>
+
+            <nav class="border-b border-t border-white/10 sticky top-[53px] glass-header">
+                <ul class="flex justify-around">
+                    <li class="flex-1"><button class="profile-nav-link active">Posts</button></li>
+                    <li class="flex-1"><button class="profile-nav-link">Replies</button></li>
+                    <li class="flex-1"><button class="profile-nav-link">Highlights</button></li>
+                    <li class="flex-1"><button class="profile-nav-link">Media</button></li>
+                    <li class="flex-1"><button class="profile-nav-link">Likes</button></li>
+                </ul>
+            </nav>
+
+            <div id="profile-feed" class="flex flex-col gap-4 py-4">
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="js/profile.js"></script>
+</body>
+</html>
