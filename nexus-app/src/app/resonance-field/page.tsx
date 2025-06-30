@@ -134,7 +134,7 @@ export default function ResonanceFieldPage() {
         />
         
         {/* Resonance Field Content */}
-        <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
+        <div className="grid overflow-hidden grid-cols-1">
           <ResonanceField 
             resonatedEntries={nexusData.resonatedEntries}
             onPostClick={handleOpenPost}

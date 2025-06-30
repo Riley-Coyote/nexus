@@ -242,6 +242,113 @@
         .font-normal { font-weight: 400; }
         .font-medium { font-weight: 500; }
         .font-semibold { font-weight: 600; }
+
+        /* Mobile-Specific Enhancements */
+        @media (max-width: 1023px) {
+            /* Ensure touch targets are large enough on mobile */
+            .interaction-btn {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 0.5rem !important;
+            }
+            
+            /* Better spacing for mobile cards */
+            .glass-panel-enhanced {
+                padding: 1rem !important;
+                margin-bottom: 1rem;
+            }
+            
+            /* Improve readability on mobile */
+            .rich-text-content {
+                font-size: 0.9rem;
+                line-height: 1.5;
+            }
+            
+            /* Mobile header adjustments */
+            .glass-header {
+                padding: 0 1rem !important;
+                height: 60px !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                z-index: 100 !important;
+            }
+            
+            /* Add top padding to main content to prevent header overlap */
+            main, .parallax-layer-3 {
+                height: calc(100vh - 60px) !important;
+                margin-top: 60px !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Grid container adjustments for mobile */
+            .grid.grid-rows-\\[auto_1fr\\] {
+                grid-template-rows: auto 1fr !important;
+            }
+        }
+
+        /* Tablet-specific adjustments */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .glass-panel-enhanced {
+                padding: 1.5rem !important;
+            }
+            
+            .interaction-btn {
+                padding: 0.375rem 0.75rem !important;
+            }
+        }
+
+        /* Improved mobile menu overlay */
+        .mobile-menu-overlay {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Mobile-first improvements for text and spacing */
+        @media (max-width: 767px) {
+            /* Smaller text on very small screens */
+            body {
+                font-size: 14px;
+            }
+            
+            /* Compact header on small mobile */
+            .glass-header {
+                height: 56px !important;
+            }
+            
+            /* Adjust main content for smaller header */
+            main, .parallax-layer-3 {
+                height: calc(100vh - 56px) !important;
+                margin-top: 56px !important;
+            }
+            
+            /* Ensure content doesn't get hidden behind header */
+            .main-content-mobile {
+                padding-top: 56px;
+            }
+            
+            /* Better button sizing for small screens */
+            .interaction-btn .action-symbol {
+                font-size: 1.1rem !important;
+            }
+            
+            .interaction-btn .interaction-count {
+                font-size: 0.75rem !important;
+            }
+            
+            /* Mobile close button improvements */
+            .lg\\:hidden {
+                display: flex !important;
+            }
+            
+            /* Better touch targets for mobile close button */
+            .lg\\:hidden button {
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
         .font-bold { font-weight: 700; }
 
         /* Refined text sizing */
@@ -1983,13 +2090,14 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(20px);
-            z-index: 1000;
+            z-index: 1001; /* Higher than fixed header */
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             visibility: hidden;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 1rem;
         }
 
         .post-overlay.active {
@@ -2000,7 +2108,7 @@
         .post-overlay-content {
             max-width: 800px;
             max-height: 90vh;
-            width: 90vw;
+            width: 100%;
             background: var(--deep-void);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
@@ -2012,6 +2120,109 @@
 
         .post-overlay.active .post-overlay-content {
             transform: scale(1) translateY(0);
+        }
+
+        /* Mobile-specific overlay adjustments */
+        @media (max-width: 1023px) {
+            .post-overlay {
+                padding: 0.5rem;
+                align-items: flex-start;
+                padding-top: 2rem;
+            }
+            
+            .post-overlay-content {
+                max-height: 95vh;
+                border-radius: 16px;
+            }
+            
+            .post-overlay-header {
+                padding: 1.5rem 1rem 1rem !important;
+            }
+            
+            .post-overlay-body {
+                padding: 1rem !important;
+            }
+            
+            .post-overlay-actions {
+                padding: 1rem !important;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .post-overlay-close {
+                top: 0.75rem !important;
+                right: 0.75rem !important;
+                width: 44px !important;
+                height: 44px !important;
+                background: rgba(0, 0, 0, 0.9) !important;
+                border: 2px solid rgba(255, 255, 255, 0.5) !important;
+                color: white !important;
+                z-index: 50 !important;
+                backdrop-filter: blur(20px) !important;
+            }
+            
+            .post-overlay-close:hover {
+                background: rgba(0, 0, 0, 1) !important;
+                border-color: rgba(255, 255, 255, 0.7) !important;
+                transform: scale(1.05) !important;
+            }
+        }
+
+        /* Small mobile screens */
+        @media (max-width: 767px) {
+            .post-overlay {
+                padding: 0;
+                align-items: stretch;
+            }
+            
+            .post-overlay-content {
+                max-height: 100vh;
+                border-radius: 0;
+                border: none;
+                width: 100vw;
+            }
+            
+            .post-overlay-header {
+                padding: 1rem 1rem 0.75rem !important;
+            }
+            
+            .post-overlay-body {
+                padding: 0.75rem 1rem !important;
+            }
+            
+            .post-overlay-actions {
+                padding: 0.75rem 1rem 1rem !important;
+            }
+            
+            .post-overlay-title {
+                font-size: 1.25rem !important;
+                margin-bottom: 0.75rem !important;
+            }
+            
+            .post-overlay-meta {
+                font-size: 0.8rem !important;
+                gap: 0.75rem !important;
+                flex-wrap: wrap;
+            }
+            
+            .post-overlay-close {
+                top: 0.5rem !important;
+                right: 0.5rem !important;
+                width: 44px !important;
+                height: 44px !important;
+                background: rgba(0, 0, 0, 0.95) !important;
+                border: 2px solid rgba(255, 255, 255, 0.6) !important;
+                color: white !important;
+                z-index: 100 !important;
+                backdrop-filter: blur(20px) !important;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+            }
+            
+            .post-overlay-close:hover {
+                background: rgba(0, 0, 0, 1) !important;
+                border-color: rgba(255, 255, 255, 0.8) !important;
+                transform: scale(1.05) !important;
+            }
         }
 
         .post-overlay-header {
@@ -2051,6 +2262,7 @@
             background: rgba(255, 255, 255, 0.2);
             color: var(--text-primary);
             transform: scale(1.1);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
         .post-overlay-title {

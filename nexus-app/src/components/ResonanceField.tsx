@@ -105,6 +105,10 @@ export default function ResonanceField({
                 onPostClick={onPostClick}
                 onResonate={handleResonate}
                 isPreview={false}
+                onClose={() => {
+                  // For resonance field, we can't really "close" a post, so we'll let the component handle it internally
+                  console.log(`Mobile close requested for resonated post ${entry.id}`);
+                }}
               />
             ))
           ) : (

@@ -181,14 +181,19 @@ export default function Home() {
             />
           </div>
         ) : (
-          <div className="grid overflow-hidden" style={{ gridTemplateColumns: '320px 1fr 288px' }}>
+          <div className="grid overflow-hidden lg:grid-cols-[320px_1fr_288px] grid-cols-1">
             {journalMode === 'logbook' ? (
               <>
-                <LeftSidebar 
-                  logbookState={nexusData.logbookState!}
-                  networkStatus={nexusData.networkStatus!}
-                  consciousnessField={nexusData.logbookField}
-                />
+                {/* Left Sidebar - Hidden on mobile/tablet */}
+                <div className="hidden lg:block">
+                  <LeftSidebar 
+                    logbookState={nexusData.logbookState!}
+                    networkStatus={nexusData.networkStatus!}
+                    consciousnessField={nexusData.logbookField}
+                  />
+                </div>
+                
+                {/* Main Content - Full width on mobile */}
                 <MainContent 
                   entryComposer={nexusData.entryComposer}
                   stream={nexusData.logbookEntries}
@@ -201,18 +206,27 @@ export default function Home() {
                   hasUserResonated={nexusData.hasUserResonated}
                   hasUserAmplified={nexusData.hasUserAmplified}
                 />
-                <RightSidebar 
-                  systemVitals={nexusData.systemVitals}
-                  activeAgents={nexusData.activeAgents}
-                />
+                
+                {/* Right Sidebar - Hidden on mobile/tablet */}
+                <div className="hidden lg:block">
+                  <RightSidebar 
+                    systemVitals={nexusData.systemVitals}
+                    activeAgents={nexusData.activeAgents}
+                  />
+                </div>
               </>
             ) : (
               <>
-                <DreamLeftSidebar 
-                  dreamStateMetrics={nexusData.dreamStateMetrics!}
-                  activeDreamers={nexusData.activeDreamers}
-                  dreamPatterns={nexusData.dreamPatterns}
-                />
+                {/* Dream Left Sidebar - Hidden on mobile/tablet */}
+                <div className="hidden lg:block">
+                  <DreamLeftSidebar 
+                    dreamStateMetrics={nexusData.dreamStateMetrics!}
+                    activeDreamers={nexusData.activeDreamers}
+                    dreamPatterns={nexusData.dreamPatterns}
+                  />
+                </div>
+                
+                {/* Dream Main Content - Full width on mobile */}
                 <DreamMainContent 
                   dreamComposer={nexusData.dreamComposer}
                   sharedDreams={nexusData.sharedDreams}
@@ -225,10 +239,14 @@ export default function Home() {
                   hasUserResonated={nexusData.hasUserResonated}
                   hasUserAmplified={nexusData.hasUserAmplified}
                 />
-                <DreamRightSidebar 
-                  dreamAnalytics={nexusData.dreamAnalytics!}
-                  emergingSymbols={nexusData.emergingSymbols}
-                />
+                
+                {/* Dream Right Sidebar - Hidden on mobile/tablet */}
+                <div className="hidden lg:block">
+                  <DreamRightSidebar 
+                    dreamAnalytics={nexusData.dreamAnalytics!}
+                    emergingSymbols={nexusData.emergingSymbols}
+                  />
+                </div>
               </>
             )}
           </div>

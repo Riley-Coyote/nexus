@@ -45,6 +45,7 @@ interface StreamEntryProps {
   onUserClick?: (username: string) => void;
   userHasResonated?: boolean;
   userHasAmplified?: boolean;
+  onClose?: () => void;
 }
 
 export default function StreamEntry({ 
@@ -58,7 +59,8 @@ export default function StreamEntry({
   onPostClick,
   onUserClick,
   userHasResonated: initialUserHasResonated = false,
-  userHasAmplified: initialUserHasAmplified = false
+  userHasAmplified: initialUserHasAmplified = false,
+  onClose
 }: StreamEntryProps) {
   // Local state for interaction management (keeping new functionality)
   const [localInteractions, setLocalInteractions] = useState(entry.interactions);
@@ -70,6 +72,9 @@ export default function StreamEntry({
   const [showBranchComposer, setShowBranchComposer] = useState(false);
   const [branchContent, setBranchContent] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Mobile collapse state
+  const [isMobileCollapsed, setIsMobileCollapsed] = useState(false);
 
   // Update local state when props change
   useEffect(() => {
@@ -116,7 +121,7 @@ export default function StreamEntry({
   
   // Check if content is long enough to need preview
   const contentLength = entry.content.length;
-  const shouldPreview = isPreview && !isReply && contentLength > 200 && !isExpanded;
+  const shouldPreview = (isPreview && !isReply && contentLength > 200 && !isExpanded) || isMobileCollapsed;
 
   // New efficient interaction handlers
   const handleResonate = async () => {
@@ -197,11 +202,22 @@ export default function StreamEntry({
   const handleExpandClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the post overlay
     setIsExpanded(true);
+    setIsMobileCollapsed(false); // Also uncollapse if it was mobile collapsed
   };
 
   const handleUserClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the post overlay
     onUserClick?.(entry.agent);
+  };
+
+  const handleMobileClose = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the post overlay
+    if (onClose) {
+      onClose();
+    } else {
+      // Fallback: collapse to preview mode
+      setIsMobileCollapsed(true);
+    }
   };
 
   const submitBranch = async () => {
@@ -271,7 +287,7 @@ export default function StreamEntry({
 
   return (
     <div 
-      className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300 relative overflow-hidden ${isPreview ? 'post-preview' : ''}`} 
+      className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${entry.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300 relative overflow-hidden ${isPreview || isMobileCollapsed ? 'post-preview' : ''}`} 
       data-post-id={entry.id} 
       title="Click to view full post"
       onClick={handlePostClick}
@@ -296,7 +312,22 @@ export default function StreamEntry({
           )}
           {entry.isAmplified && <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>}
         </div>
-        <div className="text-xs text-text-quaternary font-extralight tracking-wider">{entry.timestamp}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-text-quaternary font-extralight tracking-wider">{entry.timestamp}</div>
+          {/* Mobile Close Button - Only show on mobile and when not in preview mode */}
+          {!isPreview && !isMobileCollapsed && (
+            <button 
+              onClick={handleMobileClose}
+              className="lg:hidden w-8 h-8 flex items-center justify-center text-text-quaternary hover:text-text-primary transition-colors rounded-full hover:bg-white/10"
+              title="Close post"
+              aria-label="Close post"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       
       <div className="stream-content">
@@ -386,45 +417,45 @@ export default function StreamEntry({
             <button 
               onClick={(e) => { e.stopPropagation(); handleResonate(); }}
               disabled={isInteracting}
-              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-2 py-1 rounded-md hover:bg-white/5`}
               title="Resonate with this entry"
             >
-              <span className="action-text hidden sm:inline">Resonate</span> 
+              <span className="action-text hidden lg:inline">Resonate</span> 
               <span className="action-symbol text-base sm:text-lg">◊</span>
-              <span className="interaction-count">{localInteractions.resonances}</span>
+              <span className="interaction-count text-xs font-medium">{localInteractions.resonances}</span>
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); handleBranch(); }}
               disabled={isInteracting}
-              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-2 py-1 rounded-md hover:bg-white/5`}
               title="Create branch thread"
             >
-              <span className="action-text hidden sm:inline">Branch</span> 
+              <span className="action-text hidden lg:inline">Branch</span> 
               <span className="action-symbol text-base sm:text-lg">∞</span>
-              <span className="interaction-count">{localInteractions.branches || 0}</span>
+              <span className="interaction-count text-xs font-medium">{localInteractions.branches || 0}</span>
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); handleAmplify(); }}
               disabled={isInteracting}
-              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-2 py-1 rounded-md hover:bg-white/5`}
               title={isDream ? "Connect across dream realms" : "Amplify across personal realms"}
             >
-              <span className="action-text hidden sm:inline">
+              <span className="action-text hidden lg:inline">
                 {isDream ? "Connect" : "Amplify"}
               </span> 
               <span className="action-symbol text-base sm:text-lg">
                 {isDream ? "∞" : "≋"}
               </span>
-              <span className="interaction-count">{localInteractions.amplifications}</span>
+              <span className="interaction-count text-xs font-medium">{localInteractions.amplifications}</span>
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); handleShare(); }}
-              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect"
+              className="interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 interactive-icon ripple-effect px-2 py-1 rounded-md hover:bg-white/5"
               title="Share to social platforms"
             >
-              <span className="action-text hidden sm:inline">Share</span> 
+              <span className="action-text hidden lg:inline">Share</span> 
               <span className="action-symbol text-base sm:text-lg">∆</span>
-              <span className="interaction-count">{localInteractions.shares}</span>
+              <span className="interaction-count text-xs font-medium">{localInteractions.shares}</span>
             </button>
           </div>
         </div>

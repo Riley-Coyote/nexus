@@ -36,7 +36,7 @@ import {
 
 // 🚩 DEBUG FLAG - Quick toggle for local development
 // Set to 'true' for in-memory mock data, 'false' for database
-const DEBUG_USE_MOCK_DATA = false; // 👈 Switch to false to use new database system
+const DEBUG_USE_MOCK_DATA = true; // 👈 Switch to false to use new database system
 
 // Configuration for switching between mock and database
 const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';

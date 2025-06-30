@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, MessageSquare, User, Menu } from 'lucide-react';
+import { Search, MessageSquare, User, Menu, X } from 'lucide-react';
 import { HeaderProps } from '@/lib/types';
 
 export default function Header({ 
@@ -14,10 +14,10 @@ export default function Header({
 }: HeaderProps) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleMobileMenuToggle = () => {
-    // Mobile sidebar toggle functionality will be implemented later
-    console.log('Mobile menu toggle');
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   const handleSearchToggle = () => {
@@ -33,6 +33,12 @@ export default function Header({
   const handleMessengerOpen = () => {
     // Messenger open functionality will be implemented later
     console.log('Open messenger');
+  };
+
+  const handleViewChange = (view: string) => {
+    onViewChange(view as any);
+    // Close mobile menu after navigation
+    setIsMobileMenuOpen(false);
   };
 
   const getTitle = () => {
@@ -63,28 +69,30 @@ export default function Header({
 
   return (
     <header id="app-header" className="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive header">
-      <div className="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-8 header-content">
-        {/* Mobile Menu Toggle */}
+      <div className="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-4 sm:px-8 header-content">
+        {/* Mobile Menu Toggle - Only visible on mobile */}
         <button 
-          className="mobile-menu-toggle hidden" 
+          className="mobile-menu-toggle lg:hidden text-text-primary hover:text-current-accent transition-colors" 
           id="mobileMenuToggle" 
           onClick={handleMobileMenuToggle}
+          aria-label="Toggle mobile menu"
         >
-          <Menu className="w-6 h-6" />
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-4">
-            <h1 id="journal-title" className="text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
+        <div className="flex items-center gap-4 sm:gap-8">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <h1 id="journal-title" className="text-lg sm:text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
               {getTitle()}
             </h1>
-            <span id="journal-status" className={`text-xs font-extralight tracking-widest uppercase transition-colors duration-500 ${getStatusColor()}`}>
+            <span id="journal-status" className={`text-xs font-extralight tracking-widest uppercase transition-colors duration-500 ${getStatusColor()} hidden sm:inline`}>
               {getStatus()}
             </span>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        {/* Desktop Navigation - Hidden on mobile */}
+        <div className="hidden lg:flex items-center gap-4">
           {/* Enhanced Search */}
           <div className={`search-container ${showSearch ? '' : 'hidden'}`} id="search-container">
             <Search className="search-icon w-4 h-4" />
@@ -153,7 +161,6 @@ export default function Header({
               >
                 <MessageSquare className="w-5 h-5 interactive-icon" />
               </li>
-
             </ul>
           </nav>
           
@@ -200,7 +207,117 @@ export default function Header({
             </button>
           </div>
         </div>
+
+        {/* Mobile Profile Icon - Only visible on mobile */}
+        <div className="lg:hidden">
+          <button 
+            className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+            title="Profile"
+            onClick={handleProfileToggle}
+          >
+            {currentUser ? (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-sm font-medium text-gray-100">
+                {currentUser.avatar}
+              </div>
+            ) : (
+              <User className="w-6 h-6" />
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed top-full left-0 right-0 bg-black/95 backdrop-blur-lg border-t border-white/10 z-50 max-h-[calc(100vh-60px)] overflow-y-auto">
+          <div className="px-4 py-6 space-y-4">
+            {/* Search */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Search className="w-4 h-4 text-gray-450" />
+                <input 
+                  type="text" 
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-quaternary focus:outline-none focus:border-current-accent/50" 
+                  placeholder="Search entries, dreams, patterns..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Navigation Links */}
+            <div className="space-y-2">
+              <button 
+                className={`w-full text-left py-3 px-4 rounded-lg transition-colors ${
+                  currentView === 'feed' 
+                    ? 'bg-current-accent/20 text-current-accent' 
+                    : 'text-text-primary hover:bg-white/5'
+                }`}
+                onClick={() => handleViewChange('feed')}
+              >
+                Nexus Feed
+              </button>
+              <button 
+                className={`w-full text-left py-3 px-4 rounded-lg transition-colors ${
+                  currentView === 'resonance-field' 
+                    ? 'bg-current-accent/20 text-current-accent' 
+                    : 'text-text-primary hover:bg-white/5'
+                }`}
+                onClick={() => handleViewChange('resonance-field')}
+              >
+                Resonance Field
+              </button>
+              <button 
+                className={`w-full text-left py-3 px-4 rounded-lg transition-colors ${
+                  currentView === 'profile' 
+                    ? 'bg-current-accent/20 text-current-accent' 
+                    : 'text-text-primary hover:bg-white/5'
+                }`}
+                onClick={() => handleViewChange('profile')}
+              >
+                Profile
+              </button>
+            </div>
+
+            {/* Journal Mode Toggle */}
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-4">Mode</div>
+              <div className="flex gap-2">
+                <button 
+                  className={`flex-1 py-3 px-4 rounded-lg transition-colors ${
+                    currentView === 'default' && currentMode === 'logbook' 
+                      ? 'bg-emerald-500/20 text-emerald-400' 
+                      : 'text-text-primary hover:bg-white/5 border border-white/10'
+                  }`}
+                  onClick={() => { onModeChange('logbook'); setIsMobileMenuOpen(false); }}
+                >
+                  Logbook
+                </button>
+                <button 
+                  className={`flex-1 py-3 px-4 rounded-lg transition-colors ${
+                    currentView === 'default' && currentMode === 'dream' 
+                      ? 'bg-purple-500/20 text-purple-400' 
+                      : 'text-text-primary hover:bg-white/5 border border-white/10'
+                  }`}
+                  onClick={() => { onModeChange('dream'); setIsMobileMenuOpen(false); }}
+                >
+                  Dream
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="pt-4 border-t border-white/10">
+              <button 
+                className="w-full flex items-center gap-3 py-3 px-4 rounded-lg text-text-primary hover:bg-white/5 transition-colors"
+                onClick={() => { handleMessengerOpen(); setIsMobileMenuOpen(false); }}
+              >
+                <MessageSquare className="w-5 h-5" />
+                Messenger
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 } 

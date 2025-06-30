@@ -139,6 +139,10 @@ export default function NexusFeed({
                 userHasResonated={hasUserResonated?.(entry.id) || false}
                 userHasAmplified={hasUserAmplified?.(entry.id) || false}
                 isPreview={false}
+                onClose={() => {
+                  // For feed, we can't really "close" a post, so we'll let the component handle it internally
+                  console.log(`Mobile close requested for post ${entry.id}`);
+                }}
               />
             ))
           ) : (
