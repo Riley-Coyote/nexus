@@ -90,6 +90,11 @@ export default function ResonanceFieldPage() {
     router.push('/profile');
   };
 
+  const handleModeChange = (mode: 'logbook' | 'dream') => {
+    // Navigate back to home page with the selected mode
+    router.push(`/?mode=${mode}`);
+  };
+
   // Show authentication panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return (
@@ -119,7 +124,7 @@ export default function ResonanceFieldPage() {
         <Header 
           currentMode="logbook"
           currentView="resonance-field"
-          onModeChange={() => {}} // Not needed on resonance field page
+          onModeChange={handleModeChange}
           onViewChange={(view) => {
             if (view === 'feed') handleNavigateToFeed();
             else if (view === 'profile') handleNavigateToProfile();

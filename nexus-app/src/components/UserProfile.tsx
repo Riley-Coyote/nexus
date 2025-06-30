@@ -38,7 +38,7 @@ export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div ref={modalRef} className="w-full max-w-sm mx-4 p-6 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl relative">
         {/* Close Button */}
         <button

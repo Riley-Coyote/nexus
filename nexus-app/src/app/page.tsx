@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import LeftSidebar from '@/components/LeftSidebar';
 import MainContent from '@/components/MainContent';
@@ -19,11 +19,21 @@ import { useNexusData } from '@/hooks/useNexusData';
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [journalMode, setJournalMode] = useState<JournalMode>('logbook');
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   
   // Use the optimized data hook
   const nexusData = useNexusData();
+
+  // Handle mode parameter from URL (when navigating back from profile/resonance pages)
+  useEffect(() => {
+    const modeParam = searchParams.get('mode');
+    if (modeParam === 'logbook' || modeParam === 'dream') {
+      setJournalMode(modeParam);
+      setViewMode('default');
+    }
+  }, [searchParams]);
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
