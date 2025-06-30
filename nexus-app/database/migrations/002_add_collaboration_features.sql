@@ -29,15 +29,5 @@ CREATE INDEX IF NOT EXISTS idx_stream_entries_visibility ON stream_entries(visib
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_token ON collaboration_invites(token);
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_entry_id ON collaboration_invites(entry_id);
 
--- Update RLS policies for collaboration
-CREATE POLICY "Public entries are viewable by all" ON stream_entries
-    FOR SELECT USING (visibility = 'public');
-
-CREATE POLICY "Shared entries viewable by collaborators" ON stream_entries
-    FOR SELECT USING (
-        visibility = 'shared' AND 
-        (auth.uid()::text = user_id OR auth.uid()::text = ANY(collaborators))
-    );
-
 -- Example of how to run this migration:
 -- npm run db:sql "$(cat database/migrations/002_add_collaboration_features.sql)" 

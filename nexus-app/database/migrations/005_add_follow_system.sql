@@ -31,18 +31,6 @@ CREATE INDEX IF NOT EXISTS idx_user_follows_created_at ON user_follows(created_a
 -- Enable RLS on user_follows table
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 
--- Users can view all follow relationships (for discovery)
-CREATE POLICY "Follow relationships are viewable by all" ON user_follows
-    FOR SELECT USING (true);
-
--- Users can only create their own follow relationships
-CREATE POLICY "Users can create their own follows" ON user_follows
-    FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = follower_id::text);
-
--- Users can only delete their own follow relationships
-CREATE POLICY "Users can delete their own follows" ON user_follows
-    FOR DELETE USING (auth.jwt() ->> 'sub' = follower_id::text);
-
 -- Function to atomically update follower counts
 CREATE OR REPLACE FUNCTION update_follow_counts()
 RETURNS TRIGGER AS $$

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",
+    "dotenv": "^17.0.0",
     "lucide-react": "latest",
     "next": "14.0.4",
     "react": "^18",

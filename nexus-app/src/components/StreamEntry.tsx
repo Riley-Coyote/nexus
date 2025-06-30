@@ -397,7 +397,7 @@ export default function StreamEntry({
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-3 sm:gap-0">
           <div className="flex items-center gap-3 sm:gap-4 text-xs font-light text-text-quaternary tracking-wider">
             {isDream ? (
-              entry.resonance !== undefined && entry.coherence !== undefined ? (
+              entry.resonance != null && entry.coherence != null ? (
                 <>
                   <span>Resonance: {entry.resonance.toFixed(3)}</span>
                   <span className="hidden sm:inline">Coherence: {entry.coherence.toFixed(3)}</span>

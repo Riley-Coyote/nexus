@@ -1,10 +1,10 @@
 -- NEXUS Database Schema Setup
--- Generated on 2025-06-30T01:57:41.270Z
+-- Generated on 2025-06-30T03:02:28.469Z
 -- Copy and paste this entire content into Supabase SQL Editor
 
 BEGIN;
 
--- === CLEANUP SECTION ===
+-- === CLEANUP SECTION (Drop triggers and existing policies) ===
 -- Drop all potentially conflicting triggers and policies to make this script idempotent
 DO $$
 BEGIN
@@ -18,35 +18,51 @@ BEGIN
     DROP TRIGGER IF EXISTS update_user_stats_trigger ON stream_entries;
     DROP TRIGGER IF EXISTS update_follow_counts_trigger ON user_follows;
     
-    -- Drop policies that might already exist
+    -- Drop policies for stream_entries
     DROP POLICY IF EXISTS "Users can view entries" ON stream_entries;
     DROP POLICY IF EXISTS "Users can insert own entries" ON stream_entries;
     DROP POLICY IF EXISTS "Users can update own entries" ON stream_entries;
     DROP POLICY IF EXISTS "Public entries are viewable by all" ON stream_entries;
     DROP POLICY IF EXISTS "Shared entries viewable by collaborators" ON stream_entries;
+
+    -- Drop policies for user_interactions
     DROP POLICY IF EXISTS "Users can view own interactions" ON user_interactions;
     DROP POLICY IF EXISTS "Users can insert interactions" ON user_interactions;
-    DROP POLICY IF EXISTS "Anyone can view interaction counts" ON entry_interaction_counts;
-    DROP POLICY IF EXISTS "Anyone can view resonances" ON user_resonances;
-    DROP POLICY IF EXISTS "Anyone can view amplifications" ON user_amplifications;
-    DROP POLICY IF EXISTS "Anyone can view branches" ON entry_branches;
-    DROP POLICY IF EXISTS "Users can manage their own resonances" ON user_resonances;
-    DROP POLICY IF EXISTS "Users can manage their own amplifications" ON user_amplifications;
-    DROP POLICY IF EXISTS "Users can create branches" ON entry_branches;
+
+    -- Drop policies for users
+    -- Legacy naming from migration 004
     DROP POLICY IF EXISTS "Public user profiles viewable by all" ON users;
+    DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON users;
+    DROP POLICY IF EXISTS "Users can insert their own profile" ON users;
     DROP POLICY IF EXISTS "Users can update own profile" ON users;
-    DROP POLICY IF EXISTS "Users can insert own profile" ON users;
+
+    -- Drop policies for entry_interaction_counts
+    DROP POLICY IF EXISTS "Anyone can view interaction counts" ON entry_interaction_counts;
+
+    -- Drop policies for user_resonances
+    DROP POLICY IF EXISTS "Anyone can view resonances" ON user_resonances;
+    DROP POLICY IF EXISTS "Users can manage their own resonances" ON user_resonances;
+
+    -- Drop policies for user_amplifications
+    DROP POLICY IF EXISTS "Anyone can view amplifications" ON user_amplifications;
+    DROP POLICY IF EXISTS "Users can manage their own amplifications" ON user_amplifications;
+
+    -- Drop policies for entry_branches
+    DROP POLICY IF EXISTS "Anyone can view branches" ON entry_branches;
+    DROP POLICY IF EXISTS "Users can create branches" ON entry_branches;
+
+    -- Drop policies for follow system (if exists)
     DROP POLICY IF EXISTS "Follow relationships are viewable by all" ON user_follows;
     DROP POLICY IF EXISTS "Users can create their own follows" ON user_follows;
     DROP POLICY IF EXISTS "Users can delete their own follows" ON user_follows;
-    
+
 EXCEPTION
     WHEN OTHERS THEN
         -- Ignore errors (objects might not exist yet)
         RAISE NOTICE 'Cleanup completed (some objects may not have existed)';
 END $$;
 
--- database/migrations/001_initial_schema.sql
+-- nexus-app/database/migrations/001_initial_schema.sql
 -- ==================================================
 
 -- Migration: 001_initial_schema.sql
@@ -126,34 +142,13 @@ CREATE TRIGGER update_stream_entries_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security policies
-ALTER TABLE stream_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_interactions ENABLE ROW LEVEL SECURITY;
-
--- Policy: Users can view public entries and their own private entries
-CREATE POLICY "Users can view entries" ON stream_entries
-    FOR SELECT USING (privacy = 'public' OR user_id = auth.uid()::text);
-
-CREATE POLICY "Users can insert own entries" ON stream_entries
-    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can update own entries" ON stream_entries
-    FOR UPDATE USING (auth.uid()::text = user_id);
-
--- Policy: Users can interact with any entry but only see their own interactions
-CREATE POLICY "Users can view own interactions" ON user_interactions
-    FOR SELECT USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can insert interactions" ON user_interactions
-    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-
 -- Grant permissions
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON stream_entries TO postgres, anon, authenticated, service_role;
 GRANT ALL ON user_interactions TO postgres, anon, authenticated, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role; 
 
--- database/migrations/002_add_collaboration_features.sql
+-- nexus-app/database/migrations/002_add_collaboration_features.sql
 -- ==================================================
 
 -- Migration: 002_add_collaboration_features.sql
@@ -187,20 +182,10 @@ CREATE INDEX IF NOT EXISTS idx_stream_entries_visibility ON stream_entries(visib
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_token ON collaboration_invites(token);
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_entry_id ON collaboration_invites(entry_id);
 
--- Update RLS policies for collaboration
-CREATE POLICY "Public entries are viewable by all" ON stream_entries
-    FOR SELECT USING (visibility = 'public');
-
-CREATE POLICY "Shared entries viewable by collaborators" ON stream_entries
-    FOR SELECT USING (
-        visibility = 'shared' AND 
-        (auth.uid()::text = user_id OR auth.uid()::text = ANY(collaborators))
-    );
-
 -- Example of how to run this migration:
 -- npm run db:sql "$(cat database/migrations/002_add_collaboration_features.sql)" 
 
--- database/migrations/003_efficient_interactions.sql
+-- nexus-app/database/migrations/003_efficient_interactions.sql
 -- ==================================================
 
 -- Migration: 003_efficient_interactions.sql
@@ -540,37 +525,6 @@ CREATE TRIGGER update_entry_interaction_counts_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security Policies
-ALTER TABLE entry_interaction_counts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_resonances ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_amplifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE entry_branches ENABLE ROW LEVEL SECURITY;
-
--- Allow everyone to read interaction counts
-CREATE POLICY "Anyone can view interaction counts" ON entry_interaction_counts
-    FOR SELECT USING (true);
-
--- Allow everyone to read user interactions (for public data)
-CREATE POLICY "Anyone can view resonances" ON user_resonances
-    FOR SELECT USING (true);
-
-CREATE POLICY "Anyone can view amplifications" ON user_amplifications
-    FOR SELECT USING (true);
-
-CREATE POLICY "Anyone can view branches" ON entry_branches
-    FOR SELECT USING (true);
-
--- Users can only modify their own interactions
-CREATE POLICY "Users can manage their own resonances" ON user_resonances
-    FOR ALL USING (user_id = auth.jwt() ->> 'sub');
-
-CREATE POLICY "Users can manage their own amplifications" ON user_amplifications
-    FOR ALL USING (user_id = auth.jwt() ->> 'sub');
-
--- Users can create branches for any entry (but entry ownership is checked at app level)
-CREATE POLICY "Users can create branches" ON entry_branches
-    FOR INSERT WITH CHECK (true);
-
 -- Initialize counters for existing entries from the interactions JSONB column
 INSERT INTO entry_interaction_counts (entry_id, resonance_count, branch_count, amplification_count, share_count)
 SELECT 
@@ -582,7 +536,7 @@ SELECT
 FROM stream_entries
 ON CONFLICT (entry_id) DO NOTHING; 
 
--- database/migrations/004_add_users_table.sql
+-- nexus-app/database/migrations/004_add_users_table.sql
 -- ==================================================
 
 -- Migration: 004_add_users_table.sql
@@ -620,21 +574,6 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Enable RLS on users table
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
--- Users can view all public user profiles
-CREATE POLICY "Public user profiles viewable by all" ON users
-    FOR SELECT USING (true);
-
--- Users can only update their own profile
-CREATE POLICY "Users can update own profile" ON users
-    FOR UPDATE USING (auth.jwt() ->> 'sub' = id::text);
-
--- Users can insert their own profile (signup)
-CREATE POLICY "Users can insert own profile" ON users
-    FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = id::text);
-
 -- Add foreign key constraint to stream_entries (if using Supabase auth)
 -- Note: We'll keep user_id as TEXT for compatibility with existing data
 -- but add a foreign key reference for new entries
@@ -654,13 +593,13 @@ BEGIN
         SET stats = jsonb_set(
             stats,
             CASE 
-                WHEN NEW.type ILIKE '%dream%' OR NEW.type ILIKE '%lucid%' THEN '{dreams}'
-                ELSE '{entries}'
+                WHEN NEW.type ILIKE '%dream%' OR NEW.type ILIKE '%lucid%' THEN ARRAY['dreams']
+                ELSE ARRAY['entries']
             END,
-            ((stats->>CASE 
+            to_jsonb((stats->>CASE 
                 WHEN NEW.type ILIKE '%dream%' OR NEW.type ILIKE '%lucid%' THEN 'dreams'
                 ELSE 'entries'
-            END)::int + 1)::text::jsonb
+            END)::int + 1)
         )
         WHERE id = NEW.user_uuid;
         RETURN NEW;
@@ -670,13 +609,13 @@ BEGIN
         SET stats = jsonb_set(
             stats,
             CASE 
-                WHEN OLD.type ILIKE '%dream%' OR OLD.type ILIKE '%lucid%' THEN '{dreams}'
-                ELSE '{entries}'
+                WHEN OLD.type ILIKE '%dream%' OR OLD.type ILIKE '%lucid%' THEN ARRAY['dreams']
+                ELSE ARRAY['entries']
             END,
-            GREATEST(0, (stats->>CASE 
+            to_jsonb(GREATEST(0, (stats->>CASE 
                 WHEN OLD.type ILIKE '%dream%' OR OLD.type ILIKE '%lucid%' THEN 'dreams'
                 ELSE 'entries'
-            END)::int - 1)::text::jsonb
+            END)::int - 1))
         )
         WHERE id = OLD.user_uuid;
         RETURN OLD;
@@ -779,7 +718,7 @@ AND EXISTS (SELECT 1 FROM users WHERE username = SPLIT_PART(stream_entries.user_
 GRANT ALL ON users TO postgres, anon, authenticated, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role; 
 
--- database/migrations/005_add_follow_system.sql
+-- nexus-app/database/migrations/005_add_follow_system.sql
 -- ==================================================
 
 -- Migration: 005_add_follow_system.sql
@@ -814,18 +753,6 @@ CREATE INDEX IF NOT EXISTS idx_user_follows_created_at ON user_follows(created_a
 
 -- Enable RLS on user_follows table
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
-
--- Users can view all follow relationships (for discovery)
-CREATE POLICY "Follow relationships are viewable by all" ON user_follows
-    FOR SELECT USING (true);
-
--- Users can only create their own follow relationships
-CREATE POLICY "Users can create their own follows" ON user_follows
-    FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = follower_id::text);
-
--- Users can only delete their own follow relationships
-CREATE POLICY "Users can delete their own follows" ON user_follows
-    FOR DELETE USING (auth.jwt() ->> 'sub' = follower_id::text);
 
 -- Function to atomically update follower counts
 CREATE OR REPLACE FUNCTION update_follow_counts()
@@ -1106,7 +1033,7 @@ BEGIN
     END IF;
 END $$; 
 
--- database/migrations/006_add_auth_profiles.sql
+-- nexus-app/database/migrations/006_add_auth_profiles.sql
 -- ==================================================
 
 -- Migration 006: Ensure users table is compatible with Supabase auth
@@ -1155,7 +1082,80 @@ DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at 
   BEFORE UPDATE ON users 
   FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column(); 
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- === Row Level Security Setup ===
+
+-- Enable RLS on tables
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stream_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_interaction_counts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_resonances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_amplifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_branches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
+
+-- Users table policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON users;
+CREATE POLICY "Public profiles are viewable by everyone" ON users
+  FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can insert their own profile" ON users;
+CREATE POLICY "Users can insert their own profile" ON users
+  FOR INSERT WITH CHECK (id = auth.uid());
+DROP POLICY IF EXISTS "Users can update own profile" ON users;
+CREATE POLICY "Users can update own profile" ON users
+  FOR UPDATE USING (id = auth.uid());
+
+-- stream_entries policies
+DROP POLICY IF EXISTS "Users can view entries" ON stream_entries;
+CREATE POLICY "Users can view entries" ON stream_entries
+  FOR SELECT USING (privacy = 'public' OR user_id = auth.uid()::text);
+DROP POLICY IF EXISTS "Users can insert own entries" ON stream_entries;
+CREATE POLICY "Users can insert own entries" ON stream_entries
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+DROP POLICY IF EXISTS "Users can update own entries" ON stream_entries;
+CREATE POLICY "Users can update own entries" ON stream_entries
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+-- entry_interaction_counts policies
+DROP POLICY IF EXISTS "Anyone can view interaction counts" ON entry_interaction_counts;
+CREATE POLICY "Anyone can view interaction counts" ON entry_interaction_counts
+  FOR SELECT USING (true);
+
+-- user_resonances policies
+DROP POLICY IF EXISTS "Anyone can view resonances" ON user_resonances;
+CREATE POLICY "Anyone can view resonances" ON user_resonances
+  FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can manage their own resonances" ON user_resonances;
+CREATE POLICY "Users can manage their own resonances" ON user_resonances
+  FOR ALL USING (user_id = auth.uid()::text);
+
+-- user_amplifications policies
+DROP POLICY IF EXISTS "Anyone can view amplifications" ON user_amplifications;
+CREATE POLICY "Anyone can view amplifications" ON user_amplifications
+  FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can manage their own amplifications" ON user_amplifications;
+CREATE POLICY "Users can manage their own amplifications" ON user_amplifications
+  FOR ALL USING (user_id = auth.uid()::text);
+
+-- entry_branches policies
+DROP POLICY IF EXISTS "Anyone can view branches" ON entry_branches;
+CREATE POLICY "Anyone can view branches" ON entry_branches
+  FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create branches" ON entry_branches;
+CREATE POLICY "Users can create branches" ON entry_branches
+  FOR INSERT WITH CHECK (true);
+
+-- user_follows policies
+DROP POLICY IF EXISTS "Follow relationships are viewable by all" ON user_follows;
+CREATE POLICY "Follow relationships are viewable by all" ON user_follows
+  FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create their own follows" ON user_follows;
+CREATE POLICY "Users can create their own follows" ON user_follows
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = follower_id::text);
+DROP POLICY IF EXISTS "Users can delete their own follows" ON user_follows;
+CREATE POLICY "Users can delete their own follows" ON user_follows
+  FOR DELETE USING (auth.jwt() ->> 'sub' = follower_id::text); 
 
 
 COMMIT;

@@ -49,6 +49,7 @@ echo ""
 
 # List migration files
 migrations=(
+    "database/migrations/000_add_exec_sql_function.sql"
     "database/migrations/001_initial_schema.sql"
     "database/migrations/002_add_collaboration_features.sql" 
     "database/migrations/003_efficient_interactions.sql"

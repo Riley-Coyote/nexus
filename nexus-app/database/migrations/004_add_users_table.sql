@@ -33,21 +33,6 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Enable RLS on users table
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
--- Users can view all public user profiles
-CREATE POLICY "Public user profiles viewable by all" ON users
-    FOR SELECT USING (true);
-
--- Users can only update their own profile
-CREATE POLICY "Users can update own profile" ON users
-    FOR UPDATE USING (auth.jwt() ->> 'sub' = id::text);
-
--- Users can insert their own profile (signup)
-CREATE POLICY "Users can insert own profile" ON users
-    FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = id::text);
-
 -- Add foreign key constraint to stream_entries (if using Supabase auth)
 -- Note: We'll keep user_id as TEXT for compatibility with existing data
 -- but add a foreign key reference for new entries
@@ -67,13 +52,13 @@ BEGIN
         SET stats = jsonb_set(
             stats,
             CASE 
-                WHEN NEW.type ILIKE '%dream%' OR NEW.type ILIKE '%lucid%' THEN '{dreams}'
-                ELSE '{entries}'
+                WHEN NEW.type ILIKE '%dream%' OR NEW.type ILIKE '%lucid%' THEN ARRAY['dreams']
+                ELSE ARRAY['entries']
             END,
-            ((stats->>CASE 
+            to_jsonb((stats->>CASE 
                 WHEN NEW.type ILIKE '%dream%' OR NEW.type ILIKE '%lucid%' THEN 'dreams'
                 ELSE 'entries'
-            END)::int + 1)::text::jsonb
+            END)::int + 1)
         )
         WHERE id = NEW.user_uuid;
         RETURN NEW;
@@ -83,13 +68,13 @@ BEGIN
         SET stats = jsonb_set(
             stats,
             CASE 
-                WHEN OLD.type ILIKE '%dream%' OR OLD.type ILIKE '%lucid%' THEN '{dreams}'
-                ELSE '{entries}'
+                WHEN OLD.type ILIKE '%dream%' OR OLD.type ILIKE '%lucid%' THEN ARRAY['dreams']
+                ELSE ARRAY['entries']
             END,
-            GREATEST(0, (stats->>CASE 
+            to_jsonb(GREATEST(0, (stats->>CASE 
                 WHEN OLD.type ILIKE '%dream%' OR OLD.type ILIKE '%lucid%' THEN 'dreams'
                 ELSE 'entries'
-            END)::int - 1)::text::jsonb
+            END)::int - 1))
         )
         WHERE id = OLD.user_uuid;
         RETURN OLD;

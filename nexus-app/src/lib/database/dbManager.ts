@@ -1,6 +1,8 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env.local') });
+
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
-const path = require('path');
 
 /**
  * Database Manager - Execute SQL, run migrations, seed data

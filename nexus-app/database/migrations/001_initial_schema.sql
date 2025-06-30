@@ -75,27 +75,6 @@ CREATE TRIGGER update_stream_entries_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security policies
-ALTER TABLE stream_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_interactions ENABLE ROW LEVEL SECURITY;
-
--- Policy: Users can view public entries and their own private entries
-CREATE POLICY "Users can view entries" ON stream_entries
-    FOR SELECT USING (privacy = 'public' OR user_id = auth.uid()::text);
-
-CREATE POLICY "Users can insert own entries" ON stream_entries
-    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can update own entries" ON stream_entries
-    FOR UPDATE USING (auth.uid()::text = user_id);
-
--- Policy: Users can interact with any entry but only see their own interactions
-CREATE POLICY "Users can view own interactions" ON user_interactions
-    FOR SELECT USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can insert interactions" ON user_interactions
-    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-
 -- Grant permissions
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON stream_entries TO postgres, anon, authenticated, service_role;

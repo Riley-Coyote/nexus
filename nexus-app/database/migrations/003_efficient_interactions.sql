@@ -335,37 +335,6 @@ CREATE TRIGGER update_entry_interaction_counts_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security Policies
-ALTER TABLE entry_interaction_counts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_resonances ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_amplifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE entry_branches ENABLE ROW LEVEL SECURITY;
-
--- Allow everyone to read interaction counts
-CREATE POLICY "Anyone can view interaction counts" ON entry_interaction_counts
-    FOR SELECT USING (true);
-
--- Allow everyone to read user interactions (for public data)
-CREATE POLICY "Anyone can view resonances" ON user_resonances
-    FOR SELECT USING (true);
-
-CREATE POLICY "Anyone can view amplifications" ON user_amplifications
-    FOR SELECT USING (true);
-
-CREATE POLICY "Anyone can view branches" ON entry_branches
-    FOR SELECT USING (true);
-
--- Users can only modify their own interactions
-CREATE POLICY "Users can manage their own resonances" ON user_resonances
-    FOR ALL USING (user_id = auth.jwt() ->> 'sub');
-
-CREATE POLICY "Users can manage their own amplifications" ON user_amplifications
-    FOR ALL USING (user_id = auth.jwt() ->> 'sub');
-
--- Users can create branches for any entry (but entry ownership is checked at app level)
-CREATE POLICY "Users can create branches" ON entry_branches
-    FOR INSERT WITH CHECK (true);
-
 -- Initialize counters for existing entries from the interactions JSONB column
 INSERT INTO entry_interaction_counts (entry_id, resonance_count, branch_count, amplification_count, share_count)
 SELECT 
