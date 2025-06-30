@@ -1,12 +1,96 @@
 import { User, AuthState } from '../types';
 import { supabase } from '../supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { authService as mockAuthService } from './authService';
+
+// Re-declare the same mock-data flag that is used in dataService so we don't create a circular import.
+// Set to 'true' by default so that the behaviour matches current mock configuration.
+const DEBUG_USE_MOCK_DATA = true; // 🔧 Keep in sync with dataService.ts
+const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
 
 export interface AuthResult {
   success: boolean;
   error?: string;
   needsVerification?: boolean;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Mock-mode bridge – adapts the local in-memory AuthService to the Supabase
+// AuthService interface so that the rest of the codebase can stay unchanged.
+// ──────────────────────────────────────────────────────────────────────────────
+class MockAuthBridge {
+  private listeners: ((authState: AuthState) => void)[] = [];
+
+  private notifyListeners() {
+    const state = mockAuthService.getAuthState();
+    this.listeners.forEach(cb => cb(state));
+  }
+
+  // Subscribe to auth state changes (in-memory implementation)
+  onAuthStateChange(callback: (authState: AuthState) => void) {
+    this.listeners.push(callback);
+    // Immediately emit current state so consumer can initialise
+    callback(mockAuthService.getAuthState());
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== callback);
+    };
+  }
+
+  // ───────── Core auth operations ─────────
+  async signIn(email: string, password: string): Promise<AuthResult> {
+    const username = email.includes('@') ? email.split('@')[0] : email;
+    const result = await mockAuthService.login(username, password);
+    if (result.success) {
+      this.notifyListeners();
+      return { success: true };
+    }
+    return { success: false, error: result.error };
+  }
+
+  async signUp(email: string, password: string, userData?: { name?: string }): Promise<AuthResult> {
+    const username = email.includes('@') ? email.split('@')[0] : email;
+    const result = await mockAuthService.signup(username, password, email);
+    if (result.success) {
+      this.notifyListeners();
+      return { success: true };
+    }
+    return { success: false, error: result.error };
+  }
+
+  async signOut(): Promise<void> {
+    mockAuthService.logout();
+    this.notifyListeners();
+  }
+
+  // No-op in mock mode – treat as success so UI flow continues
+  async resendVerification(_email: string): Promise<AuthResult> {
+    return { success: true };
+  }
+
+  async resetPassword(_email: string): Promise<AuthResult> {
+    return { success: true };
+  }
+
+  // ───────── State helpers ─────────
+  getCurrentUser() {
+    return mockAuthService.getCurrentUser();
+  }
+
+  isAuthenticated() {
+    return mockAuthService.isAuthenticated();
+  }
+
+  getAuthState() {
+    return mockAuthService.getAuthState();
+  }
+
+  // Pass-through for stats updates so analytics still work in mock mode
+  updateUserStats(statType: 'entries' | 'dreams' | 'connections', increment = 1) {
+    mockAuthService.updateUserStats(statType, increment);
+    this.notifyListeners();
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 class SupabaseAuthService {
   private authState: AuthState = {
@@ -324,4 +408,4 @@ class SupabaseAuthService {
 }
 
 // Export singleton instance
-export const authService = new SupabaseAuthService(); 
+export const authService = USE_MOCK_DATA ? (new MockAuthBridge() as any) : new SupabaseAuthService(); 
