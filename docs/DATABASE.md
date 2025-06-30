@@ -146,26 +146,43 @@ npm run db:sql "SELECT title, resonance_field FROM stream_entries WHERE resonanc
 
 ---
 
-## **🔄 Schema Changes**
+## **🔄 Updating the Database Schema**
 
-When you update the database schema:
+When you need to change the database schema (e.g., add a table or a column), follow these steps:
 
-1. **Create a new migration file** in `database/migrations`, e.g. `007_add_new_feature.sql`.
-2. **Add your SQL** for table/column changes in that file.
-3. **Update the SQL generator** (if needed) by adding your migration path to `generate-sql.js`.
-4. **Generate the combined schema**:
-```bash
-npm run generate-sql
-```  
-This updates `supabase-schema.sql` and `supabase-rls.sql` with all migrations and RLS policies.
-5. **Apply changes**:
-   - **Option A (script)**: `npm run setup` (runs `setup-supabase.sh`)
-   - **Option B (dbManager)**: `npm run db:setup`
-   - **Manual**: Copy & paste `supabase-schema.sql` into Supabase SQL Editor.
+**1. Create a Migration File**
+
+-   Create a new SQL file in `nexus-app/database/migrations/`.
+-   Use a numbered prefix for ordering, e.g., `007_add_new_feature.sql`.
+
+**2. Add your SQL Changes**
+
+-   Write the SQL commands for your changes in the new file.
+-   Make sure your SQL is runnable and tested.
+
+**3. Update the SQL Generator**
+
+-   Open `nexus-app/generate-sql.js`.
+-   Add your new migration filename to the `migrations` array. This tells the script to include your changes.
+
+**4. Generate the Combined SQL File**
+
+-   Run the generator script from the `nexus-app` directory:
+    ```bash
+    npm run generate-sql
+    ```
+-   This will update `supabase-schema.sql` with all migrations.
+
+**5. Apply to Supabase**
+
+-   Go to your Supabase project's **SQL Editor**.
+-   Open the newly updated `supabase-schema.sql` file.
+-   Copy its entire content and paste it into the Supabase SQL Editor.
+-   Click **"Run"**.
 
 ---
 
-## **🔧 Data Management**
+## **�� Data Management**
 
 ### **Reset Database** (Development only!)
 ```bash
