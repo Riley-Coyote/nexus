@@ -70,25 +70,14 @@ export default function Header({
   return (
     <header id="app-header" className="w-full flex-shrink-0 glass-header shadow-level-3 atmosphere-layer-1 depth-near depth-responsive header">
       <div className="max-w-[1600px] mx-auto flex justify-between items-center h-[72px] px-4 sm:px-8 header-content">
-        {/* Mobile Menu Toggle - Only visible on mobile */}
-        <button 
-          className="mobile-menu-toggle lg:hidden text-text-primary hover:text-current-accent transition-colors" 
-          id="mobileMenuToggle" 
-          onClick={handleMobileMenuToggle}
-          aria-label="Toggle mobile menu"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-        
-        <div className="flex items-center gap-4 sm:gap-8">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <h1 id="journal-title" className="text-lg sm:text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
-              {getTitle()}
-            </h1>
-            <span id="journal-status" className={`text-xs font-extralight tracking-widest uppercase transition-colors duration-500 ${getStatusColor()} hidden sm:inline`}>
-              {getStatus()}
-            </span>
-          </div>
+        {/* Page Title - Left side */}
+        <div className="flex items-center gap-2 sm:gap-4 flex-1">
+          <h1 id="journal-title" className="text-lg sm:text-xl font-light tracking-wider text-text-primary transition-colors duration-500">
+            {getTitle()}
+          </h1>
+          <span id="journal-status" className={`text-xs font-extralight tracking-widest uppercase transition-colors duration-500 ${getStatusColor()} hidden sm:inline`}>
+            {getStatus()}
+          </span>
         </div>
         
         {/* Desktop Navigation - Hidden on mobile */}
@@ -208,20 +197,31 @@ export default function Header({
           </div>
         </div>
 
-        {/* Mobile Profile Icon - Only visible on mobile */}
-        <div className="lg:hidden">
+        {/* Mobile Controls - Right side */}
+        <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
+          {/* Profile/CX Button */}
           <button 
-            className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+            className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon p-2 rounded-lg hover:bg-white/5 min-w-[44px] min-h-[44px] flex items-center justify-center" 
             title="Profile"
             onClick={handleProfileToggle}
           >
             {currentUser ? (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-sm font-medium text-gray-100">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/20 flex items-center justify-center text-sm font-medium text-gray-100 shadow-sm">
                 {currentUser.avatar}
               </div>
             ) : (
               <User className="w-6 h-6" />
             )}
+          </button>
+          
+          {/* Mobile Menu Toggle */}
+          <button 
+            className="mobile-menu-toggle text-text-primary hover:text-current-accent transition-colors p-2 rounded-lg hover:bg-white/5 min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0" 
+            id="mobileMenuToggle" 
+            onClick={handleMobileMenuToggle}
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </div>
