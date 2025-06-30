@@ -1,5 +1,5 @@
 -- NEXUS Database Schema Setup
--- Generated on 2025-06-30T03:02:28.469Z
+-- Generated on 2025-06-30T03:10:27.552Z
 -- Copy and paste this entire content into Supabase SQL Editor
 
 BEGIN;
@@ -61,6 +61,27 @@ EXCEPTION
         -- Ignore errors (objects might not exist yet)
         RAISE NOTICE 'Cleanup completed (some objects may not have existed)';
 END $$;
+
+-- nexus-app/database/migrations/000_add_exec_sql_function.sql
+-- ==================================================
+
+-- Migration: 000_add_exec_sql_function.sql
+-- Description: Define exec_sql function for CLI migration runner
+
+-- This function allows running arbitrary SQL via Supabase RPC
+CREATE OR REPLACE FUNCTION public.exec_sql(
+    payload JSONB
+) RETURNS JSONB AS $$
+DECLARE
+    sql TEXT;
+BEGIN
+    -- Extract SQL string from JSON payload
+    sql := payload->> 'sql_query';
+    EXECUTE sql;
+    -- Return empty JSONB as placeholder
+    RETURN '{}'::jsonb;
+END;
+$$ LANGUAGE plpgsql; 
 
 -- nexus-app/database/migrations/001_initial_schema.sql
 -- ==================================================
@@ -1121,6 +1142,9 @@ CREATE POLICY "Users can update own entries" ON stream_entries
 DROP POLICY IF EXISTS "Anyone can view interaction counts" ON entry_interaction_counts;
 CREATE POLICY "Anyone can view interaction counts" ON entry_interaction_counts
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create and update interaction counts" ON entry_interaction_counts;
+CREATE POLICY "Users can create and update interaction counts" ON entry_interaction_counts
+  FOR ALL USING (auth.role() = 'authenticated');
 
 -- user_resonances policies
 DROP POLICY IF EXISTS "Anyone can view resonances" ON user_resonances;
@@ -1152,10 +1176,10 @@ CREATE POLICY "Follow relationships are viewable by all" ON user_follows
   FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can create their own follows" ON user_follows;
 CREATE POLICY "Users can create their own follows" ON user_follows
-  FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = follower_id::text);
+  FOR INSERT WITH CHECK (follower_id = auth.uid());
 DROP POLICY IF EXISTS "Users can delete their own follows" ON user_follows;
 CREATE POLICY "Users can delete their own follows" ON user_follows
-  FOR DELETE USING (auth.jwt() ->> 'sub' = follower_id::text); 
+  FOR DELETE USING (follower_id = auth.uid()); 
 
 
 COMMIT;

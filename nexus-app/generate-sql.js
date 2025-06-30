@@ -8,13 +8,19 @@
 const fs = require('fs');
 const path = require('path');
 
+// --- Configuration ---
+const projectRoot = path.resolve(__dirname, '..'); // Assuming this script is in nexus-app/
+const migrationsDir = path.join(projectRoot, 'nexus-app', 'database', 'migrations');
+const outputFile = path.join(projectRoot, 'nexus-app', 'supabase-schema.sql');
+
 const migrations = [
-    'nexus-app/database/migrations/001_initial_schema.sql',
-    'nexus-app/database/migrations/002_add_collaboration_features.sql',
-    'nexus-app/database/migrations/003_efficient_interactions.sql',
-    'nexus-app/database/migrations/004_add_users_table.sql',
-    'nexus-app/database/migrations/005_add_follow_system.sql',
-    'nexus-app/database/migrations/006_add_auth_profiles.sql'
+    '000_add_exec_sql_function.sql',
+    '001_initial_schema.sql',
+    '002_add_collaboration_features.sql',
+    '003_efficient_interactions.sql',
+    '004_add_users_table.sql',
+    '005_add_follow_system.sql',
+    '006_add_auth_profiles.sql'
 ];
 
 console.log('🔧 Generating SQL files for Supabase setup...\n');
@@ -86,15 +92,16 @@ END $$;
 
 `;
 
-for (const migration of migrations) {
-    if (fs.existsSync(migration)) {
-        const content = fs.readFileSync(migration, 'utf8');
-        combinedSql += `-- ${migration}\n`;
+for (const migrationFile of migrations) {
+    const migrationPath = path.join(migrationsDir, migrationFile);
+    if (fs.existsSync(migrationPath)) {
+        const content = fs.readFileSync(migrationPath, 'utf8');
+        combinedSql += `-- nexus-app/database/migrations/${migrationFile}\n`;
         combinedSql += `-- ${'='.repeat(50)}\n\n`;
         combinedSql += content;
         combinedSql += '\n\n';
     } else {
-        console.log(`⚠️  Migration not found: ${migration}`);
+        console.log(`⚠️  Migration not found: ${migrationPath}`);
     }
 }
 
@@ -104,8 +111,8 @@ COMMIT;
 `;
 
 // Write combined SQL to single file
-fs.writeFileSync('nexus-app/supabase-schema.sql', combinedSql);
-console.log('✅ Generated: nexus-app/supabase-schema.sql (including migrations and RLS)');
+fs.writeFileSync(outputFile, combinedSql);
+console.log(`✅ Generated: ${outputFile} (including migrations and RLS)`);
 
 console.log('\n📋 Setup Instructions:');
 console.log('1. Open your Supabase dashboard: https://app.supabase.com');

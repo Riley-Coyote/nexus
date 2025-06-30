@@ -83,6 +83,9 @@ CREATE POLICY "Users can update own entries" ON stream_entries
 DROP POLICY IF EXISTS "Anyone can view interaction counts" ON entry_interaction_counts;
 CREATE POLICY "Anyone can view interaction counts" ON entry_interaction_counts
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create and update interaction counts" ON entry_interaction_counts;
+CREATE POLICY "Users can create and update interaction counts" ON entry_interaction_counts
+  FOR ALL USING (auth.role() = 'authenticated');
 
 -- user_resonances policies
 DROP POLICY IF EXISTS "Anyone can view resonances" ON user_resonances;
@@ -114,7 +117,7 @@ CREATE POLICY "Follow relationships are viewable by all" ON user_follows
   FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can create their own follows" ON user_follows;
 CREATE POLICY "Users can create their own follows" ON user_follows
-  FOR INSERT WITH CHECK (auth.jwt() ->> 'sub' = follower_id::text);
+  FOR INSERT WITH CHECK (follower_id = auth.uid());
 DROP POLICY IF EXISTS "Users can delete their own follows" ON user_follows;
 CREATE POLICY "Users can delete their own follows" ON user_follows
-  FOR DELETE USING (auth.jwt() ->> 'sub' = follower_id::text); 
+  FOR DELETE USING (follower_id = auth.uid()); 
