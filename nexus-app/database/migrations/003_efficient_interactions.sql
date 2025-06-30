@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS user_interactions CASCADE;
 -- Entry Interactions Counter Table
 -- Stores aggregated counts for fast lookups
 CREATE TABLE IF NOT EXISTS entry_interaction_counts (
-    entry_id UUID PRIMARY KEY REFERENCES stream_entries(id) ON DELETE CASCADE,
+    entry_id BIGINT PRIMARY KEY REFERENCES stream_entries(id) ON DELETE CASCADE,
     resonance_count INTEGER DEFAULT 0 CHECK (resonance_count >= 0),
     branch_count INTEGER DEFAULT 0 CHECK (branch_count >= 0),
     amplification_count INTEGER DEFAULT 0 CHECK (amplification_count >= 0),
@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS entry_interaction_counts (
 
 -- User Resonances Table - efficient tracking of who resonated with what
 CREATE TABLE IF NOT EXISTS user_resonances (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id BIGSERIAL PRIMARY KEY,
     user_id TEXT NOT NULL,
-    entry_id UUID NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
+    entry_id BIGINT NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Ensure one resonance per user per entry
@@ -30,9 +30,9 @@ CREATE TABLE IF NOT EXISTS user_resonances (
 
 -- User Amplifications Table - efficient tracking of who amplified what  
 CREATE TABLE IF NOT EXISTS user_amplifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id BIGSERIAL PRIMARY KEY,
     user_id TEXT NOT NULL,
-    entry_id UUID NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
+    entry_id BIGINT NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Ensure one amplification per user per entry
@@ -41,9 +41,9 @@ CREATE TABLE IF NOT EXISTS user_amplifications (
 
 -- Entry Branches Table - proper tree structure for branching
 CREATE TABLE IF NOT EXISTS entry_branches (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    parent_entry_id UUID NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
-    child_entry_id UUID NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
+    id BIGSERIAL PRIMARY KEY,
+    parent_entry_id BIGINT NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
+    child_entry_id BIGINT NOT NULL REFERENCES stream_entries(id) ON DELETE CASCADE,
     branch_order INTEGER DEFAULT 0, -- Order of branches under same parent
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_entry_branches_child ON entry_branches(child_entr
 -- Functions for Atomic Counter Updates
 -- Function to increment/decrement resonance count atomically
 CREATE OR REPLACE FUNCTION update_resonance_count(
-    target_entry_id UUID,
+    target_entry_id BIGINT,
     delta INTEGER
 ) RETURNS VOID AS $$
 BEGIN
@@ -79,7 +79,7 @@ $$ LANGUAGE plpgsql;
 
 -- Function to increment/decrement amplification count atomically
 CREATE OR REPLACE FUNCTION update_amplification_count(
-    target_entry_id UUID,
+    target_entry_id BIGINT,
     delta INTEGER
 ) RETURNS VOID AS $$
 BEGIN
@@ -95,7 +95,7 @@ $$ LANGUAGE plpgsql;
 
 -- Function to increment/decrement branch count atomically
 CREATE OR REPLACE FUNCTION update_branch_count(
-    target_entry_id UUID,
+    target_entry_id BIGINT,
     delta INTEGER
 ) RETURNS VOID AS $$
 BEGIN
@@ -156,15 +156,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create triggers
+-- Create triggers (drop first to avoid conflicts)
+DROP TRIGGER IF EXISTS resonance_count_trigger ON user_resonances;
 CREATE TRIGGER resonance_count_trigger
     AFTER INSERT OR DELETE ON user_resonances
     FOR EACH ROW EXECUTE FUNCTION trigger_resonance_count_update();
 
+DROP TRIGGER IF EXISTS amplification_count_trigger ON user_amplifications;
 CREATE TRIGGER amplification_count_trigger
     AFTER INSERT OR DELETE ON user_amplifications  
     FOR EACH ROW EXECUTE FUNCTION trigger_amplification_count_update();
 
+DROP TRIGGER IF EXISTS branch_count_trigger ON entry_branches;
 CREATE TRIGGER branch_count_trigger
     AFTER INSERT OR DELETE ON entry_branches
     FOR EACH ROW EXECUTE FUNCTION trigger_branch_count_update();
@@ -172,7 +175,7 @@ CREATE TRIGGER branch_count_trigger
 -- Function to toggle user resonance (efficient like/unlike)
 CREATE OR REPLACE FUNCTION toggle_user_resonance(
     target_user_id TEXT,
-    target_entry_id UUID
+    target_entry_id BIGINT
 ) RETURNS BOOLEAN AS $$
 DECLARE
     was_resonated BOOLEAN := FALSE;
@@ -200,7 +203,7 @@ $$ LANGUAGE plpgsql;
 -- Function to toggle user amplification
 CREATE OR REPLACE FUNCTION toggle_user_amplification(
     target_user_id TEXT,
-    target_entry_id UUID
+    target_entry_id BIGINT
 ) RETURNS BOOLEAN AS $$
 DECLARE
     was_amplified BOOLEAN := FALSE;
@@ -227,28 +230,29 @@ $$ LANGUAGE plpgsql;
 
 -- Function to create a branch relationship
 CREATE OR REPLACE FUNCTION create_branch(
-    parent_id UUID,
-    child_id UUID
+    parent_id BIGINT,
+    child_id BIGINT
 ) RETURNS VOID AS $$
-DECLARE
-    next_order INTEGER;
 BEGIN
-    -- Get next branch order for this parent
-    SELECT COALESCE(MAX(branch_order), 0) + 1 
-    FROM entry_branches 
-    WHERE parent_entry_id = parent_id
-    INTO next_order;
-    
-    -- Create branch relationship
+    -- Insert branch relationship
     INSERT INTO entry_branches (parent_entry_id, child_entry_id, branch_order)
-    VALUES (parent_id, child_id, next_order);
+    VALUES (
+        parent_id, 
+        child_id,
+        COALESCE((
+            SELECT MAX(branch_order) + 1 
+            FROM entry_branches 
+            WHERE parent_entry_id = parent_id
+        ), 0)
+    )
+    ON CONFLICT (parent_entry_id, child_entry_id) DO NOTHING;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get interaction counts for entries (optimized)
-CREATE OR REPLACE FUNCTION get_interaction_counts(entry_ids UUID[])
-RETURNS TABLE (
-    entry_id UUID,
+-- Function to get interaction counts for multiple entries (batch operation)
+CREATE OR REPLACE FUNCTION get_interaction_counts(entry_ids BIGINT[])
+RETURNS TABLE(
+    entry_id BIGINT,
     resonance_count INTEGER,
     branch_count INTEGER,
     amplification_count INTEGER,
@@ -257,83 +261,79 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        e.id as entry_id,
-        COALESCE(eic.resonance_count, 0) as resonance_count,
-        COALESCE(eic.branch_count, 0) as branch_count,
-        COALESCE(eic.amplification_count, 0) as amplification_count,
-        COALESCE(eic.share_count, 0) as share_count
-    FROM unnest(entry_ids) as e(id)
-    LEFT JOIN entry_interaction_counts eic ON e.id = eic.entry_id;
+        eic.entry_id,
+        COALESCE(eic.resonance_count, 0) AS resonance_count,
+        COALESCE(eic.branch_count, 0) AS branch_count,
+        COALESCE(eic.amplification_count, 0) AS amplification_count,
+        COALESCE(eic.share_count, 0) AS share_count
+    FROM unnest(entry_ids) AS target_entry_id
+    LEFT JOIN entry_interaction_counts eic ON eic.entry_id = target_entry_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get user interaction states (optimized)
+-- Function to get user interaction states for multiple entries
 CREATE OR REPLACE FUNCTION get_user_interaction_states(
     target_user_id TEXT,
-    entry_ids UUID[]
-) RETURNS TABLE (
-    entry_id UUID,
+    entry_ids BIGINT[]
+) RETURNS TABLE(
+    entry_id BIGINT,
     has_resonated BOOLEAN,
     has_amplified BOOLEAN
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        e.id as entry_id,
-        EXISTS (
-            SELECT 1 FROM user_resonances ur 
-            WHERE ur.user_id = target_user_id AND ur.entry_id = e.id
-        ) as has_resonated,
-        EXISTS (
-            SELECT 1 FROM user_amplifications ua 
-            WHERE ua.user_id = target_user_id AND ua.entry_id = e.id
-        ) as has_amplified
-    FROM unnest(entry_ids) as e(id);
+        target_entry_id,
+        EXISTS(SELECT 1 FROM user_resonances ur WHERE ur.user_id = target_user_id AND ur.entry_id = target_entry_id) AS has_resonated,
+        EXISTS(SELECT 1 FROM user_amplifications ua WHERE ua.user_id = target_user_id AND ua.entry_id = target_entry_id) AS has_amplified
+    FROM unnest(entry_ids) AS target_entry_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get branch tree (recursive CTE)
+-- Function to get branch tree (recursive traversal)
 CREATE OR REPLACE FUNCTION get_branch_tree(
-    root_id UUID,
+    root_entry_id BIGINT,
     max_depth INTEGER DEFAULT 10
-) RETURNS TABLE (
-    entry_id UUID,
-    parent_id UUID,
+) RETURNS TABLE(
+    entry_id BIGINT,
+    parent_id BIGINT,
     depth INTEGER,
-    branch_order INTEGER
+    branch_order INTEGER,
+    path BIGINT[]
 ) AS $$
-BEGIN
-    RETURN QUERY
-    WITH RECURSIVE branch_tree AS (
-        -- Base case: start with the root
-        SELECT 
-            root_id as entry_id,
-            NULL::UUID as parent_id,
-            0 as depth,
-            0 as branch_order
-        
-        UNION ALL
-        
-        -- Recursive case: find children of current nodes
-        SELECT 
-            eb.child_entry_id as entry_id,
-            eb.parent_entry_id as parent_id,
-            bt.depth + 1 as depth,
-            eb.branch_order
-        FROM entry_branches eb
-        INNER JOIN branch_tree bt ON eb.parent_entry_id = bt.entry_id
-        WHERE bt.depth < max_depth
-    )
+WITH RECURSIVE branch_tree AS (
+    -- Base case: start with root entry
     SELECT 
-        bt.entry_id,
-        bt.parent_id,
-        bt.depth,
-        bt.branch_order
+        root_entry_id as entry_id,
+        NULL::BIGINT as parent_id,
+        0 as depth,
+        0 as branch_order,
+        ARRAY[root_entry_id] as path
+    
+    UNION ALL
+    
+    -- Recursive case: find children
+    SELECT 
+        eb.child_entry_id as entry_id,
+        eb.parent_entry_id as parent_id,
+        bt.depth + 1 as depth,
+        eb.branch_order,
+        bt.path || eb.child_entry_id as path
     FROM branch_tree bt
-    WHERE bt.depth > 0  -- Exclude the root from results
-    ORDER BY bt.depth, bt.branch_order;
-END;
-$$ LANGUAGE plpgsql;
+    JOIN entry_branches eb ON eb.parent_entry_id = bt.entry_id
+    WHERE bt.depth < max_depth
+      AND NOT (eb.child_entry_id = ANY(bt.path)) -- Prevent cycles
+)
+SELECT * FROM branch_tree
+ORDER BY depth, branch_order;
+$$ LANGUAGE SQL;
+
+-- Add updated_at trigger to interaction counts table
+DROP TRIGGER IF EXISTS update_entry_interaction_counts_updated_at ON entry_interaction_counts;
+CREATE TRIGGER update_entry_interaction_counts_updated_at 
+    BEFORE UPDATE ON entry_interaction_counts 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- Row Level Security Policies
 ALTER TABLE entry_interaction_counts ENABLE ROW LEVEL SECURITY;
@@ -366,7 +366,7 @@ CREATE POLICY "Users can manage their own amplifications" ON user_amplifications
 CREATE POLICY "Users can create branches" ON entry_branches
     FOR INSERT WITH CHECK (true);
 
--- Initialize counters for existing entries
+-- Initialize counters for existing entries from the interactions JSONB column
 INSERT INTO entry_interaction_counts (entry_id, resonance_count, branch_count, amplification_count, share_count)
 SELECT 
     id,
@@ -375,10 +375,4 @@ SELECT
     COALESCE((interactions->>'amplifications')::INTEGER, 0),
     COALESCE((interactions->>'shares')::INTEGER, 0)
 FROM stream_entries
-ON CONFLICT (entry_id) DO NOTHING;
-
--- Add updated_at trigger for counter table
-CREATE TRIGGER update_entry_interaction_counts_updated_at 
-    BEFORE UPDATE ON entry_interaction_counts 
-    FOR EACH ROW 
-    EXECUTE FUNCTION update_updated_at_column(); 
+ON CONFLICT (entry_id) DO NOTHING; 

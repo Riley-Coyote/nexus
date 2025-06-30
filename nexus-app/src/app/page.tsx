@@ -130,8 +130,6 @@ export default function Home() {
     return (
       <AuthPanel 
         onAuthSuccess={handleAuthSuccess}
-        onLogin={nexusData.login}
-        onSignup={nexusData.signup}
       />
     );
   }

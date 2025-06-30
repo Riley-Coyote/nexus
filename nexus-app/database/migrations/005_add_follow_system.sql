@@ -77,6 +77,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for automatic count updates
+DROP TRIGGER IF EXISTS update_follow_counts_trigger ON user_follows;
 CREATE TRIGGER update_follow_counts_trigger
     AFTER INSERT OR DELETE ON user_follows
     FOR EACH ROW EXECUTE FUNCTION update_follow_counts();

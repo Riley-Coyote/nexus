@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC);
 
 -- Add updated_at trigger for users table
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at 
     BEFORE UPDATE ON users 
     FOR EACH ROW 
@@ -98,6 +99,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for automatic user stats updates
+DROP TRIGGER IF EXISTS update_user_stats_trigger ON stream_entries;
 CREATE TRIGGER update_user_stats_trigger
     AFTER INSERT OR DELETE ON stream_entries
     FOR EACH ROW EXECUTE FUNCTION update_user_stats();

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "setup": "chmod +x setup-supabase.sh && ./setup-supabase.sh",
+    "generate-sql": "node generate-sql.js",
     "db:setup": "node -r ts-node/register src/lib/database/dbManager.ts setup",
     "db:seed": "node -r ts-node/register src/lib/database/dbManager.ts seed",
     "db:reset": "node -r ts-node/register src/lib/database/dbManager.ts reset",

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService, convertToStreamEntryData } from '../lib/services/dataService';
-import { authService } from '../lib/services/authService';
+import { authService } from '../lib/services/supabaseAuthService';
 import { StreamEntryData } from '../components/StreamEntry';
 import { 
   LogbookState, 
@@ -63,8 +63,6 @@ export interface NexusData {
   amplifyEntry: (entryId: string) => Promise<void>;
   
   // Auth actions
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (username: string, password: string, email?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   forceAuthRefresh: () => void;
   
@@ -360,29 +358,8 @@ export const useNexusData = (): NexusData => {
     }
   }, []);
 
-  // Auth actions
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await authService.login(username, password);
-    setAuthState(authService.getAuthState());
-    if (result.success) {
-      // Refresh data after login
-      await refreshData();
-    }
-    return result;
-  }, [refreshData]);
-
-  const signup = useCallback(async (username: string, password: string, email?: string) => {
-    const result = await authService.signup(username, password, email);
-    setAuthState(authService.getAuthState());
-    if (result.success) {
-      // Refresh data after signup
-      await refreshData();
-    }
-    return result;
-  }, [refreshData]);
-
-  const logout = useCallback(() => {
-    authService.logout();
+  const logout = useCallback(async () => {
+    await authService.signOut();
     setAuthState(authService.getAuthState());
     // Clear all data on logout
     setLogbookEntries([]);
@@ -410,11 +387,17 @@ export const useNexusData = (): NexusData => {
   // Hydration effect - check for existing session after client-side hydration
   useEffect(() => {
     setIsLoading(false);
-    // Check for existing session after hydration
+    
+    // Set up auth state listener
+    const unsubscribe = authService.onAuthStateChange((newAuthState) => {
+      setAuthState(newAuthState);
+    });
+    
+    // Get initial auth state
     const currentAuthState = authService.getAuthState();
-    if (currentAuthState.isAuthenticated !== authState.isAuthenticated) {
-      setAuthState(currentAuthState);
-    }
+    setAuthState(currentAuthState);
+    
+    return unsubscribe;
   }, []);
 
   // Load initial data only if authenticated
@@ -492,8 +475,6 @@ export const useNexusData = (): NexusData => {
     amplifyEntry,
     
     // Auth actions
-    login,
-    signup,
     logout,
     forceAuthRefresh,
     
