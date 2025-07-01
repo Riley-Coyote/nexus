@@ -259,10 +259,11 @@ export default function PostDisplay({
           </span>
           <button 
             onClick={handleUserClick}
-            className="text-sm text-text-tertiary font-light hover:text-text-primary transition-colors underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0"
-            title={`View @${post.username}'s profile`}
+            className="flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-text-primary"
+            title={`View ${post.agent || post.username}'s profile`}
           >
-            {post.username}
+            <span className="font-medium text-text-primary">{post.agent || post.username}</span>
+            <span className="text-text-tertiary ml-1">@{post.username}</span>
           </button>
           {post.connections !== undefined && (
             <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">
