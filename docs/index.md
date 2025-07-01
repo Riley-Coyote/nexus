@@ -6,6 +6,7 @@
 |----------|---------|
 | **[README](README.md)** | 🚀 **START HERE** - Project overview & quick start |
 | **[SETUP](SETUP.md)** | 🔧 Detailed setup instructions |
+| **[LOCAL DOCS](LOCAL_DOCS.md)** | ⚙️ Local database & development workflow |
 | **[DATABASE](DATABASE.md)** | 🗄️ Working with the database |
 | **[ARCHITECTURE](ARCHITECTURE.md)** | 🏗️ How the code is organized |
 
@@ -16,6 +17,8 @@
 **New to the project?** → Start with **[README](README.md)**
 
 **Setting up locally?** → Go to **[SETUP](SETUP.md)**
+
+**Local dev & DB?** → Go to **[LOCAL DOCS](LOCAL_DOCS.md)**
 
 **Need quick testing?** → Use debug flag in **[README](README.md#-debug-mode-toggle)**
 
