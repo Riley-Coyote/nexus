@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, StreamEntry } from '@/lib/types';
 import PostDisplay from './PostDisplay';
 import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
@@ -10,18 +10,19 @@ interface ProfileViewProps {
   userPosts: StreamEntry[];
   onPostClick: (post: StreamEntry) => void;
   onUserClick?: (username: string) => void;
-  onResonate?: (entryId: string) => Promise<void>;
-  onAmplify?: (entryId: string) => Promise<void>;
-  hasUserResonated: (entryId: string) => boolean;
-  hasUserAmplified: (entryId: string) => boolean;
-  onLogout?: () => void;
-  onUpdateProfile?: (updates: Partial<User>) => Promise<void>;
+  onResonate: (postId: string) => Promise<void>;
+  onAmplify: (postId: string) => Promise<void>;
+  hasUserResonated: (postId: string) => boolean;
+  hasUserAmplified: (postId: string) => boolean;
+  onLogout: () => void;
+  onUpdateProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
   isOwnProfile?: boolean;
-  followUser?: (userId: string) => Promise<void>;
-  unfollowUser?: (userId: string) => Promise<void>;
-  isFollowing?: (userId: string) => boolean;
-  onReturnToOwnProfile?: () => void;
+  followUser?: (userId: string) => Promise<boolean>;
+  unfollowUser?: (userId: string) => Promise<boolean>;
+  isFollowing?: (userId: string) => Promise<boolean>;
 }
+
+type ProfileTab = 'posts' | 'resonance' | 'media' | 'hypothesis';
 
 export default function ProfileView({ 
   user, 
@@ -38,44 +39,67 @@ export default function ProfileView({
   followUser,
   unfollowUser,
   isFollowing: checkIsFollowing,
-  onReturnToOwnProfile
 }: ProfileViewProps) {
-  const [activeTab, setActiveTab] = useState<'posts' | 'resonance' | 'connections'>('posts');
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
-  const [editedUser, setEditedUser] = useState<User>(user);
-  const [isFollowing, setIsFollowing] = useState(checkIsFollowing ? checkIsFollowing(user.id) : false);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [editedName, setEditedName] = useState(user.name);
+  const [editedBio, setEditedBio] = useState(user.bio || '');
+  const [editedLocation, setEditedLocation] = useState(user.location || '');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const [followingState, setFollowingState] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  useEffect(() => {
+    setEditedName(user.name);
+    setEditedBio(user.bio || '');
+    setEditedLocation(user.location || '');
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSaveProfile = async () => {
-    if (!onUpdateProfile) return;
-    
-    setIsUpdating(true);
     try {
-      await onUpdateProfile(editedUser);
+      await onUpdateProfile({ name: editedName, bio: editedBio, location: editedLocation });
       setIsEditing(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
-    } finally {
-      setIsUpdating(false);
+      console.error('Failed to update profile:', error);
     }
   };
 
+  const handleCancelEdit = () => {
+    setEditedName(user.name);
+    setEditedBio(user.bio || '');
+    setEditedLocation(user.location || '');
+    setIsEditing(false);
+  };
+
+  useEffect(() => {
+    if (!isOwnProfile && checkIsFollowing) {
+      checkIsFollowing(user.id).then(setFollowingState).catch(() => setFollowingState(false));
+    }
+  }, [user.id, isOwnProfile, checkIsFollowing]);
+
   const handleFollowToggle = async () => {
-    if (!followUser || !unfollowUser) return;
-    
-    setIsUpdating(true);
+    if (isFollowLoading || !followUser || !unfollowUser) return;
+    setIsFollowLoading(true);
     try {
-      if (isFollowing) {
-        await unfollowUser(user.id);
-        setIsFollowing(false);
-      } else {
-        await followUser(user.id);
-        setIsFollowing(true);
-      }
+      const success = followingState ? await unfollowUser(user.id) : await followUser(user.id);
+      if (success) setFollowingState(!followingState);
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      console.error('Failed to toggle follow:', error);
     } finally {
-      setIsUpdating(false);
+      setIsFollowLoading(false);
     }
   };
 
@@ -86,18 +110,16 @@ export default function ProfileView({
           <div className="space-y-4">
             {userPosts.length > 0 ? (
               userPosts.map((streamEntry) => {
-                // Convert StreamEntry to Post format
                 const post = streamEntryToPost(streamEntry);
                 const context = getPostContext(post);
                 const displayMode = getDisplayMode('profile', post.content.length, !!post.parentId);
-                
                 return (
                   <PostDisplay
                     key={post.id}
                     post={post}
                     context={context}
                     displayMode={displayMode}
-                    onPostClick={(post) => onPostClick(streamEntry)} // Pass original StreamEntry to maintain compatibility
+                    onPostClick={() => onPostClick(streamEntry)}
                     onUserClick={onUserClick}
                     onResonate={onResonate}
                     onAmplify={onAmplify}
@@ -114,160 +136,124 @@ export default function ProfileView({
           </div>
         );
       case 'resonance':
-        return (
-          <div className="text-center py-8 text-gray-400">
-            <p>Resonance field coming soon</p>
-          </div>
-        );
-      case 'connections':
-        return (
-          <div className="text-center py-8 text-gray-400">
-            <p>Connections coming soon</p>
-          </div>
-        );
-      default:
-        return null;
+        return <div className="text-center py-8 text-gray-400"><p>Resonance field coming soon</p></div>;
+      case 'media':
+        return <div className="text-center py-8 text-gray-400"><p>Uploaded media coming soon</p></div>;
+      case 'hypothesis':
+        return <div className="text-center py-8 text-gray-400"><p>Hypothesis coming soon</p></div>;
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Profile Header */}
-      <div className="glass-panel rounded-xl p-6">
-        <div className="flex items-start gap-6">
-          <img 
-            src={user.profileImage || user.avatar} 
-            alt={user.name}
-            className="w-24 h-24 rounded-xl object-cover"
-          />
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+    <div className="flex flex-col h-full overflow-hidden bg-deep-void">
+      <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
+        <div className="flex-shrink-0 p-8 border-b border-white/10">
+          <div className="flex items-start gap-6">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-2xl font-medium text-gray-100 flex-shrink-0">
+              {user.profileImage ? (
+                <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover rounded-full" />
+              ) : user.avatar}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
                 {isEditing ? (
                   <input
                     type="text"
-                    value={editedUser.name}
-                    onChange={(e) => setEditedUser({...editedUser, name: e.target.value})}
-                    className="text-2xl font-light bg-transparent border-b border-white/20 focus:border-white/50 outline-none text-text-primary"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    className="text-2xl font-medium text-text-primary bg-transparent border border-white/20 rounded px-2 py-1 focus:outline-none focus:border-emerald-400"
                   />
                 ) : (
-                  <h1 className="text-2xl font-light text-text-primary">{user.name}</h1>
+                  <h1 className="text-2xl font-medium text-text-primary">{user.name}</h1>
                 )}
-                <p className="text-text-secondary">@{user.username}</p>
-                {user.location && (
-                  <p className="text-sm text-text-tertiary">{user.location}</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {!isOwnProfile && onReturnToOwnProfile && (
-                  <button 
-                    onClick={onReturnToOwnProfile}
-                    className="px-4 py-2 text-sm bg-white/5 text-text-secondary hover:text-text-primary rounded-lg transition-colors"
-                  >
-                    Back to My Profile
-                  </button>
-                )}
-                {!isOwnProfile && followUser && unfollowUser ? (
-                  <button 
-                    onClick={handleFollowToggle}
-                    disabled={isUpdating}
-                    className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                      isFollowing 
-                        ? 'bg-white/10 text-text-secondary hover:text-text-primary' 
-                        : 'bg-current-accent text-deep-void hover:opacity-90'
-                    }`}
-                  >
-                    {isUpdating ? 'Loading...' : isFollowing ? 'Unfollow' : 'Follow'}
-                  </button>
-                ) : isOwnProfile ? (
-                  <>
+                {isOwnProfile ? (
+                  <div className="flex items-center gap-2">
                     {isEditing ? (
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={handleSaveProfile}
-                          disabled={isUpdating}
-                          className="px-4 py-2 text-sm bg-current-accent text-deep-void rounded-lg hover:opacity-90 transition-opacity"
-                        >
-                          {isUpdating ? 'Saving...' : 'Save'}
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setIsEditing(false);
-                            setEditedUser(user);
-                          }}
-                          className="px-4 py-2 text-sm bg-white/5 text-text-secondary hover:text-text-primary rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      <><button onClick={handleSaveProfile} className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-sm text-emerald-400 transition-colors">Save</button><button onClick={handleCancelEdit} className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors">Cancel</button></>
                     ) : (
-                      <button 
-                        onClick={() => setIsEditing(true)}
-                        className="px-4 py-2 text-sm bg-white/5 text-text-secondary hover:text-text-primary rounded-lg transition-colors"
-                      >
-                        Edit Profile
-                      </button>
+                      <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors">Edit profile</button>
                     )}
-                    {onLogout && (
-                      <button 
-                        onClick={onLogout}
-                        className="px-4 py-2 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
-                      >
-                        Logout
+                    <div className="relative" ref={dropdownRef}>
+                      <button onClick={() => setShowDropdown(!showDropdown)} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-gray-300 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                       </button>
-                    )}
-                  </>
-                ) : null}
+                      {showDropdown && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl z-10">
+                          <button onClick={() => { onLogout(); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2 rounded-lg">Logout</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={handleFollowToggle} disabled={isFollowLoading} className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${followingState ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-gray-300' : 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400'} ${isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''}`}> {isFollowLoading ? 'Loading...' : followingState ? 'Following' : 'Follow'} </button>
+                )}
               </div>
-            </div>
-            
-            {isEditing ? (
-              <textarea
-                value={editedUser.bio || ''}
-                onChange={(e) => setEditedUser({...editedUser, bio: e.target.value})}
-                placeholder="Add a bio..."
-                className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-text-primary placeholder-text-quaternary resize-none"
-                rows={3}
-              />
-            ) : (
-              <p className="text-text-tertiary mb-4">{user.bio || 'No bio available'}</p>
-            )}
-            
-            <div className="flex gap-6 text-sm text-text-quaternary">
-              <span>{user.stats.entries} entries</span>
-              <span>{user.stats.dreams} dreams</span>
-              <span>{user.stats.connections} connections</span>
-              {user.followerCount !== undefined && (
-                <>
-                  <span>{user.followerCount} followers</span>
-                  <span>{user.followingCount} following</span>
-                </>
+              <p className="text-gray-400 mb-1">@{user.username}</p>
+              {isEditing ? (
+                <textarea value={editedBio} onChange={(e) => setEditedBio(e.target.value)} className="w-full text-gray-300 bg-transparent border border-white/20 rounded px-2 py-2 mb-4 focus:outline-none focus:border-emerald-400 resize-none" rows={3} />
+              ) : (
+                <p className="text-gray-300 mb-4">{editedBio || (isOwnProfile ? 'New to the Nexus. Add a bio to tell others about yourself.' : 'No bio available.')}</p>
               )}
+              <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editedLocation}
+                      onChange={(e) => setEditedLocation(e.target.value)}
+                      className="bg-transparent border border-white/20 rounded px-1 focus:outline-none focus:border-emerald-400"
+                    />
+                  ) : (
+                    editedLocation || (isOwnProfile ? 'Add your location' : 'Location not specified')
+                  )}
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex items-center gap-6">
+                <span className="text-text-primary">
+                  <span className="font-semibold">{user.followingCount?.toLocaleString() || '0'}</span>{' '}
+                  <span className="text-gray-400">Following</span>
+                </span>
+                <span className="text-text-primary">
+                  <span className="font-semibold">{user.followerCount?.toLocaleString() || '0'}</span>{' '}
+                  <span className="text-gray-400">Followers</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
-        {(['posts', 'resonance', 'connections'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 px-4 py-2 text-sm rounded-md transition-colors capitalize ${
-              activeTab === tab
-                ? 'bg-white/10 text-text-primary'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="glass-panel rounded-xl p-6">
-        {renderTabContent()}
+        <div className="flex-shrink-0 border-b border-white/10">
+          <nav className="flex justify-center px-8">
+            {[
+              { id: 'posts', label: 'Public posts' },
+              { id: 'resonance', label: 'Resonance field' },
+              { id: 'media', label: 'Uploaded media' },
+              { id: 'hypothesis', label: 'Hypothesis' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as ProfileTab)}
+                className={`py-4 px-6 text-sm transition-colors duration-200 border-b-2 ${
+                  activeTab === tab.id
+                    ? 'text-emerald-400 border-emerald-400'
+                    : 'text-gray-400 border-transparent hover:text-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <div className="flex-1 overflow-y-auto"><div className="p-8">{renderTabContent()}</div></div>
       </div>
     </div>
   );
