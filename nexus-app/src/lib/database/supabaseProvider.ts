@@ -48,7 +48,7 @@ export class SupabaseProvider implements DatabaseProvider {
   // Convert between our StreamEntry type and Supabase format
   private streamEntryToSupabase(entry: StreamEntry): Omit<SupabaseStreamEntry, 'id' | 'created_at' | 'updated_at'> {
     return {
-      parent_id: entry.parentId,
+      parent_id: entry.parentId ?? null,
       children: entry.children,
       depth: entry.depth,
       type: entry.type,
@@ -58,10 +58,10 @@ export class SupabaseProvider implements DatabaseProvider {
       metrics: entry.metrics || { c: 0.5, r: 0.5, x: 0.5 },
       timestamp: entry.timestamp,
       content: entry.content,
-      actions: entry.actions,
+      actions: entry.actions ?? [],
       privacy: entry.privacy,
       interactions: entry.interactions,
-      threads: entry.threads,
+      threads: entry.threads ?? [],
       is_amplified: entry.isAmplified,
       user_id: entry.userId || '',
       title: entry.title,
@@ -692,7 +692,11 @@ export class SupabaseProvider implements DatabaseProvider {
         return null;
       }
 
-      return data;
+      // Ensure we return only a string or null
+      if (typeof data === 'string') {
+        return data;
+      }
+      return null;
     } catch (error) {
       console.error('❌ Error in getCurrentUsername:', error);
       return null;
@@ -700,29 +704,12 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   async getUserPosts(userId: string, limit: number = 50): Promise<StreamEntry[]> {
-    // First try to get posts by user UUID (new method)
-    let query = this.client
+    const { data, error } = await this.client
       .from('stream_entries')
       .select('*')
-      .eq('user_uuid', userId)
+      .eq('user_id', userId)
       .order('timestamp', { ascending: false })
       .limit(limit);
-
-    let { data, error } = await query;
-
-    // If no results with UUID, try with old user_id format
-    if (!data || data.length === 0) {
-      query = this.client
-        .from('stream_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false })
-        .limit(limit);
-
-      const fallbackResult = await query;
-      data = fallbackResult.data;
-      error = fallbackResult.error;
-    }
 
     if (error) {
       console.error('❌ Error fetching user posts:', error);
