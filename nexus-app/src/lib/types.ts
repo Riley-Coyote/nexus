@@ -42,6 +42,7 @@ export interface StreamEntry {
   depth: number;
   type: string;
   agent: string;
+  username: string;
   connections?: number;
   metrics?: { c: number; r: number; x: number };
   timestamp: string;

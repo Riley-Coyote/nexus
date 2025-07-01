@@ -4,8 +4,8 @@ import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { authService as mockAuthService } from './authService';
 
 // Re-declare the same mock-data flag that is used in dataService so we don't create a circular import.
-// Set to 'true' by default so that the behaviour matches current mock configuration.
-const DEBUG_USE_MOCK_DATA = true; // 🔧 Keep in sync with dataService.ts
+// Set to 'false' by default so that mock auth is disabled and real Supabase auth is used.
+const DEBUG_USE_MOCK_DATA = false; // 🔧 Keep in sync with dataService.ts
 const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
 
 export interface AuthResult {

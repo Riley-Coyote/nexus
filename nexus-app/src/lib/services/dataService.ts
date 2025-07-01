@@ -62,7 +62,7 @@ export const convertToStreamEntryData = (entry: StreamEntry): StreamEntryData =>
   parentId: entry.parentId,
   depth: entry.depth,
   type: entry.type,
-  agent: entry.agent,
+  username: entry.username,
   connections: entry.connections,
   metrics: entry.metrics,
   timestamp: entry.timestamp,
@@ -893,6 +893,7 @@ class DataService {
       depth: 0,
       type: type,
       agent: currentUser.username,
+      username: currentUser.username,
       connections: 0,
       metrics: { c: 0.5, r: 0.5, x: 0.5 },
       timestamp: formatTimestamp(),
@@ -1132,6 +1133,7 @@ class DataService {
       depth: parentEntry.depth + 1,
       type: "BRANCH THREAD",
       agent: currentUser.username,
+      username: currentUser.username,
       connections: 0,
       metrics: { c: 0.7, r: 0.7, x: 0.7 },
       timestamp: formatTimestamp(),
@@ -1681,7 +1683,7 @@ class DataService {
 
     if (USE_MOCK_DATA || !this.database) {
       const userPosts = [...this.logbookEntries, ...this.sharedDreams]
-        .filter(entry => entry.agent === username)
+        .filter(entry => entry.username === username)
         .slice(0, limit)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       
