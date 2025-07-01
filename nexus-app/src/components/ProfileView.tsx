@@ -172,16 +172,14 @@ export default function ProfileView({
                   <div className="flex items-center gap-2">
                     {isEditing ? (
                       <><button onClick={handleSaveProfile} className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-sm text-emerald-400 transition-colors">Save</button><button onClick={handleCancelEdit} className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors">Cancel</button></>
-                    ) : (
-                      <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm text-gray-300 transition-colors">Edit profile</button>
-                    )}
+                    ) : null}
                     <div className="relative" ref={dropdownRef}>
                       <button onClick={() => setShowDropdown(!showDropdown)} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-gray-300 transition-colors">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                       </button>
-                      {showDropdown && (
+                      {showDropdown && !isEditing && (
                         <div className="absolute top-full right-0 mt-2 w-48 bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl z-10">
-                          <button onClick={() => { onLogout(); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2 rounded-lg">Logout</button>
+                          <button onClick={() => { setIsEditing(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-gray-300 hover:bg-white/10 transition-colors flex items-center gap-2 rounded-lg">Edit profile</button>
                         </div>
                       )}
                     </div>

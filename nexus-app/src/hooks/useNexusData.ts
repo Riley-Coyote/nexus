@@ -200,13 +200,16 @@ export const useNexusData = (): NexusData => {
       setNetworkStatus(network);
       setSystemVitals(vitals);
       setActiveAgents(agents);
-      setLogbookEntries(entries);
+      // Filter entries by current user
+      const userId = authState.currentUser?.id;
+      const filteredEntries = userId ? entries.filter(entry => entry.userId === userId) : [];
+      setLogbookEntries(filteredEntries);
     } catch (error) {
       console.error('Failed to load logbook data:', error);
     } finally {
       setIsLoadingLogbook(false);
     }
-  }, []);
+  }, [authState.currentUser]);
   
   // Load dream data
   const loadDreamData = useCallback(async () => {
@@ -221,14 +224,17 @@ export const useNexusData = (): NexusData => {
       
       setDreamStateMetrics(metrics);
       setActiveDreamers(dreamers);
-      setSharedDreams(dreams);
+      // Filter dreams by current user
+      const userId = authState.currentUser?.id;
+      const filteredDreams = userId ? dreams.filter(entry => entry.userId === userId) : [];
+      setSharedDreams(filteredDreams);
       setDreamAnalytics(analytics);
     } catch (error) {
       console.error('Failed to load dream data:', error);
     } finally {
       setIsLoadingDreams(false);
     }
-  }, []);
+  }, [authState.currentUser]);
   
   // Refresh all data
   const refreshData = useCallback(async () => {

@@ -23,7 +23,10 @@ export default function Home() {
   const nexusData = useNexusData();
   
   // State management
-  const [journalMode, setJournalMode] = useState<JournalMode>('logbook');
+  const modeFromUrl = searchParams.get('mode');
+  const [journalMode, setJournalMode] = useState<JournalMode>(
+    modeFromUrl === 'dream' ? 'dream' : 'logbook'
+  );
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   
   // Post overlay state
@@ -78,21 +81,25 @@ export default function Home() {
 
   const handleModeChange = (mode: JournalMode) => {
     setJournalMode(mode);
-    // When switching to Logbook or Dream, return to default view
     setViewMode('default');
+    // Update the URL to reflect the new mode
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set('mode', mode);
+    router.push(`/?${params.toString()}`);
   };
 
   const handleViewChange = (view: ViewMode) => {
-    // Use router navigation for different views
+    // Always preserve the mode in the URL
+    const modeParam = `?mode=${journalMode}`;
     if (view === 'profile') {
-      // Navigate to current user's profile by username
       if (nexusData.currentUser) {
-        router.push(`/profile/${nexusData.currentUser.username}`);
+        router.push(`/profile/${nexusData.currentUser.username}${modeParam}`);
       }
     } else if (view === 'resonance-field') {
-      router.push('/resonance-field');
+      router.push(`/resonance-field${modeParam}`);
     } else if (view === 'feed') {
       setViewMode('feed');
+      router.push(`/${modeParam}`);
     } else {
       setViewMode(view);
     }
@@ -114,14 +121,13 @@ export default function Home() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    // Navigate to current user's profile by username
     if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+      router.push(`/profile/${nexusData.currentUser.username}?mode=${journalMode}`);
     }
   };
 
   const handleUserClick = (username: string) => {
-    router.push(`/profile/${username}`);
+    router.push(`/profile/${username}?mode=${journalMode}`);
   };
 
   // Show auth panel if not authenticated
@@ -166,7 +172,7 @@ export default function Home() {
 
   // Render main application UI
   return (
-    <div className="liminal-logbook">
+    <div className={`liminal-logbook ${journalMode === 'dream' ? 'mode-dream' : 'mode-logbook'}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 

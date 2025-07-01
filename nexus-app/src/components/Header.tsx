@@ -166,8 +166,8 @@ export default function Header({
                 data-journal="logbook" 
                 className={`journal-toggle-btn ${
                   currentView === 'default' && currentMode === 'logbook' 
-                    ? 'active-journal-btn' 
-                    : ''
+                    ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
+                    : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
                 } ripple-effect`}
                 onClick={() => onModeChange('logbook')}
               >
@@ -177,8 +177,8 @@ export default function Header({
                 data-journal="dream" 
                 className={`journal-toggle-btn ${
                   currentView === 'default' && currentMode === 'dream' 
-                    ? 'active-journal-btn' 
-                    : ''
+                    ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
+                    : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
                 } ripple-effect`}
                 onClick={() => onModeChange('dream')}
               >
@@ -285,7 +285,7 @@ export default function Header({
               <div className="mobile-mode-buttons">
                 <button 
                   className={`mobile-mode-button ${
-                    currentView === 'default' && currentMode === 'logbook' ? 'active logbook' : ''
+                    currentView === 'default' && currentMode === 'logbook' ? 'active logbook bg-current-accent text-deep-void shadow-lg' : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
                   }`}
                   onClick={() => { onModeChange('logbook'); setIsMobileMenuOpen(false); }}
                 >
@@ -293,7 +293,7 @@ export default function Header({
                 </button>
                 <button 
                   className={`mobile-mode-button ${
-                    currentView === 'default' && currentMode === 'dream' ? 'active dream' : ''
+                    currentView === 'default' && currentMode === 'dream' ? 'active dream bg-current-accent text-deep-void shadow-lg' : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
                   }`}
                   onClick={() => { onModeChange('dream'); setIsMobileMenuOpen(false); }}
                 >

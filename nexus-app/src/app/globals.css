@@ -4232,3 +4232,20 @@
                  display: none !important;
              }
          }
+
+        /* Accent color for Dream and Logbook modes */
+        .mode-dream {
+          --current-accent: #a78bfa; /* Tailwind purple-400 */
+        }
+        .mode-logbook {
+          --current-accent: #34d399; /* Tailwind emerald-400 */
+        }
+        .bg-current-accent {
+          background-color: var(--current-accent) !important;
+        }
+        .text-current-accent {
+          color: var(--current-accent) !important;
+        }
+        .border-current-accent {
+          border-color: var(--current-accent) !important;
+        }

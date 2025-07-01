@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import ResonanceField from '@/components/ResonanceField';
 import PostOverlay from '@/components/PostOverlay';
@@ -13,6 +13,7 @@ import { postToStreamEntry } from '@/lib/utils/postUtils';
 
 export default function ResonanceFieldPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const nexusData = useNexusData();
   
   // Post overlay state
@@ -21,6 +22,11 @@ export default function ResonanceFieldPage() {
   
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Determine mode from URL
+  const modeFromUrl = searchParams.get('mode');
+  const modeClass = modeFromUrl === 'dream' ? 'mode-dream' : 'mode-logbook';
+  const currentMode = modeFromUrl === 'dream' ? 'dream' : 'logbook';
 
   const handleOpenPost = (post: Post | StreamEntry) => {
     // Convert Post to StreamEntry if needed
@@ -98,11 +104,11 @@ export default function ResonanceFieldPage() {
   }
 
   return (
-    <div className="liminal-logbook">
+    <div className={`liminal-logbook ${modeClass}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 
-          currentMode="logbook"
+          currentMode={currentMode}
           currentView="resonance-field"
           onModeChange={handleModeChange}
           onViewChange={(view) => {

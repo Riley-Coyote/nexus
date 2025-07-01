@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
@@ -14,6 +14,7 @@ import { useNexusData } from '@/hooks/useNexusData';
 export default function UserProfilePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const username = params.username as string;
   const nexusData = useNexusData();
   
@@ -23,6 +24,11 @@ export default function UserProfilePage() {
   
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Determine mode from URL
+  const modeFromUrl = searchParams.get('mode');
+  const modeClass = modeFromUrl === 'dream' ? 'mode-dream' : 'mode-logbook';
+  const currentMode = modeFromUrl === 'dream' ? 'dream' : 'logbook';
 
   // Load the user profile when the component mounts or username changes
   useEffect(() => {
@@ -145,11 +151,11 @@ export default function UserProfilePage() {
   // Show "User not found" page when in 'other' mode but no user was found
   if (nexusData.profileViewState.mode === 'other' && !profileUser) {
     return (
-      <div className="liminal-logbook">
+      <div className={`liminal-logbook ${modeClass}`}>
         <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
           {/* Header */}
           <Header 
-            currentMode="logbook"
+            currentMode={currentMode}
             currentView="profile"
             onModeChange={handleModeChange}
             onViewChange={(view) => {
@@ -208,11 +214,11 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="liminal-logbook">
+    <div className={`liminal-logbook ${modeClass}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 
-          currentMode="logbook"
+          currentMode={currentMode}
           currentView="profile"
           onModeChange={handleModeChange}
           onViewChange={(view) => {
