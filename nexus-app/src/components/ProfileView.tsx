@@ -20,6 +20,7 @@ interface ProfileViewProps {
   followUser?: (userId: string) => Promise<boolean>;
   unfollowUser?: (userId: string) => Promise<boolean>;
   isFollowing?: (userId: string) => Promise<boolean>;
+  onReturnToOwnProfile?: () => void;
 }
 
 type ProfileTab = 'posts' | 'resonance' | 'media' | 'hypothesis';
@@ -39,6 +40,7 @@ export default function ProfileView({
   followUser,
   unfollowUser,
   isFollowing: checkIsFollowing,
+  onReturnToOwnProfile,
 }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
