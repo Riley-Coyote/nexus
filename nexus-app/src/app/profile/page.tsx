@@ -101,8 +101,6 @@ export default function ProfilePage() {
     return (
       <AuthPanel 
         onAuthSuccess={handleAuthSuccess}
-        onLogin={nexusData.login}
-        onSignup={nexusData.signup}
       />
     );
   }
