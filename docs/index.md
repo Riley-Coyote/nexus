@@ -8,6 +8,7 @@
 | **[SETUP](SETUP.md)** | 🔧 Detailed setup instructions |
 | **[LOCAL DOCS](LOCAL_DOCS.md)** | ⚙️ Local database & development workflow |
 | **[DATABASE](DATABASE.md)** | 🗄️ Working with the database |
+| **[DB SCHEMA](DB_SCHEMA.md)** | 🔗 Database schema & relationships |
 | **[ARCHITECTURE](ARCHITECTURE.md)** | 🏗️ How the code is organized |
 
 ---

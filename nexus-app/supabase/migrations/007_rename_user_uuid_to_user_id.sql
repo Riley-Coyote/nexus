@@ -2,6 +2,10 @@
 -- Description: Remove legacy text user_id and rename user_uuid to user_id (UUID)
 -- Date: 2025-06-01
 
+-- Drop extra RLS policies referencing legacy user_id before column removal
+DROP POLICY IF EXISTS "Public entries are viewable by all" ON stream_entries;
+DROP POLICY IF EXISTS "Shared entries viewable by collaborators" ON stream_entries;
+
 -- Drop old RLS policies referencing the legacy user_id column
 DROP POLICY IF EXISTS "Users can view entries" ON stream_entries;
 DROP POLICY IF EXISTS "Users can insert own entries" ON stream_entries;
