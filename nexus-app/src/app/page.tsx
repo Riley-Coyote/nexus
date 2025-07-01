@@ -166,7 +166,7 @@ export default function Home() {
 
   // Render main application UI
   return (
-    <div className="liminal-logbook">
+    <div className={`liminal-logbook ${journalMode === 'dream' ? 'mode-dream' : 'mode-logbook'}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 
