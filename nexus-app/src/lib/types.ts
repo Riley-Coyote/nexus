@@ -35,29 +35,26 @@ export interface ActiveAgent {
   status: 'green' | 'yellow' | 'grey';
 }
 
-export interface StreamEntry {
+// Unified Post Type - replaces both StreamEntry and StreamEntryData
+export interface Post {
   id: string;
-  parentId: string | null;
-  children: string[];
+  parentId?: string | null;
   depth: number;
   type: string;
-  agent: string;
   username: string;
+  agent?: string; // Optional for backwards compatibility
   connections?: number;
   metrics?: { c: number; r: number; x: number };
   timestamp: string;
   content: string;
-  actions: string[];
-  privacy: string;
   interactions: {
     resonances: number;
     branches: number;
     amplifications: number;
     shares: number;
   };
-  threads: any[];
   isAmplified: boolean;
-  userId?: string; // User ID for tracking who created the entry
+  privacy: string;
   title?: string;
   resonance?: number;
   coherence?: number;
@@ -67,6 +64,19 @@ export interface StreamEntry {
     timestamp: string;
     content: string;
   };
+  // Additional fields for full compatibility
+  children?: string[];
+  actions?: string[];
+  threads?: any[];
+  userId?: string;
+}
+
+// Legacy type alias for backwards compatibility
+export interface StreamEntry extends Post {
+  agent: string; // Required for legacy compatibility
+  children: string[];
+  actions: string[];
+  threads: any[];
 }
 
 export interface EntryComposerData {

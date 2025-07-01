@@ -7,9 +7,9 @@ import ResonanceField from '@/components/ResonanceField';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
 import AuthPanel from '@/components/AuthPanel';
-import { StreamEntry } from '@/lib/types';
-import { StreamEntryData } from '@/components/StreamEntry';
+import { Post, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
+import { postToStreamEntry } from '@/lib/utils/postUtils';
 
 export default function ResonanceFieldPage() {
   const router = useRouter();
@@ -22,17 +22,12 @@ export default function ResonanceFieldPage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
-    // Convert StreamEntryData to StreamEntry if needed
+  const handleOpenPost = (post: Post | StreamEntry) => {
+    // Convert Post to StreamEntry if needed
     const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
       post as StreamEntry : 
-      {
-        ...post,
-        parentId: post.parentId || null,
-        children: [],
-        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-        threads: []
-      };
+      postToStreamEntry(post as Post);
+    
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
@@ -44,9 +39,9 @@ export default function ResonanceFieldPage() {
 
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
-      if (action === 'Resonate ◊') {
+      if (action === 'Resonate ◊' || action === 'resonate') {
         await nexusData.resonateWithEntry(postId);
-      } else if (action === 'Amplify ≋') {
+      } else if (action === 'Amplify ≋' || action === 'amplify') {
         await nexusData.amplifyEntry(postId);
       }
       console.log(`${action} interaction on post ${postId}`);
@@ -55,8 +50,18 @@ export default function ResonanceFieldPage() {
     }
   };
 
-  const handleAuthSuccess = () => {
-    nexusData.forceAuthRefresh();
+  const handleModeChange = (mode: 'logbook' | 'dream') => {
+    router.push(`/?mode=${mode}`);
+  };
+
+  const handleNavigateToFeed = () => {
+    router.push('/');
+  };
+
+  const handleNavigateToProfile = () => {
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
+    }
   };
 
   const handleProfileClick = () => {
@@ -71,39 +76,14 @@ export default function ResonanceFieldPage() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    router.push('/profile');
-  };
-
-  const handleUserClick = async (username: string) => {
-    try {
-      router.push(`/profile/${username}`);
-    } catch (error) {
-      console.error('❌ Failed to navigate to user profile:', error);
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
     }
   };
 
-  const handleNavigateToFeed = () => {
-    router.push('/');
-  };
-
-  const handleNavigateToProfile = () => {
-    router.push('/profile');
-  };
-
-  const handleModeChange = (mode: 'logbook' | 'dream') => {
-    // Navigate back to home page with the selected mode
-    router.push(`/?mode=${mode}`);
-  };
-
-  // Show authentication panel if not authenticated
+  // Show auth panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
-    return (
-      <AuthPanel 
-        onAuthSuccess={handleAuthSuccess}
-        onLogin={nexusData.login}
-        onSignup={nexusData.signup}
-      />
-    );
+    return <AuthPanel onAuthSuccess={() => nexusData.forceAuthRefresh()} />;
   }
 
   // Show loading state while data is being fetched
