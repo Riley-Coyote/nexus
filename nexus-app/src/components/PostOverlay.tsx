@@ -318,7 +318,7 @@ export default function PostOverlay({
                       <>
                         <div className="text-xs text-text-quaternary mb-2 flex items-center gap-2">
                           <span className="px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-medium">PARENT</span>
-                          <span>by {parent.agent} • {parent.timestamp}</span>
+                          <span>by {parent.username} • {parent.timestamp}</span>
                         </div>
                         <div 
                           className="text-sm text-text-secondary rich-text-content"
@@ -394,7 +394,7 @@ export default function PostOverlay({
                     >
                       <div className="text-xs text-text-quaternary mb-2 flex items-center gap-2">
                         <span className="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">REPLY {index + 1}</span>
-                        <span>by {child.agent} • {child.timestamp}</span>
+                        <span>by {child.username} • {child.timestamp}</span>
                       </div>
                       <div 
                         className="text-sm text-text-secondary rich-text-content"

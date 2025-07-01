@@ -648,27 +648,26 @@ export const useNexusData = (): NexusData => {
     
     // Profile viewing methods
     viewUserProfile: useCallback(async (username: string) => {
+      // Immediately switch to 'other' mode and clear any existing profile data
+      setIsLoading(true);
+      setProfileViewState({ mode: 'other', username });
+      setProfileUser(null);
+      setProfileUserPosts([]);
       try {
-        setIsLoading(true);
-        
-        // Get user by username
+        // Attempt to fetch the user
         const user = await dataService.getUserByUsername(username);
         if (!user) {
-          throw new Error('User not found');
+          console.warn(`👤 User ${username} not found`);
+          return;
         }
-        
-        // Get user's posts
+        // Fetch the user's posts
         const posts = await dataService.getUserPostsByUsername(username);
-        
-        // Update profile state
-        setProfileViewState({ mode: 'other', username, userId: user.id });
+        // Update profile data
         setProfileUser(user);
         setProfileUserPosts(posts);
-        
         console.log(`✅ Loaded profile for ${username}:`, { user, postsCount: posts.length });
       } catch (error) {
         console.error('❌ Failed to load user profile:', error);
-        throw error;
       } finally {
         setIsLoading(false);
       }

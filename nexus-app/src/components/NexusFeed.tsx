@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import StreamEntry, { StreamEntryData } from './StreamEntry';
+import PostDisplay from './PostDisplay';
+import { Post } from '@/lib/types';
+import { streamEntryDataToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
 
 interface NexusFeedProps {
-  logbookEntries: StreamEntryData[];
-  dreamEntries: StreamEntryData[];
-  onPostClick?: (post: StreamEntryData) => void;
+  logbookEntries: any[]; // Legacy StreamEntryData format
+  dreamEntries: any[]; // Legacy StreamEntryData format
+  onPostClick?: (post: Post) => void;
   onUserClick?: (username: string) => void;
-  getFlattenedStreamEntries: () => Promise<StreamEntryData[]>;
+  getFlattenedStreamEntries: () => Promise<any[]>;
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
   refreshDreamData?: () => Promise<void>;
@@ -32,39 +34,33 @@ export default function NexusFeed({
   hasUserResonated,
   hasUserAmplified
 }: NexusFeedProps) {
-  const [flattenedEntries, setFlattenedEntries] = useState<StreamEntryData[]>([]);
+  const [flattenedEntries, setFlattenedEntries] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
 
-  // Load flattened entries - OPTIMIZED
+  // Load and convert entries to Post format
   const loadFlattenedEntries = async () => {
     setIsLoading(true);
     try {
-      // Use the optimized method from the hook that tries cached data first
       const entries = await getFlattenedStreamEntries();
-      setFlattenedEntries(entries);
-      setLastUpdateTime(Date.now());
+      // Convert legacy format to new Post format
+      const convertedPosts = entries.map(entry => streamEntryDataToPost(entry));
+      
+      // Sort by timestamp (newest first)
+      const sortedPosts = convertedPosts.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      setFlattenedEntries(sortedPosts);
     } catch (error) {
       console.error('Error loading flattened entries:', error);
-      // Fallback to combining the threaded data we already have
-      const allEntries = [...logbookEntries, ...dreamEntries].sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      });
-      setFlattenedEntries(allEntries);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Auto-refresh when underlying data changes
   useEffect(() => {
-    // If we have no flattened entries or the underlying data is newer, refresh
-    if (flattenedEntries.length === 0 || 
-        logbookEntries.length > 0 || 
-        dreamEntries.length > 0) {
-      loadFlattenedEntries();
-    }
-  }, [logbookEntries, dreamEntries, getFlattenedStreamEntries]);
+    loadFlattenedEntries();
+  }, [logbookEntries, dreamEntries]);
 
   // Handle branch creation with smart refresh
   const handleBranch = async (parentId: string, content: string) => {
@@ -91,8 +87,6 @@ export default function NexusFeed({
       console.error('Error creating branch in feed:', error);
     }
   };
-
-  const isDreamEntry = (entry: StreamEntryData) => entry.resonance !== undefined;
 
   if (isLoading && flattenedEntries.length === 0) {
     return (
@@ -126,25 +120,29 @@ export default function NexusFeed({
         {/* Feed Stream */}
         <div className="flex flex-col gap-4 sm:gap-6">
           {flattenedEntries.length > 0 ? (
-            flattenedEntries.map((entry) => (
-              <StreamEntry
-                key={entry.id}
-                entry={entry}
-                isDream={isDreamEntry(entry)}
-                onPostClick={onPostClick}
-                onUserClick={onUserClick}
-                onBranch={handleBranch}
-                onResonate={onResonate}
-                onAmplify={onAmplify}
-                userHasResonated={hasUserResonated?.(entry.id) || false}
-                userHasAmplified={hasUserAmplified?.(entry.id) || false}
-                isPreview={false}
-                onClose={() => {
-                  // For feed, we can't really "close" a post, so we'll let the component handle it internally
-                  console.log(`Mobile close requested for post ${entry.id}`);
-                }}
-              />
-            ))
+            flattenedEntries.map((post) => {
+              const context = getPostContext(post);
+              const displayMode = getDisplayMode('feed', post.content.length, !!post.parentId);
+              
+              return (
+                <PostDisplay
+                  key={post.id}
+                  post={post}
+                  context={context}
+                  displayMode={displayMode}
+                  onPostClick={onPostClick}
+                  onUserClick={onUserClick}
+                  onBranch={handleBranch}
+                  onResonate={onResonate}
+                  onAmplify={onAmplify}
+                  userHasResonated={hasUserResonated?.(post.id) || false}
+                  userHasAmplified={hasUserAmplified?.(post.id) || false}
+                  onClose={() => {
+                    console.log(`Mobile close requested for post ${post.id}`);
+                  }}
+                />
+              );
+            })
           ) : (
             <div className="glass-panel rounded-xl p-6 sm:p-8 text-center">
               <div className="text-text-quaternary text-lg mb-2">∅</div>
@@ -162,8 +160,9 @@ export default function NexusFeed({
             <button 
               className="interactive-btn px-4 sm:px-6 py-2 sm:py-3 text-sm font-light text-text-secondary hover:text-text-primary transition-colors border border-white/10 rounded-lg hover:border-white/20"
               onClick={loadFlattenedEntries}
+              disabled={isLoading}
             >
-              Refresh Feed
+              {isLoading ? 'Refreshing...' : 'Refresh Feed'}
             </button>
           </div>
         )}

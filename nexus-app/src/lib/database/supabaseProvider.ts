@@ -48,19 +48,20 @@ export class SupabaseProvider implements DatabaseProvider {
   // Convert between our StreamEntry type and Supabase format
   private streamEntryToSupabase(entry: StreamEntry): Omit<SupabaseStreamEntry, 'id' | 'created_at' | 'updated_at'> {
     return {
-      parent_id: entry.parentId,
+      parent_id: entry.parentId ?? null,
       children: entry.children,
       depth: entry.depth,
       type: entry.type,
       agent: entry.agent,
+      username: entry.username,
       connections: entry.connections || 0,
       metrics: entry.metrics || { c: 0.5, r: 0.5, x: 0.5 },
       timestamp: entry.timestamp,
       content: entry.content,
-      actions: entry.actions,
+      actions: entry.actions ?? [],
       privacy: entry.privacy,
       interactions: entry.interactions,
-      threads: entry.threads,
+      threads: entry.threads ?? [],
       is_amplified: entry.isAmplified,
       user_id: entry.userId || '',
       title: entry.title,
@@ -79,6 +80,7 @@ export class SupabaseProvider implements DatabaseProvider {
       depth: supabaseEntry.depth,
       type: supabaseEntry.type,
       agent: supabaseEntry.agent,
+      username: supabaseEntry.username,
       connections: supabaseEntry.connections,
       metrics: supabaseEntry.metrics,
       timestamp: supabaseEntry.timestamp,
@@ -594,22 +596,36 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getUserByUsername(username: string): Promise<User | null> {
     try {
+      // Use the new username mapping table for lookup
       const { data, error } = await this.client
-        .from('users')
-        .select('*')
+        .from('username_mapping')
+        .select(`
+          user_id,
+          users!inner (
+            id,
+            username,
+            email,
+            name,
+            bio,
+            location,
+            profile_image_url,
+            avatar,
+            role,
+            stats,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows found
-          return null;
-        }
         console.error('❌ Error fetching user by username:', error);
         throw new Error(`Failed to fetch user: ${error.message}`);
       }
 
-      return this.supabaseToUser(data);
+      // Return null if no mapping found, or map the user data
+      return data ? this.supabaseToUser(data.users) : null;
     } catch (error) {
       console.error('❌ Error in getUserByUsername:', error);
       return null;
@@ -641,30 +657,59 @@ export class SupabaseProvider implements DatabaseProvider {
     return this.supabaseToUser(data);
   }
 
+  async updateUsername(userId: string, newUsername: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.client
+        .rpc('update_username', {
+          target_user_id: userId,
+          new_username: newUsername
+        });
+
+      if (error) {
+        console.error('❌ Error updating username:', error);
+        if (error.message.includes('already exists')) {
+          throw new Error('Username already taken');
+        }
+        throw new Error(`Failed to update username: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in updateUsername:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentUsername(userId: string): Promise<string | null> {
+    try {
+      const { data, error } = await this.client
+        .rpc('get_username_by_user_id', {
+          target_user_id: userId
+        });
+
+      if (error) {
+        console.error('❌ Error getting current username:', error);
+        return null;
+      }
+
+      // Ensure we return only a string or null
+      if (typeof data === 'string') {
+        return data;
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Error in getCurrentUsername:', error);
+      return null;
+    }
+  }
+
   async getUserPosts(userId: string, limit: number = 50): Promise<StreamEntry[]> {
-    // First try to get posts by user UUID (new method)
-    let query = this.client
+    const { data, error } = await this.client
       .from('stream_entries')
       .select('*')
-      .eq('user_uuid', userId)
+      .eq('user_id', userId)
       .order('timestamp', { ascending: false })
       .limit(limit);
-
-    let { data, error } = await query;
-
-    // If no results with UUID, try with old user_id format
-    if (!data || data.length === 0) {
-      query = this.client
-        .from('stream_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false })
-        .limit(limit);
-
-      const fallbackResult = await query;
-      data = fallbackResult.data;
-      error = fallbackResult.error;
-    }
 
     if (error) {
       console.error('❌ Error fetching user posts:', error);

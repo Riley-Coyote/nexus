@@ -27,25 +27,32 @@ export default function UserProfilePage() {
   // Load the user profile when the component mounts or username changes
   useEffect(() => {
     if (username && nexusData.authState.isAuthenticated) {
-      nexusData.viewUserProfile(username).catch((error) => {
-        console.error('Failed to load user profile:', error);
-        // Redirect to 404 or show error message
-        router.push('/profile');
-      });
+      // If viewing own username, switch to self profile mode
+      if (nexusData.currentUser && username === nexusData.currentUser.username) {
+        nexusData.viewSelfProfile();
+      } else {
+        nexusData.viewUserProfile(username).catch((error) => {
+          console.error('Failed to load user profile:', error);
+          // Leave in loading state so fallback shows "User not found"
+        });
+      }
     }
-  }, [username, nexusData.authState.isAuthenticated]);
+  }, [username, nexusData.authState.isAuthenticated, nexusData.currentUser, nexusData.viewSelfProfile, nexusData.viewUserProfile]);
 
   const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
     // Convert StreamEntryData to StreamEntry if needed
-    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
-      post as StreamEntry : 
-      {
-        ...post,
-        parentId: post.parentId || null,
-        children: [],
-        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-        threads: []
-      };
+    const streamEntry: StreamEntry =
+      'children' in post && 'actions' in post && 'threads' in post
+        ? post as StreamEntry
+        : {
+            ...post,
+            // Derive agent for StreamEntry fallback
+            agent: 'agent' in post ? (post as any).agent : post.username,
+            parentId: post.parentId || null,
+            children: [],
+            actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
+            threads: []
+          };
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
@@ -84,7 +91,17 @@ export default function UserProfilePage() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    router.push('/profile');
+    // Navigate to current user's profile by username
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
+    }
+  };
+
+  const handleReturnToOwnProfile = () => {
+    // Navigate to current user's profile by username
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
+    }
   };
 
   const handleUserClick = async (clickedUsername: string) => {
@@ -108,10 +125,6 @@ export default function UserProfilePage() {
     router.push('/resonance-field');
   };
 
-  const handleReturnToOwnProfile = () => {
-    router.push('/profile');
-  };
-
   const handleModeChange = (mode: 'logbook' | 'dream') => {
     // Navigate back to home page with the selected mode
     router.push(`/?mode=${mode}`);
@@ -126,25 +139,69 @@ export default function UserProfilePage() {
     );
   }
 
-  // Show loading state while data is being fetched
-  if (nexusData.isLoading) {
+  // Get the profile user (either the viewed user or current user)
+  const profileUser = nexusData.getCurrentProfileUser();
+  
+  // Show "User not found" page when in 'other' mode but no user was found
+  if (nexusData.profileViewState.mode === 'other' && !profileUser) {
     return (
-      <div className="liminal-logbook loading-state">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">Loading Profile...</div>
+      <div className="liminal-logbook">
+        <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
+          {/* Header */}
+          <Header 
+            currentMode="logbook"
+            currentView="profile"
+            onModeChange={handleModeChange}
+            onViewChange={(view) => {
+              if (view === 'feed') handleNavigateToFeed();
+              else if (view === 'resonance-field') handleNavigateToResonanceField();
+              else if (view === 'profile') handleReturnToOwnProfile();
+            }}
+            currentUser={nexusData.currentUser}
+            onProfileClick={handleProfileClick}
+          />
+          
+          {/* User Not Found Content */}
+          <div className="flex flex-col items-center justify-center h-full bg-deep-void px-8">
+            {/* Large Avatar Placeholder */}
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-700/30 to-gray-800/30 border border-white/10 flex items-center justify-center text-4xl font-medium text-gray-500 mb-6">
+              {username ? username.slice(0, 2).toUpperCase() : '??'}
+            </div>
+            
+            {/* Username */}
+            <div className="text-xl text-gray-400 mb-8">
+              @{username}
+            </div>
+            
+            {/* Main Message */}
+            <div className="text-center max-w-md">
+              <h1 className="text-2xl font-medium text-white mb-4">
+                This account doesn't exist
+              </h1>
+              <p className="text-gray-400 text-base">
+                Try searching for another.
+              </p>
+            </div>
+            
+            {/* Action Button */}
+            <button
+              onClick={handleReturnToOwnProfile}
+              className="mt-8 px-6 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-emerald-400 transition-colors"
+            >
+              Return to your profile
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Get the profile user (either the viewed user or current user)
-  const profileUser = nexusData.getCurrentProfileUser();
-  
+  // Show loading state while data is being fetched
   if (!profileUser) {
     return (
-      <div className="liminal-logbook">
+      <div className="liminal-logbook loading-state">
         <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">User not found</div>
+          <div className="text-text-secondary">Loading Profile...</div>
         </div>
       </div>
     );

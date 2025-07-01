@@ -9,7 +9,7 @@ export interface StreamEntryData {
   parentId?: string | null;
   depth: number;
   type: string;
-  agent: string;
+  username: string;
   connections?: number;
   metrics?: { c: number; r: number; x: number };
   timestamp: string;
@@ -223,7 +223,7 @@ export default function StreamEntry({
 
   const handleUserClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the post overlay
-    onUserClick?.(entry.agent);
+    onUserClick?.(entry.username);
   };
 
   const handleMobileClose = (e: React.MouseEvent) => {
@@ -319,9 +319,9 @@ export default function StreamEntry({
           <button 
             onClick={handleUserClick}
             className="text-sm text-text-tertiary font-light hover:text-text-primary transition-colors underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0"
-            title={`View ${entry.agent}'s profile`}
+            title={`View @${entry.username}'s profile`}
           >
-            {entry.agent}
+            {entry.username}
           </button>
           {entry.connections !== undefined && (
             <span className="text-xs text-text-quaternary font-extralight hidden sm:inline">(Conn: {entry.connections})</span>

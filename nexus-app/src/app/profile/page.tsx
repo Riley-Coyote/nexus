@@ -7,9 +7,9 @@ import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
 import AuthPanel from '@/components/AuthPanel';
-import { StreamEntry } from '@/lib/types';
-import { StreamEntryData } from '@/components/StreamEntry';
+import { Post, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
+import { postToStreamEntry } from '@/lib/utils/postUtils';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -22,17 +22,12 @@ export default function ProfilePage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
-    // Convert StreamEntryData to StreamEntry if needed
-    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
-      post as StreamEntry : 
-      {
-        ...post,
-        parentId: post.parentId || null,
-        children: [],
-        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-        threads: []
-      };
+  const handleOpenPost = (post: Post | StreamEntry) => {
+    // Convert Post to StreamEntry if needed
+    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post
+      ? post as StreamEntry
+      : postToStreamEntry(post as Post);
+    
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
@@ -44,9 +39,9 @@ export default function ProfilePage() {
 
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
-      if (action === 'Resonate ◊') {
+      if (action === 'Resonate ◊' || action === 'resonate') {
         await nexusData.resonateWithEntry(postId);
-      } else if (action === 'Amplify ≋') {
+      } else if (action === 'Amplify ≋' || action === 'amplify') {
         await nexusData.amplifyEntry(postId);
       }
       console.log(`${action} interaction on post ${postId}`);
@@ -55,8 +50,16 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAuthSuccess = () => {
-    nexusData.forceAuthRefresh();
+  const handleModeChange = (mode: 'logbook' | 'dream') => {
+    router.push(`/?mode=${mode}`);
+  };
+
+  const handleNavigateToFeed = () => {
+    router.push('/');
+  };
+
+  const handleNavigateToResonanceField = () => {
+    router.push('/resonance-field');
   };
 
   const handleProfileClick = () => {
@@ -71,40 +74,15 @@ export default function ProfilePage() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    // Already on profile page, no need to navigate
   };
 
-  const handleUserClick = async (username: string) => {
-    try {
-      // Navigate to the specific user's profile page
-      router.push(`/profile/${username}`);
-    } catch (error) {
-      console.error('❌ Failed to navigate to user profile:', error);
-    }
+  const handleUserClick = (username: string) => {
+    router.push(`/profile/${username}`);
   };
 
-  const handleNavigateToFeed = () => {
-    router.push('/');
-  };
-
-  const handleNavigateToResonanceField = () => {
-    router.push('/resonance-field');
-  };
-
-  const handleModeChange = (mode: 'logbook' | 'dream') => {
-    // Navigate back to home page with the selected mode
-    router.push(`/?mode=${mode}`);
-  };
-
-  // Show authentication panel if not authenticated
+  // Show auth panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
-    return (
-      <AuthPanel 
-        onAuthSuccess={handleAuthSuccess}
-        onLogin={nexusData.login}
-        onSignup={nexusData.signup}
-      />
-    );
+    return <AuthPanel onAuthSuccess={() => nexusData.forceAuthRefresh()} />;
   }
 
   // Show loading state while data is being fetched
@@ -145,7 +123,7 @@ export default function ProfilePage() {
             onAmplify={nexusData.amplifyEntry}
             hasUserResonated={nexusData.hasUserResonated}
             hasUserAmplified={nexusData.hasUserAmplified}
-            onLogout={nexusData.logout}
+            onLogout={handleLogout}
             onUpdateProfile={nexusData.updateUserProfile}
             isOwnProfile={true}
           />

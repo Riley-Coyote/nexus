@@ -42,18 +42,25 @@ const DEBUG_USE_MOCK_DATA = true;  // 👈 Set to true for mock data
 
 This gives you in-memory data that resets on refresh - perfect for quick testing!
 
-## **3. Database Setup**
+## **3. Database Setup (Supabase CLI)**
 ```bash
-# Run Supabase setup (apply migrations & RLS policies)
-npm run setup          # executes setup-supabase.sh
+# Initialize local Supabase project (run once)
+supabase init
 
-# (Optional) Generate full SQL schema files for manual copy/paste
-npm run generate-sql
+# Start local Supabase services
+supabase start
 
-# To apply individual migrations via dbManager:
-npm run db:setup
-npm run db:seed
-npm run db:health
+# Apply all pending migrations
+supabase migration up
+
+# (Optional) Reset database to clean slate (replay all migrations + seeds)
+supabase db reset
+
+# (Optional) Create a migration from dashboard schema changes
+supabase db diff -f <name>
+
+# (Optional) Push migrations to remote
+supabase db push
 ```
 
 ## **4. Start Development**

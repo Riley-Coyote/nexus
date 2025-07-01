@@ -15,7 +15,13 @@
     "db:health": "node -r ts-node/register src/lib/database/dbManager.ts health",
     "db:backup": "node -r ts-node/register src/lib/database/dbManager.ts backup",
     "db:sql": "node -r ts-node/register src/lib/database/dbManager.ts sql",
-    "db:help": "node -r ts-node/register src/lib/database/dbManager.ts help"
+    "db:help": "node -r ts-node/register src/lib/database/dbManager.ts help",
+    "supabase:init": "supabase init",
+    "supabase:start": "supabase start",
+    "supabase:migrate": "supabase migration up",
+    "supabase:db:reset": "supabase db reset",
+    "supabase:db:diff": "supabase db diff -f",
+    "supabase:db:push": "supabase db push"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",

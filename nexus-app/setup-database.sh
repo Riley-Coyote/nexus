@@ -30,6 +30,25 @@ fi
 
 echo "✅ Environment variables loaded"
 
+# Define exec_sql RPC helper before any schema/apply steps
+echo ""
+echo "🔨 Defining exec_sql RPC helper..."
+npm run db:sql -- "$(cat database/migrations/000_add_exec_sql_function.sql)"
+if [ $? -ne 0 ]; then
+    echo "⚠️ rpc(exec_sql) failed. Attempting direct psql fallback..."
+    if [ -n "$DATABASE_URL" ]; then
+        echo "🔨 Applying migration via psql using DATABASE_URL"
+        psql "$DATABASE_URL" -f database/migrations/000_add_exec_sql_function.sql
+        if [ $? -ne 0 ]; then
+            echo "❌ psql fallback failed. Cannot define exec_sql function."
+            exit 1
+        fi
+    else
+        echo "❌ DATABASE_URL not set. Please set DATABASE_URL for psql fallback."
+        exit 1
+    fi
+fi
+
 # Step 1: Setup main schema
 echo ""
 echo "📋 Step 1: Setting up main database schema..."
@@ -49,6 +68,8 @@ migrations=(
     "database/migrations/003_efficient_interactions.sql"
     "database/migrations/004_add_users_table.sql"
     "database/migrations/005_add_follow_system.sql"
+    "database/migrations/007_rename_user_uuid_to_user_id.sql"
+    "database/migrations/008_add_username_to_stream_entries.sql"
 )
 
 for migration in "${migrations[@]}"; do

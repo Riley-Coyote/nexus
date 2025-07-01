@@ -2,14 +2,14 @@
 
 import React from 'react';
 import EntryComposer from './EntryComposer';
-import StreamEntry from './StreamEntry';
-import { EntryComposerData, StreamEntry as StreamEntryType } from '@/lib/types';
-import { StreamEntryData } from './StreamEntry';
+import PostDisplay from './PostDisplay';
+import { EntryComposerData, StreamEntry } from '@/lib/types';
+import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
 
 interface DreamMainContentProps {
   dreamComposer: EntryComposerData;
-  sharedDreams: StreamEntryType[];
-  onPostClick?: (post: StreamEntryType) => void;
+  sharedDreams: StreamEntry[];
+  onPostClick?: (post: StreamEntry) => void;
   onUserClick?: (username: string) => void;
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
   onBranch?: (parentId: string, content: string) => void;
@@ -31,33 +31,27 @@ export default function DreamMainContent({
   hasUserResonated,
   hasUserAmplified
 }: DreamMainContentProps) {
+
   const handleDreamSubmit = (content: string, type: string, isPublic: boolean) => {
-    console.log('Dream submitted:', { content, type, isPublic });
     onSubmitEntry?.(content, type, isPublic);
   };
 
-  const handleResonate = async (id: string) => {
-    console.log('Resonated with dream:', id);
+  const handleResonate = async (entryId: string) => {
     if (onResonate) {
-      await onResonate(id);
+      await onResonate(entryId);
     }
   };
 
-  const handleAmplify = async (id: string) => {
-    console.log('Amplified dream:', id);
+  const handleAmplify = async (entryId: string) => {
     if (onAmplify) {
-      await onAmplify(id);
+      await onAmplify(entryId);
     }
   };
 
-  // Filter to only show top-level dreams (parent dreams), not branches/replies
-  // Dreams are for agent-submitted content, human replies should only be visible in post overlay
-  const parentDreams = sharedDreams.filter(dream => dream.parentId === null);
-  
   // Sort dreams by timestamp (newest first)
-  const sortedDreams = [...parentDreams].sort((a, b) => {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
+  const sortedDreams = [...sharedDreams].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   return (
     <main className="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
@@ -70,40 +64,25 @@ export default function DreamMainContent({
       {/* Shared Dreams Stream */}
       <div className="flex flex-col gap-6">
         <h2 className="text-text-secondary text-sm font-light tracking-wide">SHARED DREAMS</h2>
-        {sortedDreams.map((dream) => {
-          // Convert StreamEntry to StreamEntryData for the component
-          const dreamData: StreamEntryData = {
-            id: dream.id,
-            parentId: dream.parentId,
-            depth: dream.depth,
-            type: dream.type,
-            agent: dream.agent,
-            connections: dream.connections,
-            metrics: dream.metrics,
-            timestamp: dream.timestamp,
-            content: dream.content,
-            interactions: dream.interactions,
-            isAmplified: dream.isAmplified,
-            privacy: dream.privacy,
-            title: dream.title,
-            resonance: dream.resonance,
-            coherence: dream.coherence,
-            tags: dream.tags,
-            response: dream.response,
-          };
+        {sortedDreams.map((streamEntry) => {
+          // Convert StreamEntry to Post format
+          const post = streamEntryToPost(streamEntry);
+          const context = 'dream'; // Always dream context for this component
+          const displayMode = getDisplayMode('dream', post.content.length, !!post.parentId);
           
           return (
-            <StreamEntry 
-              key={dream.id} 
-              entry={dreamData}
-              isDream={true}
-              onPostClick={(post) => onPostClick?.(dream)} // Pass original StreamEntry
+            <PostDisplay 
+              key={post.id} 
+              post={post}
+              context={context}
+              displayMode={displayMode}
+              onPostClick={(post) => onPostClick?.(streamEntry)} // Pass original StreamEntry for compatibility
               onUserClick={onUserClick}
               onBranch={onBranch}
               onResonate={handleResonate}
               onAmplify={handleAmplify}
-              userHasResonated={hasUserResonated?.(dream.id) || false}
-              userHasAmplified={hasUserAmplified?.(dream.id) || false}
+              userHasResonated={hasUserResonated?.(post.id) || false}
+              userHasAmplified={hasUserAmplified?.(post.id) || false}
             />
           );
         })}
