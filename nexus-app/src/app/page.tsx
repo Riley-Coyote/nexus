@@ -44,15 +44,18 @@ export default function Home() {
 
   const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
     // Convert StreamEntryData to StreamEntry if needed
-    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
-      post as StreamEntry : 
-      {
-        ...post,
-        parentId: post.parentId || null,
-        children: [],
-        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-        threads: []
-      };
+    const streamEntry: StreamEntry =
+      'children' in post && 'actions' in post && 'threads' in post
+        ? post as StreamEntry
+        : {
+            ...post,
+            // Derive agent for StreamEntry fallback (using username if agent not present)
+            agent: 'agent' in post ? (post as any).agent : post.username,
+            parentId: post.parentId || null,
+            children: [],
+            actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
+            threads: []
+          };
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
@@ -85,7 +88,10 @@ export default function Home() {
   const handleViewChange = (view: ViewMode) => {
     // Use router navigation for different views
     if (view === 'profile') {
-      router.push('/profile');
+      // Navigate to current user's profile by username
+      if (nexusData.currentUser) {
+        router.push(`/profile/${nexusData.currentUser.username}`);
+      }
     } else if (view === 'resonance-field') {
       router.push('/resonance-field');
     } else if (view === 'feed') {
@@ -111,7 +117,10 @@ export default function Home() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    router.push('/profile');
+    // Navigate to current user's profile by username
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
+    }
   };
 
   const handleUserClick = async (username: string) => {

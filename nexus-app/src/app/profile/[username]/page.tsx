@@ -27,25 +27,32 @@ export default function UserProfilePage() {
   // Load the user profile when the component mounts or username changes
   useEffect(() => {
     if (username && nexusData.authState.isAuthenticated) {
-      nexusData.viewUserProfile(username).catch((error) => {
-        console.error('Failed to load user profile:', error);
-        // Redirect to 404 or show error message
-        router.push('/profile');
-      });
+      // If viewing own username, switch to self profile mode
+      if (nexusData.currentUser && username === nexusData.currentUser.username) {
+        nexusData.viewSelfProfile();
+      } else {
+        nexusData.viewUserProfile(username).catch((error) => {
+          console.error('Failed to load user profile:', error);
+          // Leave in loading state so fallback shows "User not found"
+        });
+      }
     }
-  }, [username, nexusData.authState.isAuthenticated]);
+  }, [username, nexusData.authState.isAuthenticated, nexusData.currentUser, nexusData.viewSelfProfile, nexusData.viewUserProfile]);
 
   const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
     // Convert StreamEntryData to StreamEntry if needed
-    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
-      post as StreamEntry : 
-      {
-        ...post,
-        parentId: post.parentId || null,
-        children: [],
-        actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-        threads: []
-      };
+    const streamEntry: StreamEntry =
+      'children' in post && 'actions' in post && 'threads' in post
+        ? post as StreamEntry
+        : {
+            ...post,
+            // Derive agent for StreamEntry fallback
+            agent: 'agent' in post ? (post as any).agent : post.username,
+            parentId: post.parentId || null,
+            children: [],
+            actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
+            threads: []
+          };
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
@@ -84,7 +91,17 @@ export default function UserProfilePage() {
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    router.push('/profile');
+    // Navigate to current user's profile by username
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
+    }
+  };
+
+  const handleReturnToOwnProfile = () => {
+    // Navigate to current user's profile by username
+    if (nexusData.currentUser) {
+      router.push(`/profile/${nexusData.currentUser.username}`);
+    }
   };
 
   const handleUserClick = async (clickedUsername: string) => {
@@ -106,10 +123,6 @@ export default function UserProfilePage() {
 
   const handleNavigateToResonanceField = () => {
     router.push('/resonance-field');
-  };
-
-  const handleReturnToOwnProfile = () => {
-    router.push('/profile');
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
