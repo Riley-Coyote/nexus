@@ -596,22 +596,36 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getUserByUsername(username: string): Promise<User | null> {
     try {
+      // Use the new username mapping table for lookup
       const { data, error } = await this.client
-        .from('users')
-        .select('*')
+        .from('username_mapping')
+        .select(`
+          user_id,
+          users!inner (
+            id,
+            username,
+            email,
+            name,
+            bio,
+            location,
+            profile_image_url,
+            avatar,
+            role,
+            stats,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows found
-          return null;
-        }
         console.error('❌ Error fetching user by username:', error);
         throw new Error(`Failed to fetch user: ${error.message}`);
       }
 
-      return this.supabaseToUser(data);
+      // Return null if no mapping found, or map the user data
+      return data ? this.supabaseToUser(data.users) : null;
     } catch (error) {
       console.error('❌ Error in getUserByUsername:', error);
       return null;
@@ -641,6 +655,48 @@ export class SupabaseProvider implements DatabaseProvider {
     }
 
     return this.supabaseToUser(data);
+  }
+
+  async updateUsername(userId: string, newUsername: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.client
+        .rpc('update_username', {
+          target_user_id: userId,
+          new_username: newUsername
+        });
+
+      if (error) {
+        console.error('❌ Error updating username:', error);
+        if (error.message.includes('already exists')) {
+          throw new Error('Username already taken');
+        }
+        throw new Error(`Failed to update username: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in updateUsername:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentUsername(userId: string): Promise<string | null> {
+    try {
+      const { data, error } = await this.client
+        .rpc('get_username_by_user_id', {
+          target_user_id: userId
+        });
+
+      if (error) {
+        console.error('❌ Error getting current username:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in getCurrentUsername:', error);
+      return null;
+    }
   }
 
   async getUserPosts(userId: string, limit: number = 50): Promise<StreamEntry[]> {

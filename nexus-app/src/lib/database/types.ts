@@ -61,6 +61,10 @@ export interface DatabaseProvider {
   getMutualFollows?(userId: string, limit?: number): Promise<User[]>;
   getFollowSuggestions?(userId: string, limit?: number): Promise<FollowSuggestion[]>;
   bulkCheckFollowing?(followerId: string, userIds: string[]): Promise<Map<string, boolean>>;
+  
+  // New username management methods
+  updateUsername?(userId: string, newUsername: string): Promise<boolean>;
+  getCurrentUsername?(userId: string): Promise<string | null>;
 }
 
 export interface QueryOptions {
