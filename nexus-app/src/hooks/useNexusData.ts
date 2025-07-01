@@ -63,6 +63,8 @@ export interface NexusData {
   amplifyEntry: (entryId: string) => Promise<void>;
   
   // Auth actions
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, options?: { name?: string }) => Promise<void>;
   logout: () => void;
   forceAuthRefresh: () => void;
   
@@ -358,6 +360,39 @@ export const useNexusData = (): NexusData => {
     }
   }, []);
 
+  // Auth actions
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const result = await authService.signIn(email, password);
+      if (result.success) {
+        setAuthState(authService.getAuthState());
+        await refreshData();
+      } else {
+        throw new Error(result.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
+  }, [refreshData]);
+
+  const signup = useCallback(async (email: string, password: string, options?: { name?: string }) => {
+    try {
+      const result = await authService.signUp(email, password, options);
+      if (result.success) {
+        setAuthState(authService.getAuthState());
+        if (!result.needsVerification) {
+          await refreshData();
+        }
+      } else {
+        throw new Error(result.error || 'Signup failed');
+      }
+    } catch (error) {
+      console.error('Signup failed:', error);
+      throw error;
+    }
+  }, [refreshData]);
+
   const logout = useCallback(async () => {
     await authService.signOut();
     setAuthState(authService.getAuthState());
@@ -475,6 +510,8 @@ export const useNexusData = (): NexusData => {
     amplifyEntry,
     
     // Auth actions
+    login,
+    signup,
     logout,
     forceAuthRefresh,
     
@@ -650,4 +687,4 @@ export const useNexusData = (): NexusData => {
       return authState.currentUser;
     }, [profileViewState.mode, profileUser, authState.currentUser]),
   };
-}; 
+};
