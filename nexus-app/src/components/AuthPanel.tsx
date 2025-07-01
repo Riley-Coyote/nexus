@@ -5,9 +5,11 @@ import { authService } from '../lib/services/supabaseAuthService';
 
 interface AuthPanelProps {
   onAuthSuccess: () => void;
+  onLogin?: () => void; // Add optional onLogin prop
+  onSignup?: () => void; // Add optional onSignup prop
 }
 
-export default function AuthPanel({ onAuthSuccess }: AuthPanelProps) {
+export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPanelProps) {
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function AuthPanel({ onAuthSuccess }: AuthPanelProps) {
         const result = await authService.signIn(formData.email, formData.password);
         if (result.success) {
           onAuthSuccess();
+          if (onLogin) onLogin(); // Call onLogin if provided
         } else if (result.needsVerification) {
           setSuccessMessage('Please check your email and verify your account before signing in.');
         } else {
@@ -110,6 +113,7 @@ export default function AuthPanel({ onAuthSuccess }: AuthPanelProps) {
             setAuthMode('login');
           } else {
             onAuthSuccess();
+            if (onSignup) onSignup(); // Call onSignup if provided
           }
         } else {
           setError(result.error || 'Signup failed');
@@ -353,4 +357,4 @@ export default function AuthPanel({ onAuthSuccess }: AuthPanelProps) {
       </div>
     </div>
   );
-} 
+}
