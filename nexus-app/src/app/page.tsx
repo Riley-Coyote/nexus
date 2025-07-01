@@ -140,6 +140,30 @@ export default function Home() {
     );
   }
 
+  // Show loading state if required logbook data is not available when in logbook mode
+  if (viewMode === 'default' && journalMode === 'logbook' && 
+      (!nexusData.logbookState || !nexusData.networkStatus)) {
+    return (
+      <div className="liminal-logbook loading-state">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-text-secondary">Loading Logbook...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state if required dream data is not available when in dream mode
+  if (viewMode === 'default' && journalMode === 'dream' && 
+      (!nexusData.dreamStateMetrics || !nexusData.dreamAnalytics)) {
+    return (
+      <div className="liminal-logbook loading-state">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-text-secondary">Loading Dreams...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Render main application UI
   return (
     <div className="liminal-logbook">
