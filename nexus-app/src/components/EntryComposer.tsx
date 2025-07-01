@@ -140,7 +140,7 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
                 const textContent = tempDiv.textContent || tempDiv.innerText || '';
                 return textContent.trim() && !isSubmitting;
               })()
-                ? 'bg-current-accent text-deep-void hover:scale-105 shadow-lg'
+                ? 'bg-current-accent text-current-accent hover:scale-105 shadow-lg'
                 : 'bg-white/5 text-text-quaternary cursor-not-allowed'
             }`}
           >

@@ -234,12 +234,7 @@ export default function PostDisplay({
 
   // Determine accent color based on context
   const getAccentClass = () => {
-    switch (context) {
-      case 'dream': return 'text-purple-400';
-      case 'logbook': return 'text-blue-400';
-      case 'resonance': return 'text-cyan-400';
-      default: return 'text-current-accent';
-    }
+    return 'text-current-accent';
   };
 
   return (

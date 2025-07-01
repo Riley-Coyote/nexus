@@ -54,7 +54,7 @@ export default function DreamMainContent({
   );
 
   return (
-    <main className="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+    <main className="mode-dream py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
       {/* Dream Composer */}
       <EntryComposer 
         data={dreamComposer}

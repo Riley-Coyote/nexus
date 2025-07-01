@@ -59,7 +59,7 @@ export default function MainContent({
   };
 
   return (
-    <main className="py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+    <main className="mode-logbook py-8 px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
       {/* Entry Composer */}
       <EntryComposer 
         data={entryComposer}
