@@ -268,6 +268,14 @@ export default function PostDisplay({
           {post.isAmplified && (
             <span className="amplified-indicator text-xs">⚡ AMPLIFIED</span>
           )}
+          {post.privacy === 'private' && (
+            <span className="text-xs text-text-quaternary flex items-center gap-1" title="Private post">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 1a3 3 0 00-3 3v2H4a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2V8a2 2 0 00-2-2h-1V4a3 3 0 00-3-3zm-2 5V4a2 2 0 114 0v2H6zm6 1a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1V8a1 1 0 011-1h8z" />
+              </svg>
+              <span className="hidden sm:inline">Private</span>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="text-xs text-text-quaternary font-extralight tracking-wider">
