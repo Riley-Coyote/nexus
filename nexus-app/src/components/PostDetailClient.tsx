@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/lib/types';
 import PostDisplay from '@/components/PostDisplay';
@@ -14,11 +14,57 @@ interface PostDetailClientProps {
 
 export default function PostDetailClient({ post, parent, childPosts }: PostDetailClientProps) {
   const router = useRouter();
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const handleDeepDive = (targetPost: Post) => {
     // Navigate to the entry detail page for the target post
     router.push(`/${targetPost.username}/entry/${targetPost.id}`);
   };
+
+  const handleResonate = async (postId: string) => {
+    setIsInteracting(true);
+    try {
+      await dataService.resonateWithEntry(postId);
+      // Optionally refresh the page or update state
+      router.refresh();
+    } catch (error) {
+      console.error('Error resonating with entry:', error);
+    } finally {
+      setIsInteracting(false);
+    }
+  };
+
+  const handleBranch = async (parentId: string, content: string) => {
+    setIsInteracting(true);
+    try {
+      await dataService.createBranch(parentId, content);
+      // Refresh to show the new branch
+      router.refresh();
+    } catch (error) {
+      console.error('Error creating branch:', error);
+    } finally {
+      setIsInteracting(false);
+    }
+  };
+
+  const handleAmplify = async (postId: string) => {
+    setIsInteracting(true);
+    try {
+      await dataService.amplifyEntry(postId);
+      // Optionally refresh the page or update state
+      router.refresh();
+    } catch (error) {
+      console.error('Error amplifying entry:', error);
+    } finally {
+      setIsInteracting(false);
+    }
+  };
+
+  const handleShare = (postId: string) => {
+    console.log(`Share interaction on post ${postId}`);
+    // TODO: Implement proper sharing functionality
+  };
+
   return (
     <div className="conversation-thread">
       {/* Parent Context */}
@@ -33,19 +79,26 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               post={parent}
               context="feed"
               displayMode="compact"
-              showBranching={false}
-              showInteractions={false}
+              showBranching={true}
+              showInteractions={true}
+              onResonate={handleResonate}
+              onBranch={handleBranch}
+              onAmplify={handleAmplify}
+              onShare={handleShare}
               onDeepDive={handleDeepDive}
             />
           </div>
         </div>
       )}
 
-      {/* Current Post */}
-      <div className="thread-level current-level">
+      {/* Current Post - Being Viewed */}
+      <div className="thread-level current-level viewing-post">
         <div className="thread-connector">
           <div className="thread-line current-line"></div>
           <div className="thread-node current-node">●</div>
+        </div>
+        <div className="viewing-indicator">
+          <span className="viewing-label">Currently Viewing</span>
         </div>
         <div className="thread-content">
           <PostDisplay
@@ -54,11 +107,12 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
             displayMode="full"
             showBranching={true}
             showInteractions={true}
-            onResonate={async (postId) => { await dataService.resonateWithEntry(postId); }}
-            onBranch={async (parentId, content) => { await dataService.createBranch(parentId, content); }}
-            onAmplify={async (postId) => { await dataService.amplifyEntry(postId); }}
-            onShare={(postId) => console.log(`Share interaction on post ${postId}`)}
-            onDeepDive={handleDeepDive}
+            onResonate={handleResonate}
+            onBranch={handleBranch}
+            onAmplify={handleAmplify}
+            onShare={handleShare}
+            // No onDeepDive - we're already viewing this post
+            className="current-viewing-post"
           />
         </div>
       </div>
@@ -77,10 +131,10 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               displayMode="full"
               showBranching={true}
               showInteractions={true}
-              onResonate={async (postId) => { await dataService.resonateWithEntry(postId); }}
-              onBranch={async (parentId, content) => { await dataService.createBranch(parentId, content); }}
-              onAmplify={async (postId) => { await dataService.amplifyEntry(postId); }}
-              onShare={(postId) => console.log(`Share interaction on post ${postId}`)}
+              onResonate={handleResonate}
+              onBranch={handleBranch}
+              onAmplify={handleAmplify}
+              onShare={handleShare}
               onDeepDive={handleDeepDive}
             />
           </div>
