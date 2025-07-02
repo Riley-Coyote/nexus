@@ -147,7 +147,7 @@ export default function ProfileView({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-deep-void">
+    <div className="flex flex-col h-full overflow-y-auto lg:overflow-hidden bg-deep-void">
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
         <div className="flex-shrink-0 p-8 border-b border-white/10">
           <div className="flex items-start gap-6">
@@ -253,7 +253,7 @@ export default function ProfileView({
             ))}
           </nav>
         </div>
-        <div className="flex-1 overflow-y-auto"><div className="p-8">{renderTabContent()}</div></div>
+        <div className="flex-1"><div className="p-8">{renderTabContent()}</div></div>
       </div>
     </div>
   );
