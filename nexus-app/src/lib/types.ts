@@ -1,5 +1,5 @@
 export type JournalMode = 'logbook' | 'dream';
-export type ViewMode = 'feed' | 'resonance-field' | 'profile' | 'default';
+export type ViewMode = 'feed' | 'resonance-field' | 'profile' | 'default' | 'deep-dive';
 
 export interface HeaderProps {
   currentMode: JournalMode;
@@ -8,6 +8,9 @@ export interface HeaderProps {
   onViewChange?: (view: ViewMode) => void;
   currentUser?: User | null;
   onProfileClick?: () => void;
+  customTitle?: string;
+  customStatus?: string;
+  hideNavigation?: boolean;
 }
 
 export interface LogbookState {

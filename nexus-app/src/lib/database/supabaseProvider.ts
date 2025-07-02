@@ -76,9 +76,12 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   private supabaseToStreamEntry(supabaseEntry: SupabaseStreamEntry): StreamEntry {
+    // Ensure IDs are strings for consistent comparisons
+    const id = supabaseEntry.id.toString();
+    const parentId = supabaseEntry.parent_id !== null ? supabaseEntry.parent_id.toString() : null;
     return {
-      id: supabaseEntry.id,
-      parentId: supabaseEntry.parent_id,
+      id,
+      parentId,
       children: supabaseEntry.children,
       depth: supabaseEntry.depth,
       type: supabaseEntry.type,

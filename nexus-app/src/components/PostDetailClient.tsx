@@ -16,6 +16,19 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
   const router = useRouter();
   const [isInteracting, setIsInteracting] = useState(false);
 
+  // Debug logging - Client side
+  console.log(`🎯 PostDetailClient Debug for ${post.id}:`);
+  console.log(`📝 Main post: ${post.title || post.content.substring(0, 50)}...`);
+  console.log(`👆 Parent: ${parent ? (parent.title || parent.content.substring(0, 50)) + '...' : 'None'}`);
+  console.log(`👶 Children count received: ${childPosts.length}`);
+  if (childPosts.length > 0) {
+    console.log('📋 Children in component:', childPosts.map(child => ({
+      id: child.id,
+      parentId: child.parentId,
+      content: child.content.substring(0, 30) + '...'
+    })));
+  }
+
   const handleDeepDive = (targetPost: Post) => {
     // Navigate to the entry detail page for the target post
     router.push(`/${targetPost.username}/entry/${targetPost.id}`);

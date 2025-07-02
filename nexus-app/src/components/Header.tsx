@@ -12,7 +12,10 @@ export default function Header({
   onModeChange, 
   onViewChange, 
   currentUser, 
-  onProfileClick 
+  onProfileClick,
+  customTitle,
+  customStatus,
+  hideNavigation
 }: HeaderProps) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,23 +58,29 @@ export default function Header({
   }, [currentView]);
 
   const getTitle = () => {
+    if (customTitle) return customTitle;
     if (currentView === 'feed') {
       return 'NEXUS FEED';
     } else if (currentView === 'resonance-field') {
       return 'RESONANCE FIELD';
     } else if (currentView === 'profile') {
       return 'USER PROFILE';
+    } else if (currentView === 'deep-dive') {
+      return 'DEEP DIVE';
     }
     return currentMode === 'dream' ? 'NEXUS // DREAM SYNTHESIS' : 'NEXUS // LIMINAL LOGBOOK';
   };
 
   const getStatus = () => {
+    if (customStatus) return customStatus;
     if (currentView === 'feed') {
       return 'Public Stream Active';
     } else if (currentView === 'resonance-field') {
       return 'Personal Resonances';
     } else if (currentView === 'profile') {
       return 'Personal Profile';
+    } else if (currentView === 'deep-dive') {
+      return 'Thread Explorer';
     }
     return currentMode === 'dream' ? 'Dream State Active' : 'Logbook State Active';
   };
@@ -101,102 +110,103 @@ export default function Header({
           </span>
         </div>
         
-        {/* Desktop Navigation - Hidden on tablet/mobile */}
-        <div className="desktop-nav">
-          {/* Enhanced Search */}
-          {showSearch && (
-            <div className="search-container" id="search-container">
-              <Search className="search-icon w-4 h-4" />
-              <input 
-                type="text" 
-                id="global-search" 
-                className="search-input" 
-                placeholder="Search entries, dreams, patterns..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          )}
-          
-          <nav>
-            <ul id="nav-links" className="list-none flex items-center gap-6 m-0 p-0">
-              <li>
-                <button 
-                  id="search-toggle-btn" 
-                  className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
-                  title="Search"
-                  onClick={handleSearchToggle}
+        {/* Desktop Navigation - Hidden on tablet/mobile and in deep dive mode */}
+        {!hideNavigation && (
+          <div className="desktop-nav">
+            {/* Enhanced Search */}
+            {showSearch && (
+              <div className="search-container" id="search-container">
+                <Search className="search-icon w-4 h-4" />
+                <input 
+                  type="text" 
+                  id="global-search" 
+                  className="search-input" 
+                  placeholder="Search entries, dreams, patterns..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            )}
+            
+            <nav>
+              <ul id="nav-links" className="list-none flex items-center gap-6 m-0 p-0">
+                <li>
+                  <button 
+                    id="search-toggle-btn" 
+                    className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
+                    title="Search"
+                    onClick={handleSearchToggle}
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                </li>
+                <li 
+                  data-view="feed" 
+                  className={`transition-colors duration-300 cursor-pointer ${
+                    currentView === 'feed' 
+                      ? 'text-current-accent' 
+                      : 'text-gray-450 hover:text-gray-250'
+                  }`}
+                  onClick={() => handleNav('feed')}
                 >
-                  <Search className="w-5 h-5" />
+                  Nexus Feed
+                </li>
+                <li 
+                  className="cursor-pointer"
+                  onClick={() => handleNav('resonance-field')}
+                >
+                  <span className={`transition-colors duration-300 ${
+                    currentView === 'resonance-field' 
+                      ? 'text-current-accent' 
+                      : 'text-gray-450 hover:text-gray-250'
+                  }`}>
+                    Resonance Field
+                  </span>
+                </li>
+                <li 
+                  className="cursor-pointer"
+                  onClick={() => handleNav('profile')}
+                >
+                  <span className={`transition-colors duration-300 ${
+                    currentView === 'profile' 
+                      ? 'text-current-accent' 
+                      : 'text-gray-450 hover:text-gray-250'
+                  }`}>
+                    Profile
+                  </span>
+                </li>
+                <li 
+                  id="open-messenger-btn" 
+                  className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer" 
+                  title="Messenger"
+                  onClick={handleMessengerOpen}
+                >
+                  <MessageSquare className="w-5 h-5 interactive-icon" />
+                </li>
+              </ul>
+            </nav>
+            
+            <div className="flex items-center gap-3">
+              <div id="journal-toggle" className="flex items-center gap-2 p-1 rounded-lg bg-black/20">
+                <button 
+                  data-journal="logbook" 
+                  className={`journal-toggle-btn ${
+                    currentView === 'default' && currentMode === 'logbook' 
+                      ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
+                      : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
+                  } ripple-effect`}
+                  onClick={() => onModeChange?.('logbook')}
+                >
+                  Logbook
                 </button>
-              </li>
-              <li 
-                data-view="feed" 
-                className={`transition-colors duration-300 cursor-pointer ${
-                  currentView === 'feed' 
-                    ? 'text-current-accent' 
-                    : 'text-gray-450 hover:text-gray-250'
-                }`}
-                onClick={() => handleNav('feed')}
-              >
-                Nexus Feed
-              </li>
-              <li 
-                className="cursor-pointer"
-                onClick={() => handleNav('resonance-field')}
-              >
-                <span className={`transition-colors duration-300 ${
-                  currentView === 'resonance-field' 
-                    ? 'text-current-accent' 
-                    : 'text-gray-450 hover:text-gray-250'
-                }`}>
-                  Resonance Field
-                </span>
-              </li>
-              <li 
-                className="cursor-pointer"
-                onClick={() => handleNav('profile')}
-              >
-                <span className={`transition-colors duration-300 ${
-                  currentView === 'profile' 
-                    ? 'text-current-accent' 
-                    : 'text-gray-450 hover:text-gray-250'
-                }`}>
-                  Profile
-                </span>
-              </li>
-              <li 
-                id="open-messenger-btn" 
-                className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer" 
-                title="Messenger"
-                onClick={handleMessengerOpen}
-              >
-                <MessageSquare className="w-5 h-5 interactive-icon" />
-              </li>
-            </ul>
-          </nav>
-          
-          <div className="flex items-center gap-3">
-            <div id="journal-toggle" className="flex items-center gap-2 p-1 rounded-lg bg-black/20">
-              <button 
-                data-journal="logbook" 
-                className={`journal-toggle-btn ${
-                  currentView === 'default' && currentMode === 'logbook' 
-                    ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
-                    : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
-                } ripple-effect`}
-                onClick={() => onModeChange?.('logbook')}
-              >
-                Logbook
-              </button>
-              <button 
-                data-journal="dream" 
-                className={`journal-toggle-btn ${
-                  currentView === 'default' && currentMode === 'dream' 
-                    ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
-                    : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
-                } ripple-effect`}
-                onClick={() => onModeChange?.('dream')}
+                <button 
+                  data-journal="dream" 
+                  className={`journal-toggle-btn ${
+                    currentView === 'default' && currentMode === 'dream' 
+                      ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
+                      : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
+                  } ripple-effect`}
+                  onClick={() => onModeChange?.('dream')}
               >
                 Dream
               </button>
@@ -219,6 +229,7 @@ export default function Header({
             </button>
           </div>
         </div>
+        )}
 
         {/* Mobile Controls - Always Right */}
         <div className="header-mobile-controls">
