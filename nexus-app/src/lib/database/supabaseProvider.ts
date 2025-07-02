@@ -323,26 +323,60 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getUserInteractionStates(userId: string, entryIds: string[]): Promise<Map<string, UserInteractionState>> {
     try {
+      // Preferred path: call the RPC (requires the database function to exist)
       const { data, error } = await this.client.rpc('get_user_interaction_states', {
         target_user_id: userId,
         entry_ids: entryIds
       });
 
-      if (error) {
-        console.error('❌ Error fetching user interaction states:', error);
-        throw new Error(`Failed to fetch user interaction states: ${error.message}`);
-      }
-
-      const statesMap = new Map<string, UserInteractionState>();
-      
-      if (data) {
+      if (!error && data) {
+        const statesMap = new Map<string, UserInteractionState>();
         data.forEach((row: any) => {
           statesMap.set(row.entry_id, {
             hasResonated: row.has_resonated || false,
             hasAmplified: row.has_amplified || false
           });
         });
+        return statesMap;
       }
+
+      // ────────────────────────────────────────────────────────────
+      // Fallback path: query individual tables if RPC is missing or
+      // returns an error (e.g. not yet deployed to Supabase project).
+      // This is less efficient but keeps the UI correct.
+      // ────────────────────────────────────────────────────────────
+      console.warn('ℹ️ Falling back to manual user interaction lookup');
+
+      const [resonancesResp, amplificationsResp] = await Promise.all([
+        this.client
+          .from('user_resonances')
+          .select('entry_id')
+          .eq('user_id', userId)
+          .in('entry_id', entryIds),
+        this.client
+          .from('user_amplifications')
+          .select('entry_id')
+          .eq('user_id', userId)
+          .in('entry_id', entryIds)
+      ]);
+
+      if (resonancesResp.error) {
+        console.error('❌ Error fetching resonances fallback:', resonancesResp.error);
+      }
+      if (amplificationsResp.error) {
+        console.error('❌ Error fetching amplifications fallback:', amplificationsResp.error);
+      }
+
+      const resonatedIds = new Set<string>((resonancesResp.data || []).map(r => r.entry_id));
+      const amplifiedIds = new Set<string>((amplificationsResp.data || []).map(r => r.entry_id));
+
+      const statesMap = new Map<string, UserInteractionState>();
+      entryIds.forEach(id => {
+        statesMap.set(id, {
+          hasResonated: resonatedIds.has(id),
+          hasAmplified: amplifiedIds.has(id)
+        });
+      });
 
       return statesMap;
     } catch (error) {

@@ -417,8 +417,11 @@ export const useNexusData = (): NexusData => {
   // User interaction checks
   const hasUserResonated = useCallback((entryId: string): boolean => {
     if (!authState.currentUser) return false;
+    // Fast check: is the entry in the resonatedEntries list we already fetched?
+    if (resonatedEntries.some(e => e.id === entryId)) return true;
+    // Fallback to dataService utility (cached per-entry on first call)
     return dataService.hasUserResonated(authState.currentUser.id, entryId);
-  }, [authState.currentUser]);
+  }, [authState.currentUser, resonatedEntries]);
 
   const hasUserAmplified = useCallback((entryId: string): boolean => {
     if (!authState.currentUser) return false;
@@ -444,8 +447,7 @@ export const useNexusData = (): NexusData => {
   // Load initial data only if authenticated
   useEffect(() => {
     if (authState.isAuthenticated && authState.currentUser) {
-      // Initialize user resonances for demo
-      dataService.initializeUserResonances(authState.currentUser.id);
+      // Load real data after authentication
       refreshData();
     }
   }, [authState.isAuthenticated, refreshData]);

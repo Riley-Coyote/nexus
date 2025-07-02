@@ -36,12 +36,15 @@ import {
   getUserByUsername as getMockUserByUsername
 } from '../data/mockData';
 
-// 🚩 DEBUG FLAG - Quick toggle for local development
-// Set to 'true' for in-memory mock data, 'false' for database
-const DEBUG_USE_MOCK_DATA = false; // 👈 Switch to false to use new database system
-
-// Configuration for switching between mock and database
-const USE_MOCK_DATA = DEBUG_USE_MOCK_DATA || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
+// ─────────────────────────────────────────────────────────────
+// MOCK MODE DISABLED
+// ----------------------------------------------------------------
+// Set both flags to `false` so *all* calls use the real database.
+// Keeping the variables (now constant) prevents widespread refactor
+// while ensuring the mock branches are never entered.
+// ----------------------------------------------------------------
+const DEBUG_USE_MOCK_DATA = false;
+const USE_MOCK_DATA = false; // ← single source of truth
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // Threading configuration
@@ -146,6 +149,11 @@ class DataService {
         }
       }
       
+      // Load persisted interaction state (mock mode only)
+      if (USE_MOCK_DATA) {
+        this.loadInteractionStateFromStorage();
+      }
+
       this.isInitialized = true;
     } catch (error) {
       console.error('❌ Failed to initialize data service:', error);
@@ -1001,12 +1009,14 @@ class DataService {
         // User already resonated, so remove resonance (UNRESONATING)
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
+        this.saveInteractionStateToStorage();
         console.log(`🔇 DataService: User unresonated from entry ${entryId} (${userResonances.size} total)`);
         return false;
       } else {
         // Add resonance (RESONATING)
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
+        this.saveInteractionStateToStorage();
         authService.updateUserStats('connections');
         console.log(`🔊 DataService: User resonated with entry ${entryId} (${userResonances.size} total)`);
         return true;
@@ -1046,11 +1056,13 @@ class DataService {
       if (wasAlreadyResonated) {
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
+        this.saveInteractionStateToStorage();
         console.log(`🔇 DataService: User unresonated from entry ${entryId} (fallback)`);
         return false;
       } else {
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
+        this.saveInteractionStateToStorage();
         authService.updateUserStats('connections');
         console.log(`🔊 DataService: User resonated with entry ${entryId} (fallback)`);
         return true;
@@ -1080,12 +1092,14 @@ class DataService {
         userAmplifications.delete(entryId);
         this.updateEntryInteraction(entryId, 'amplifications', -1);
         this.updateEntryAmplified(entryId, false);
+        this.saveInteractionStateToStorage();
         return false;
       } else {
         // Add amplification
         userAmplifications.add(entryId);
         this.updateEntryInteraction(entryId, 'amplifications', 1);
         this.updateEntryAmplified(entryId, true);
+        this.saveInteractionStateToStorage();
         authService.updateUserStats('connections');
         return true;
       }
@@ -1120,11 +1134,13 @@ class DataService {
         userAmplifications.delete(entryId);
         this.updateEntryInteraction(entryId, 'amplifications', -1);
         this.updateEntryAmplified(entryId, false);
+        this.saveInteractionStateToStorage();
         return false;
       } else {
         userAmplifications.add(entryId);
         this.updateEntryInteraction(entryId, 'amplifications', 1);
         this.updateEntryAmplified(entryId, true);
+        this.saveInteractionStateToStorage();
         authService.updateUserStats('connections');
         return true;
       }
@@ -1761,6 +1777,55 @@ class DataService {
       throw new Error('User posts retrieval not supported by current database provider');
     }
     return this.database.getUserPostsByUsername(username, limit);
+  }
+
+  // ===== Mock Mode Persistence Helpers =====
+  /** Load user interaction maps from localStorage (client-side only) */
+  private loadInteractionStateFromStorage() {
+    if (typeof window === 'undefined') return; // SSR safeguard
+
+    try {
+      const resItem = localStorage.getItem('nexus_user_resonances');
+      const ampItem = localStorage.getItem('nexus_user_amplifications');
+
+      if (resItem) {
+        const parsed: Record<string, string[]> = JSON.parse(resItem);
+        Object.entries(parsed).forEach(([userId, ids]) => {
+          this.userResonances.set(userId, new Set(ids));
+        });
+      }
+
+      if (ampItem) {
+        const parsed: Record<string, string[]> = JSON.parse(ampItem);
+        Object.entries(parsed).forEach(([userId, ids]) => {
+          this.userAmplifications.set(userId, new Set(ids));
+        });
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to load interaction state from storage:', e);
+    }
+  }
+
+  /** Persist current in-memory interaction maps to localStorage (client-side only) */
+  private saveInteractionStateToStorage() {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const resonancesObj: Record<string, string[]> = {};
+      this.userResonances.forEach((set, userId) => {
+        resonancesObj[userId] = Array.from(set);
+      });
+
+      const amplificationsObj: Record<string, string[]> = {};
+      this.userAmplifications.forEach((set, userId) => {
+        amplificationsObj[userId] = Array.from(set);
+      });
+
+      localStorage.setItem('nexus_user_resonances', JSON.stringify(resonancesObj));
+      localStorage.setItem('nexus_user_amplifications', JSON.stringify(amplificationsObj));
+    } catch (e) {
+      console.warn('⚠️ Failed to save interaction state to storage:', e);
+    }
   }
 }
 

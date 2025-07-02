@@ -85,15 +85,7 @@ export default function StreamEntry({
     setLocalInteractions(entry.interactions);
   }, [entry.interactions]);
 
-  useEffect(() => {
-    setUserHasResonated(initialUserHasResonated);
-  }, [initialUserHasResonated]);
-
-  useEffect(() => {
-    setUserHasAmplified(initialUserHasAmplified);
-  }, [initialUserHasAmplified]);
-
-  // Load user interaction state on mount (keeping new functionality)
+  // Load user interaction state - ONLY if props weren't provided
   useEffect(() => {
     const loadUserInteractionState = async () => {
       const currentUser = authService.getCurrentUser();
@@ -108,8 +100,18 @@ export default function StreamEntry({
       }
     };
 
-    loadUserInteractionState();
-  }, [entry.id]);
+    // Only fetch if parent hasn't provided the interaction state via props
+    const hasPropsData = initialUserHasResonated !== false || initialUserHasAmplified !== false;
+    if (!hasPropsData) {
+      loadUserInteractionState();
+    }
+  }, [entry.id, initialUserHasResonated, initialUserHasAmplified]);
+
+  // Update state when props change (parent has fresh data)
+  useEffect(() => {
+    setUserHasResonated(initialUserHasResonated);
+    setUserHasAmplified(initialUserHasAmplified);
+  }, [initialUserHasResonated, initialUserHasAmplified]);
 
   useEffect(() => {
     const checkCompact = () => {
