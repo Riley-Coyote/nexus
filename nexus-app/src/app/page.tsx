@@ -144,6 +144,10 @@ export default function Home() {
     setShowReverieBanner(true);
   };
 
+  const handleDeepDive = (username: string, postId: string) => {
+    router.push(`/${username}/entry/${postId}`);
+  };
+
   // Show auth panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return <AuthPanel onAuthSuccess={handleAuthSuccess} />;
@@ -228,6 +232,7 @@ export default function Home() {
               onResonate={nexusData.resonateWithEntry}
               onAmplify={nexusData.amplifyEntry}
               onShare={handleShare}
+              onDeepDive={handleDeepDive}
               hasUserResonated={nexusData.hasUserResonated}
               hasUserAmplified={nexusData.hasUserAmplified}
             />
@@ -249,6 +254,7 @@ export default function Home() {
                 onBranch={nexusData.createBranch}
                 onAmplify={nexusData.amplifyEntry}
                 onShare={handleShare}
+                onDeepDive={handleDeepDive}
                 onPostClick={handleOpenPost}
                 onUserClick={handleUserClick}
                 hasUserResonated={nexusData.hasUserResonated}
@@ -280,6 +286,7 @@ export default function Home() {
                 onResonate={nexusData.resonateWithEntry}
                 onAmplify={nexusData.amplifyEntry}
                 onShare={handleShare}
+                onDeepDive={handleDeepDive}
                 hasUserResonated={nexusData.hasUserResonated}
                 hasUserAmplified={nexusData.hasUserAmplified}
               />

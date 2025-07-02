@@ -18,6 +18,7 @@ export interface PostDisplayProps {
   onBranch?: (parentId: string, content: string) => Promise<void>;
   onAmplify?: (postId: string) => Promise<void>;
   onShare?: (postId: string) => void;
+  onDeepDive?: (post: Post) => void;
   userHasResonated?: boolean;
   userHasAmplified?: boolean;
   onClose?: () => void;
@@ -36,6 +37,7 @@ export default function PostDisplay({
   onBranch,
   onAmplify,
   onShare,
+  onDeepDive,
   userHasResonated: initialUserHasResonated = false,
   userHasAmplified: initialUserHasAmplified = false,
   onClose,
@@ -184,6 +186,11 @@ export default function PostDisplay({
     } catch (error) {
       console.error('Error sharing post:', error);
     }
+  };
+
+  const handleDeepDive = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeepDive?.(post);
   };
 
   const submitBranch = async () => {
@@ -452,6 +459,18 @@ export default function PostDisplay({
                 <span className={`action-text ${isCompact ? 'hidden' : 'hidden lg:inline'}`}>Share</span>
                 <span className="action-symbol text-base sm:text-lg">∆</span>
                 <span className="interaction-count font-medium">{localInteractions.shares}</span>
+              </button>
+
+              <button 
+                onClick={handleDeepDive}
+                disabled={isInteracting}
+                className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
+                title="Deep dive into this thread"
+              >
+                <span className={`action-text ${isCompact ? 'hidden' : 'hidden lg:inline'}`}>Deep Dive</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </button>
             </div>
           </div>

@@ -17,6 +17,7 @@ interface NexusFeedProps {
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
   onShare?: (entryId: string) => void;
+  onDeepDive?: (username: string, postId: string) => void;
   hasUserResonated?: (entryId: string) => boolean;
   hasUserAmplified?: (entryId: string) => boolean;
 }
@@ -33,6 +34,7 @@ export default function NexusFeed({
   onResonate,
   onAmplify,
   onShare,
+  onDeepDive,
   hasUserResonated,
   hasUserAmplified
 }: NexusFeedProps) {
@@ -107,6 +109,10 @@ export default function NexusFeed({
     }
   };
 
+  const handleDeepDive = (post: Post) => {
+    onDeepDive?.(post.username, post.id);
+  };
+
   if (isLoading && flattenedEntries.length === 0) {
     return (
       <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
@@ -155,6 +161,7 @@ export default function NexusFeed({
                   onResonate={onResonate}
                   onAmplify={onAmplify}
                   onShare={onShare}
+                  onDeepDive={handleDeepDive}
                   userHasResonated={hasUserResonated?.(post.id) || false}
                   userHasAmplified={hasUserAmplified?.(post.id) || false}
                   onClose={() => {

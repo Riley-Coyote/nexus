@@ -3,7 +3,7 @@
 import React from 'react';
 import EntryComposer from './EntryComposer';
 import PostDisplay from './PostDisplay';
-import { EntryComposerData, StreamEntry } from '@/lib/types';
+import { EntryComposerData, StreamEntry, Post } from '@/lib/types';
 import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
 
 interface MainContentProps {
@@ -14,6 +14,7 @@ interface MainContentProps {
   onBranch?: (parentId: string, content: string) => void;
   onAmplify?: (id: string) => Promise<void>;
   onShare?: (id: string) => void;
+  onDeepDive?: (username: string, postId: string) => void;
   onPostClick?: (post: StreamEntry) => void;
   onUserClick?: (username: string) => void;
   hasUserResonated?: (entryId: string) => boolean;
@@ -28,6 +29,7 @@ export default function MainContent({
   onBranch,
   onAmplify,
   onShare,
+  onDeepDive,
   onPostClick,
   onUserClick,
   hasUserResonated,
@@ -44,8 +46,10 @@ export default function MainContent({
     }
   };
 
-  const handleBranch = (parentId: string, content: string) => {
-    onBranch?.(parentId, content);
+  const handleBranch = async (parentId: string, content: string) => {
+    if (onBranch) {
+      await onBranch(parentId, content);
+    }
   };
 
   const handleAmplify = async (id: string) => {
@@ -56,6 +60,10 @@ export default function MainContent({
 
   const handleShare = (id: string) => {
     onShare?.(id);
+  };
+
+  const handleDeepDive = (post: Post) => {
+    onDeepDive?.(post.username, post.id);
   };
 
   return (
@@ -84,6 +92,7 @@ export default function MainContent({
               onBranch={handleBranch}
               onAmplify={handleAmplify}
               onShare={handleShare}
+              onDeepDive={handleDeepDive}
               onPostClick={() => onPostClick?.(streamEntry)} // Pass original StreamEntry for compatibility
               onUserClick={onUserClick}
               userHasResonated={hasUserResonated?.(post.id) || false}

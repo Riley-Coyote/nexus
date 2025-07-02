@@ -3,7 +3,7 @@
 import React from 'react';
 import EntryComposer from './EntryComposer';
 import PostDisplay from './PostDisplay';
-import { EntryComposerData, StreamEntry } from '@/lib/types';
+import { EntryComposerData, StreamEntry, Post } from '@/lib/types';
 import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
 
 interface DreamMainContentProps {
@@ -12,10 +12,11 @@ interface DreamMainContentProps {
   onPostClick?: (post: StreamEntry) => void;
   onUserClick?: (username: string) => void;
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
-  onBranch?: (parentId: string, content: string) => void;
+  onBranch?: (parentId: string, content: string) => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
   onShare?: (entryId: string) => void;
+  onDeepDive?: (username: string, postId: string) => void;
   hasUserResonated?: (entryId: string) => boolean;
   hasUserAmplified?: (entryId: string) => boolean;
 }
@@ -30,6 +31,7 @@ export default function DreamMainContent({
   onResonate,
   onAmplify,
   onShare,
+  onDeepDive,
   hasUserResonated,
   hasUserAmplified
 }: DreamMainContentProps) {
@@ -48,6 +50,10 @@ export default function DreamMainContent({
     if (onAmplify) {
       await onAmplify(entryId);
     }
+  };
+
+  const handleDeepDive = (post: Post) => {
+    onDeepDive?.(post.username, post.id);
   };
 
   // Sort dreams by timestamp (newest first)
@@ -84,6 +90,7 @@ export default function DreamMainContent({
               onResonate={handleResonate}
               onAmplify={handleAmplify}
               onShare={onShare}
+              onDeepDive={handleDeepDive}
               userHasResonated={hasUserResonated?.(post.id) || false}
               userHasAmplified={hasUserAmplified?.(post.id) || false}
             />

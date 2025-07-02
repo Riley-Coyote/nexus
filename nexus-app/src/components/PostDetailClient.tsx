@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Post } from '@/lib/types';
 import PostDisplay from '@/components/PostDisplay';
 import { dataService } from '@/lib/services/dataService';
@@ -12,6 +13,12 @@ interface PostDetailClientProps {
 }
 
 export default function PostDetailClient({ post, parent, childPosts }: PostDetailClientProps) {
+  const router = useRouter();
+
+  const handleDeepDive = (targetPost: Post) => {
+    // Navigate to the entry detail page for the target post
+    router.push(`/${targetPost.username}/entry/${targetPost.id}`);
+  };
   return (
     <div className="conversation-thread">
       {/* Parent Context */}
@@ -28,6 +35,7 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               displayMode="compact"
               showBranching={false}
               showInteractions={false}
+              onDeepDive={handleDeepDive}
             />
           </div>
         </div>
@@ -50,6 +58,7 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
             onBranch={async (parentId, content) => { await dataService.createBranch(parentId, content); }}
             onAmplify={async (postId) => { await dataService.amplifyEntry(postId); }}
             onShare={(postId) => console.log(`Share interaction on post ${postId}`)}
+            onDeepDive={handleDeepDive}
           />
         </div>
       </div>
@@ -72,6 +81,7 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               onBranch={async (parentId, content) => { await dataService.createBranch(parentId, content); }}
               onAmplify={async (postId) => { await dataService.amplifyEntry(postId); }}
               onShare={(postId) => console.log(`Share interaction on post ${postId}`)}
+              onDeepDive={handleDeepDive}
             />
           </div>
         </div>
