@@ -230,6 +230,8 @@ class SupabaseAuthService {
       role: supabaseUser.role,
       avatar: supabaseUser.avatar,
       profileImage: supabaseUser.profile_image_url,
+      bio: supabaseUser.bio,
+      location: supabaseUser.location,
       stats: {
         ...(supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 }),
         connections: supabaseUser.follower_count ?? 0
