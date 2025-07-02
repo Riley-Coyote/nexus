@@ -126,6 +126,9 @@ export default function ResonanceFieldPage() {
             onPostClick={handleOpenPost}
             refreshResonatedEntries={nexusData.refreshResonatedEntries}
             onResonate={nexusData.resonateWithEntry}
+            onAmplify={nexusData.amplifyEntry}
+            hasUserAmplified={nexusData.hasUserAmplified}
+            refreshAmplifiedEntries={nexusData.refreshAmplifiedEntries}
           />
         </div>
       </div>

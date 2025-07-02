@@ -10,13 +10,19 @@ interface ResonanceFieldProps {
   onPostClick?: (post: Post) => void;
   refreshResonatedEntries?: () => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
+  onAmplify?: (entryId: string) => Promise<void>;
+  hasUserAmplified?: (entryId: string) => boolean;
+  refreshAmplifiedEntries?: () => Promise<void>;
 }
 
 export default function ResonanceField({ 
   resonatedEntries, 
   onPostClick,
   refreshResonatedEntries,
-  onResonate
+  onResonate,
+  onAmplify,
+  hasUserAmplified,
+  refreshAmplifiedEntries
 }: ResonanceFieldProps) {
   const [convertedEntries, setConvertedEntries] = useState<Post[]>([]);
 
@@ -37,6 +43,20 @@ export default function ResonanceField({
       }
     } catch (error) {
       console.error('Error handling resonance in ResonanceField:', error);
+    }
+  };
+
+  const handleAmplify = async (entryId: string) => {
+    if (!onAmplify) return;
+    
+    try {
+      await onAmplify(entryId);
+      // Refresh the amplified entries after successful amplify action
+      if (refreshAmplifiedEntries) {
+        await refreshAmplifiedEntries();
+      }
+    } catch (error) {
+      console.error('Error handling amplify in ResonanceField:', error);
     }
   };
 
@@ -72,7 +92,9 @@ export default function ResonanceField({
                 displayMode="full"
                 onPostClick={onPostClick}
                 onResonate={handleResonate}
+                onAmplify={handleAmplify}
                 userHasResonated={true} // Always true in resonance field
+                userHasAmplified={hasUserAmplified ? hasUserAmplified(post.id) : false}
                 showBranching={false} // Disable branching in resonance field
                 onClose={() => {
                   console.log(`Mobile close requested for resonated post ${post.id}`);
