@@ -185,10 +185,11 @@ export default function Home() {
         />
         
         {/* Main Content Area */}
-        <div className="grid overflow-hidden" 
-             style={{ 
-               gridTemplateColumns: viewMode === 'feed' ? '1fr' : '300px 1fr 300px' 
-             }}>
+        <div className={`grid overflow-hidden ${
+          viewMode === 'feed'
+            ? 'grid-cols-1'
+            : 'grid-cols-1 md:grid-cols-[300px_1fr_300px]'
+        }`}>
           
           {/* Feed View */}
           {viewMode === 'feed' && (
