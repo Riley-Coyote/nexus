@@ -1545,11 +1545,41 @@ class DataService {
       throw new Error('User not authenticated. Cannot update profile.');
     }
 
+    // ---- Sanitisation & Validation ----
+    const NAME_MAX_LENGTH = 50;
+    const BIO_MAX_LENGTH = 160;
+    const LOCATION_MAX_LENGTH = 30;
+
+    // Clone to avoid mutating caller object
+    const cleaned: { name?: string; bio?: string; location?: string } = { ...updates };
+
+    if (cleaned.name !== undefined) {
+      cleaned.name = cleaned.name.trim();
+      if (cleaned.name.length === 0) {
+        throw new Error('Name cannot be empty.');
+      }
+      if (cleaned.name.length > NAME_MAX_LENGTH) {
+        throw new Error(`Name exceeds maximum length of ${NAME_MAX_LENGTH} characters.`);
+      }
+    }
+    if (cleaned.bio !== undefined) {
+      cleaned.bio = cleaned.bio.trim();
+      if (cleaned.bio.length > BIO_MAX_LENGTH) {
+        throw new Error(`Bio exceeds maximum length of ${BIO_MAX_LENGTH} characters.`);
+      }
+    }
+    if (cleaned.location !== undefined) {
+      cleaned.location = cleaned.location.trim();
+      if (cleaned.location.length > LOCATION_MAX_LENGTH) {
+        throw new Error(`Location exceeds maximum length of ${LOCATION_MAX_LENGTH} characters.`);
+      }
+    }
+
     if (USE_MOCK_DATA || !this.database) {
       const user = mockUsers.find(u => u.id === currentUser.id);
       if (user) {
-        Object.assign(user, updates, { updated_at: new Date().toISOString() });
-        console.log(`[Mock] Updated profile for user ${currentUser.id}:`, updates);
+        Object.assign(user, cleaned, { updated_at: new Date().toISOString() });
+        console.log(`[Mock] Updated profile for user ${currentUser.id}:`, cleaned);
         return Promise.resolve(user);
       }
       throw new Error('User not found in mock data.');
@@ -1558,7 +1588,7 @@ class DataService {
     if (!this.database.updateUser) {
         throw new Error('User update not supported by current database provider');
     }
-    return this.database.updateUser(currentUser.id, updates);
+    return this.database.updateUser(currentUser.id, cleaned);
   }
 
   async getUserProfile(userId: string): Promise<User | null> {

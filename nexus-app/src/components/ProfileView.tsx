@@ -6,6 +6,7 @@ import PostDisplay from './PostDisplay';
 import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
 // @ts-ignore
 import FollowsModal from './FollowsModal';
+import NotificationBanner from './NotificationBanner';
 
 interface ProfileViewProps {
   user: User;
@@ -70,11 +71,20 @@ export default function ProfileView({
     followingCount: user.followingCount ?? 0
   });
 
+  // Validation error state
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Character limits similar to X (Twitter)
+  const NAME_MAX_LENGTH = 50;
+  const BIO_MAX_LENGTH = 160;
+  const LOCATION_MAX_LENGTH = 30;
+
   useEffect(() => {
     setEditedName(user.name);
     setEditedBio(user.bio || '');
     setEditedLocation(user.location || '');
     setStats({ followerCount: user.followerCount ?? 0, followingCount: user.followingCount ?? 0 });
+    setValidationError(null);
   }, [user]);
 
   useEffect(() => {
@@ -89,11 +99,37 @@ export default function ProfileView({
   }, []);
 
   const handleSaveProfile = async () => {
+    // Trim inputs to remove leading / trailing whitespace
+    const name = editedName.trim();
+    const bio = editedBio.trim();
+    const location = editedLocation.trim();
+
+    // Basic validations
+    if (name.length === 0) {
+      setValidationError('Name cannot be empty.');
+      return;
+    }
+    if (name.length > NAME_MAX_LENGTH) {
+      setValidationError(`Name is too long (max ${NAME_MAX_LENGTH} characters).`);
+      return;
+    }
+    if (bio.length > BIO_MAX_LENGTH) {
+      setValidationError(`Bio is too long (max ${BIO_MAX_LENGTH} characters).`);
+      return;
+    }
+    if (location.length > LOCATION_MAX_LENGTH) {
+      setValidationError(`Location is too long (max ${LOCATION_MAX_LENGTH} characters).`);
+      return;
+    }
+
     try {
-      await onUpdateProfile({ name: editedName, bio: editedBio, location: editedLocation });
+      await onUpdateProfile({ name, bio, location });
       setIsEditing(false);
-    } catch (error) {
+      setValidationError(null);
+    } catch (error: any) {
       console.error('Failed to update profile:', error);
+      // If backend returned a message use it, else generic
+      setValidationError(error?.message || 'Failed to update profile.');
     }
   };
 
@@ -102,6 +138,7 @@ export default function ProfileView({
     setEditedBio(user.bio || '');
     setEditedLocation(user.location || '');
     setIsEditing(false);
+    setValidationError(null);
   };
 
   useEffect(() => {
@@ -222,6 +259,14 @@ export default function ProfileView({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-deep-void">
+      {/* Error banner */}
+      <NotificationBanner
+        show={!!validationError}
+        onClose={() => setValidationError(null)}
+        title={validationError || ''}
+        variant="error"
+        autoHide={false}
+      />
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
         <div className="flex-shrink-0 p-8 border-b border-white/10">
           <div className="flex items-start gap-6">

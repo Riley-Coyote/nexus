@@ -42,7 +42,7 @@ export default function NotificationBanner({
       case 'warning':
         return 'bg-[#69c4d8] border-yellow-400';
       case 'error':
-        return 'bg-[#69c4d8] border-red-400';
+        return 'bg-red-200 border-red-500';
       case 'dream':
         return 'bg-[#69c4d8] border-purple-400';
       case 'logbook':
