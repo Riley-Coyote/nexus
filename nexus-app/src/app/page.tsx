@@ -83,6 +83,12 @@ export default function Home() {
     }
   };
 
+  const handleShare = (postId: string) => {
+    // The share functionality is now handled natively in the PostDisplay component
+    // We just need to provide this callback for tracking and analytics
+    console.log(`Share interaction on post ${postId}`);
+  };
+
   const handleModeChange = (mode: JournalMode) => {
     setJournalMode(mode);
     setViewMode('default');
@@ -221,6 +227,7 @@ export default function Home() {
               refreshDreamData={nexusData.refreshDreamData}
               onResonate={nexusData.resonateWithEntry}
               onAmplify={nexusData.amplifyEntry}
+              onShare={handleShare}
               hasUserResonated={nexusData.hasUserResonated}
               hasUserAmplified={nexusData.hasUserAmplified}
             />
@@ -241,7 +248,7 @@ export default function Home() {
                 onResonate={nexusData.resonateWithEntry}
                 onBranch={nexusData.createBranch}
                 onAmplify={nexusData.amplifyEntry}
-                onShare={(id) => console.log('Share functionality to be implemented', id)}
+                onShare={handleShare}
                 onPostClick={handleOpenPost}
                 onUserClick={handleUserClick}
                 hasUserResonated={nexusData.hasUserResonated}
@@ -272,6 +279,7 @@ export default function Home() {
                 onBranch={nexusData.createBranch}
                 onResonate={nexusData.resonateWithEntry}
                 onAmplify={nexusData.amplifyEntry}
+                onShare={handleShare}
                 hasUserResonated={nexusData.hasUserResonated}
                 hasUserAmplified={nexusData.hasUserAmplified}
               />

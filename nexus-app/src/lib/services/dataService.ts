@@ -151,7 +151,7 @@ class DataService {
       
       // Load persisted interaction state (mock mode only)
       if (USE_MOCK_DATA) {
-    
+        this.loadInteractionStateFromStorage();
       }
 
       this.isInitialized = true;
@@ -1839,6 +1839,48 @@ class DataService {
     return this.database.getUserPostsByUsername(username, limit);
   }
 
+  // Persist interaction state in localStorage for mock mode
+  private saveInteractionStateToStorage(): void {
+    if (typeof window === 'undefined') return;
+    if (!USE_MOCK_DATA) return;
+    try {
+      const state = {
+        userResonances: Object.fromEntries(
+          Array.from(this.userResonances.entries()).map(([userId, set]) => [userId, Array.from(set)])
+        ),
+        userAmplifications: Object.fromEntries(
+          Array.from(this.userAmplifications.entries()).map(([userId, set]) => [userId, Array.from(set)])
+        ),
+      };
+      localStorage.setItem('nexusInteractionState', JSON.stringify(state));
+    } catch (error) {
+      console.error('Failed to save interaction state:', error);
+    }
+  }
+
+  private loadInteractionStateFromStorage(): void {
+    if (typeof window === 'undefined') return;
+    if (!USE_MOCK_DATA) return;
+    try {
+      const raw = localStorage.getItem('nexusInteractionState');
+      if (!raw) return;
+      const state = JSON.parse(raw);
+      if (state.userResonances) {
+        this.userResonances.clear();
+        for (const [userId, ids] of Object.entries(state.userResonances)) {
+          this.userResonances.set(userId, new Set(ids as string[]));
+        }
+      }
+      if (state.userAmplifications) {
+        this.userAmplifications.clear();
+        for (const [userId, ids] of Object.entries(state.userAmplifications)) {
+          this.userAmplifications.set(userId, new Set(ids as string[]));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load interaction state:', error);
+    }
+  }
 
 }
 

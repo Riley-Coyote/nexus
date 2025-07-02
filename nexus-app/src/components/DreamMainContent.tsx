@@ -15,6 +15,7 @@ interface DreamMainContentProps {
   onBranch?: (parentId: string, content: string) => void;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
+  onShare?: (entryId: string) => void;
   hasUserResonated?: (entryId: string) => boolean;
   hasUserAmplified?: (entryId: string) => boolean;
 }
@@ -28,6 +29,7 @@ export default function DreamMainContent({
   onBranch,
   onResonate,
   onAmplify,
+  onShare,
   hasUserResonated,
   hasUserAmplified
 }: DreamMainContentProps) {
@@ -81,6 +83,7 @@ export default function DreamMainContent({
               onBranch={onBranch}
               onResonate={handleResonate}
               onAmplify={handleAmplify}
+              onShare={onShare}
               userHasResonated={hasUserResonated?.(post.id) || false}
               userHasAmplified={hasUserAmplified?.(post.id) || false}
             />

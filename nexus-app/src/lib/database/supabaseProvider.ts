@@ -170,10 +170,11 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   async getEntryById(id: string): Promise<StreamEntry | null> {
+    const entryId = parseInt(id, 10);
     const { data, error } = await this.client
       .from('stream_entries')
       .select('*')
-      .eq('id', id)
+      .eq('id', entryId)
       .single();
 
     if (error) {
@@ -986,4 +987,4 @@ export class SupabaseProvider implements DatabaseProvider {
   async getStreamEntry(id: string): Promise<StreamEntry | null> {
     return this.getEntryById(id);
   }
-} 
+}

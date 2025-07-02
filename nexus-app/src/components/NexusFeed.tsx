@@ -16,6 +16,7 @@ interface NexusFeedProps {
   refreshDreamData?: () => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
+  onShare?: (entryId: string) => void;
   hasUserResonated?: (entryId: string) => boolean;
   hasUserAmplified?: (entryId: string) => boolean;
 }
@@ -31,6 +32,7 @@ export default function NexusFeed({
   refreshDreamData,
   onResonate,
   onAmplify,
+  onShare,
   hasUserResonated,
   hasUserAmplified
 }: NexusFeedProps) {
@@ -152,6 +154,7 @@ export default function NexusFeed({
                   onBranch={handleBranch}
                   onResonate={onResonate}
                   onAmplify={onAmplify}
+                  onShare={onShare}
                   userHasResonated={hasUserResonated?.(post.id) || false}
                   userHasAmplified={hasUserAmplified?.(post.id) || false}
                   onClose={() => {

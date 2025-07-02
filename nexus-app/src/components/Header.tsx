@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { Search, MessageSquare, User, Menu, X } from 'lucide-react';
-import { HeaderProps } from '@/lib/types';
+import { HeaderProps, ViewMode } from '@/lib/types';
 import NotificationBanner from './NotificationBanner';
+import { useRouter } from 'next/navigation';
 
 export default function Header({ 
   currentMode, 
@@ -17,6 +18,7 @@ export default function Header({
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showMessengerBanner, setShowMessengerBanner] = useState(false);
+  const router = useRouter();
 
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -36,10 +38,15 @@ export default function Header({
     setShowMessengerBanner(true);
   };
 
-  const handleViewChange = (view: string) => {
-    onViewChange(view as any);
-    // Force close mobile menu after navigation
-    setIsMobileMenuOpen(false);
+  const handleNav = (view: ViewMode) => {
+    if (onViewChange) {
+      onViewChange(view);
+    } else {
+      // Fallback to direct navigation when handler is absent
+      if (view === 'feed') router.push('/');
+      else if (view === 'resonance-field') router.push('/resonance-field');
+      else if (view === 'profile' && currentUser) router.push(`/profile/${currentUser.username}`);
+    }
   };
   
   // Force close mobile menu when view changes externally
@@ -130,13 +137,13 @@ export default function Header({
                     ? 'text-current-accent' 
                     : 'text-gray-450 hover:text-gray-250'
                 }`}
-                onClick={() => onViewChange('feed')}
+                onClick={() => handleNav('feed')}
               >
                 Nexus Feed
               </li>
               <li 
                 className="cursor-pointer"
-                onClick={() => onViewChange('resonance-field')}
+                onClick={() => handleNav('resonance-field')}
               >
                 <span className={`transition-colors duration-300 ${
                   currentView === 'resonance-field' 
@@ -148,7 +155,7 @@ export default function Header({
               </li>
               <li 
                 className="cursor-pointer"
-                onClick={() => onViewChange('profile')}
+                onClick={() => handleNav('profile')}
               >
                 <span className={`transition-colors duration-300 ${
                   currentView === 'profile' 
@@ -178,7 +185,7 @@ export default function Header({
                     ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
                     : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
                 } ripple-effect`}
-                onClick={() => onModeChange('logbook')}
+                onClick={() => onModeChange?.('logbook')}
               >
                 Logbook
               </button>
@@ -189,7 +196,7 @@ export default function Header({
                     ? 'active-journal-btn bg-current-accent text-deep-void shadow-lg' 
                     : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
                 } ripple-effect`}
-                onClick={() => onModeChange('dream')}
+                onClick={() => onModeChange?.('dream')}
               >
                 Dream
               </button>
@@ -266,7 +273,7 @@ export default function Header({
                 className={`mobile-nav-button ${
                   currentView === 'feed' ? 'active' : ''
                 }`}
-                onClick={() => handleViewChange('feed')}
+                onClick={() => handleNav('feed')}
               >
                 Nexus Feed
               </button>
@@ -274,7 +281,7 @@ export default function Header({
                 className={`mobile-nav-button ${
                   currentView === 'resonance-field' ? 'active' : ''
                 }`}
-                onClick={() => handleViewChange('resonance-field')}
+                onClick={() => handleNav('resonance-field')}
               >
                 Resonance Field
               </button>
@@ -282,7 +289,7 @@ export default function Header({
                 className={`mobile-nav-button ${
                   currentView === 'profile' ? 'active' : ''
                 }`}
-                onClick={() => handleViewChange('profile')}
+                onClick={() => handleNav('profile')}
               >
                 Profile
               </button>
@@ -293,18 +300,14 @@ export default function Header({
               <div className="mobile-mode-label">Mode</div>
               <div className="mobile-mode-buttons">
                 <button 
-                  className={`mobile-mode-button ${
-                    currentView === 'default' && currentMode === 'logbook' ? 'active logbook bg-current-accent text-deep-void shadow-lg' : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
-                  }`}
-                  onClick={() => { onModeChange('logbook'); setIsMobileMenuOpen(false); }}
+                  className="mobile-mode-button"
+                  onClick={() => { onModeChange?.('logbook'); setIsMobileMenuOpen(false); }}
                 >
                   Logbook
                 </button>
                 <button 
-                  className={`mobile-mode-button ${
-                    currentView === 'default' && currentMode === 'dream' ? 'active dream bg-current-accent text-deep-void shadow-lg' : 'bg-white/5 text-text-secondary hover:bg-current-accent hover:text-deep-void'
-                  }`}
-                  onClick={() => { onModeChange('dream'); setIsMobileMenuOpen(false); }}
+                  className="mobile-mode-button"
+                  onClick={() => { onModeChange?.('dream'); setIsMobileMenuOpen(false); }}
                 >
                   Dream
                 </button>

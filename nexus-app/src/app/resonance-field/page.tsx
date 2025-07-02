@@ -56,6 +56,12 @@ export default function ResonanceFieldPage() {
     }
   };
 
+  const handleShare = (postId: string) => {
+    // The share functionality is now handled natively in the PostDisplay component
+    // We just need to provide this callback for compatibility
+    console.log(`Share interaction on post ${postId}`);
+  };
+
   const handleModeChange = (mode: 'logbook' | 'dream') => {
     router.push(`/?mode=${mode}`);
   };
@@ -129,6 +135,7 @@ export default function ResonanceFieldPage() {
             onAmplify={nexusData.amplifyEntry}
             hasUserAmplified={nexusData.hasUserAmplified}
             refreshAmplifiedEntries={nexusData.refreshAmplifiedEntries}
+            onShare={handleShare}
           />
         </div>
       </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { dataService } from '../lib/services/dataService';
 import { authService } from '../lib/services/authService';
+import { shareContent, createPostShareData } from '@/lib/utils/shareUtils';
 
 export interface StreamEntryData {
   id: string;
@@ -205,13 +206,29 @@ export default function StreamEntry({
     }
   };
 
-  const handleShare = () => {
-    onShare?.(entry.id);
-    // For now, just increment the count locally
-    setLocalInteractions(prev => ({
-      ...prev,
-      shares: prev.shares + 1
-    }));
+  const handleShare = async () => {
+    try {
+      const shareData = createPostShareData({
+        id: entry.id,
+        title: entry.title,
+        content: entry.content,
+        username: entry.username,
+        type: entry.type
+      });
+      
+      const success = await shareContent(shareData);
+      
+      if (success) {
+        // Call the original onShare callback and update counter only on successful share
+        onShare?.(entry.id);
+        setLocalInteractions(prev => ({
+          ...prev,
+          shares: prev.shares + 1
+        }));
+      }
+    } catch (error) {
+      console.error('Error sharing entry:', error);
+    }
   };
 
   const handlePostClick = () => {

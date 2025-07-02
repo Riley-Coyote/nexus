@@ -13,6 +13,7 @@ interface ResonanceFieldProps {
   onAmplify?: (entryId: string) => Promise<void>;
   hasUserAmplified?: (entryId: string) => boolean;
   refreshAmplifiedEntries?: () => Promise<void>;
+  onShare?: (entryId: string) => void;
 }
 
 export default function ResonanceField({ 
@@ -22,7 +23,8 @@ export default function ResonanceField({
   onResonate,
   onAmplify,
   hasUserAmplified,
-  refreshAmplifiedEntries
+  refreshAmplifiedEntries,
+  onShare
 }: ResonanceFieldProps) {
   const [convertedEntries, setConvertedEntries] = useState<Post[]>([]);
 
@@ -95,6 +97,7 @@ export default function ResonanceField({
                 onAmplify={handleAmplify}
                 userHasResonated={true} // Always true in resonance field
                 userHasAmplified={hasUserAmplified ? hasUserAmplified(post.id) : false}
+                onShare={onShare}
                 showBranching={false} // Disable branching in resonance field
                 onClose={() => {
                   console.log(`Mobile close requested for resonated post ${post.id}`);

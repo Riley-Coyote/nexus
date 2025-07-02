@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Post } from '@/lib/types';
 import { dataService } from '@/lib/services/dataService';
 import { authService } from '@/lib/services/authService';
+import { shareContent, createPostShareData } from '@/lib/utils/shareUtils';
 
 export interface PostDisplayProps {
   post: Post;
@@ -14,7 +15,7 @@ export interface PostDisplayProps {
   onPostClick?: (post: Post) => void;
   onUserClick?: (username: string) => void;
   onResonate?: (postId: string) => Promise<void>;
-  onBranch?: (parentId: string, content: string) => void;
+  onBranch?: (parentId: string, content: string) => Promise<void>;
   onAmplify?: (postId: string) => Promise<void>;
   onShare?: (postId: string) => void;
   userHasResonated?: boolean;
@@ -160,12 +161,29 @@ export default function PostDisplay({
     setShowBranchComposer(!showBranchComposer);
   };
 
-  const handleShare = () => {
-    onShare?.(post.id);
-    setLocalInteractions(prev => ({
-      ...prev,
-      shares: prev.shares + 1
-    }));
+  const handleShare = async () => {
+    try {
+      const shareData = createPostShareData({
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        username: post.username,
+        type: post.type
+      });
+      
+      const success = await shareContent(shareData);
+      
+      if (success) {
+        // Call the original onShare callback and update counter only on successful share
+        onShare?.(post.id);
+        setLocalInteractions(prev => ({
+          ...prev,
+          shares: prev.shares + 1
+        }));
+      }
+    } catch (error) {
+      console.error('Error sharing post:', error);
+    }
   };
 
   const submitBranch = async () => {

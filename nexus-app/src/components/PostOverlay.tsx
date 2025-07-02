@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType } from '@/lib/types';
 import { StreamEntryData } from './StreamEntry';
 import { dataService } from '@/lib/services/dataService';
+import { authService } from '@/lib/services/authService';
+import { shareContent, createPostShareData } from '@/lib/utils/shareUtils';
 
 interface PostOverlayProps {
   post: StreamEntryType | null;
@@ -215,13 +217,29 @@ export default function PostOverlay({
     }
   };
 
-  const handleShare = () => {
-    // For now, just increment the count locally
-    setLocalInteractions(prev => ({
-      ...prev,
-      shares: prev.shares + 1
-    }));
-    onInteraction?.('share', post.id);
+  const handleShare = async () => {
+    try {
+      const shareData = createPostShareData({
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        username: post.username,
+        type: post.type
+      });
+      
+      const success = await shareContent(shareData);
+      
+      if (success) {
+        // Update counter and call callback only on successful share
+        setLocalInteractions(prev => ({
+          ...prev,
+          shares: prev.shares + 1
+        }));
+        onInteraction?.('share', post.id);
+      }
+    } catch (error) {
+      console.error('Error sharing post in overlay:', error);
+    }
   };
 
   const submitBranch = async () => {

@@ -4,8 +4,8 @@ export type ViewMode = 'feed' | 'resonance-field' | 'profile' | 'default';
 export interface HeaderProps {
   currentMode: JournalMode;
   currentView: ViewMode;
-  onModeChange: (mode: JournalMode) => void;
-  onViewChange: (view: ViewMode) => void;
+  onModeChange?: (mode: JournalMode) => void;
+  onViewChange?: (view: ViewMode) => void;
   currentUser?: User | null;
   onProfileClick?: () => void;
 }
