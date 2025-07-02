@@ -182,6 +182,13 @@ class DataService {
     });
   }
 
+  // NEW: Helper to enforce privacy rules in mock mode
+  private filterEntriesByPrivacy(entries: StreamEntry[], currentUserId?: string): StreamEntry[] {
+    return entries.filter(entry =>
+      entry.privacy === 'public' || (currentUserId && entry.userId === currentUserId)
+    );
+  }
+
   // Method to initialize test resonances after user login
   initializeUserResonances(userId: string) {
     if (!USE_MOCK_DATA && !DEBUG_USE_MOCK_DATA) return;
@@ -697,9 +704,11 @@ class DataService {
     
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      // Combine both arrays and sort by timestamp desc (newest first)
+      // Combine both arrays, apply privacy filter, and sort by timestamp desc (newest first)
+      const currentUser = authService.getCurrentUser();
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      const sortedEntries = allEntries.sort((a, b) => 
+      const visibleEntries = this.filterEntriesByPrivacy(allEntries, currentUser?.id);
+      const sortedEntries = visibleEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
       return this.buildThreadedEntries(sortedEntries);
@@ -784,9 +793,13 @@ class DataService {
       // Get user's resonated entry IDs
       const userResonances = this.userResonances.get(userId) || new Set();
       
-      // Find all entries that user has resonated with
+      // Find all entries that user has resonated with and apply privacy filter
+      const currentUser = authService.getCurrentUser();
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      const resonatedEntries = allEntries.filter(entry => userResonances.has(entry.id));
+      const resonatedEntries = this.filterEntriesByPrivacy(
+        allEntries.filter(entry => userResonances.has(entry.id)),
+        currentUser?.id
+      );
       
       // Sort by timestamp desc (newest first)
       return resonatedEntries.sort((a, b) => 
@@ -1336,16 +1349,17 @@ class DataService {
 
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      // Combine both arrays and sort by timestamp desc (newest first)
+      // Combine both arrays, apply privacy filter, and sort by timestamp desc (newest first)
+      const currentUser = authService.getCurrentUser();
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      const sortedEntries = allEntries.sort((a, b) => 
+      const visibleEntries = this.filterEntriesByPrivacy(allEntries, currentUser?.id);
+      const sortedEntries = visibleEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
       // Slice for pagination and return WITHOUT threading – each post appears individually
       const pagedEntries = sortedEntries.slice(offset, offset + limit);
 
       // Enrich with interaction data but DON'T build threading
-      const currentUser = authService.getCurrentUser();
       return await this.enrichEntriesWithInteractions(pagedEntries, currentUser?.id);
     }
 
