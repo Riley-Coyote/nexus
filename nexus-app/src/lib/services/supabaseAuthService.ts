@@ -199,6 +199,10 @@ class SupabaseAuthService {
       avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
       role: 'Explorer',
       stats: { entries: 0, dreams: 0, connections: 0 },
+      // @ts-ignore
+      followerCount: supabaseUser.follower_count || 0,
+      // @ts-ignore
+      followingCount: supabaseUser.following_count || 0,
       created_at: new Date().toISOString()
     };
 
@@ -227,6 +231,10 @@ class SupabaseAuthService {
       avatar: supabaseUser.avatar,
       profileImage: supabaseUser.profile_image_url,
       stats: supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 },
+      // @ts-ignore
+      followerCount: supabaseUser.follower_count || 0,
+      // @ts-ignore
+      followingCount: supabaseUser.following_count || 0,
       createdAt: supabaseUser.created_at
     };
   }

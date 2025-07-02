@@ -597,16 +597,43 @@ export const useNexusData = (): NexusData => {
       if (!authState.currentUser) {
         throw new Error('No user logged in');
       }
-      
-      return await dataService.followUser(followedId);
+
+      const success = await dataService.followUser(followedId);
+      if (success) {
+        // Optimistically update followingCount for current user
+        setAuthState(prev => {
+          if (!prev.currentUser) return prev;
+          return {
+            ...prev,
+            currentUser: {
+              ...prev.currentUser,
+              followingCount: (prev.currentUser.followingCount ?? 0) + 1
+            }
+          };
+        });
+      }
+      return success;
     }, [authState.currentUser]),
     
     unfollowUser: useCallback(async (followedId: string) => {
       if (!authState.currentUser) {
         throw new Error('No user logged in');
       }
-      
-      return await dataService.unfollowUser(followedId);
+
+      const success = await dataService.unfollowUser(followedId);
+      if (success) {
+        setAuthState(prev => {
+          if (!prev.currentUser) return prev;
+          return {
+            ...prev,
+            currentUser: {
+              ...prev.currentUser,
+              followingCount: Math.max(0, (prev.currentUser.followingCount ?? 1) - 1)
+            }
+          };
+        });
+      }
+      return success;
     }, [authState.currentUser]),
     
     isFollowing: useCallback(async (followedId: string) => {

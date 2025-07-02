@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, StreamEntry } from '@/lib/types';
 import PostDisplay from './PostDisplay';
 import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
+// @ts-ignore
+import FollowsModal from './FollowsModal';
 
 interface ProfileViewProps {
   user: User;
@@ -21,6 +23,9 @@ interface ProfileViewProps {
   unfollowUser?: (userId: string) => Promise<boolean>;
   isFollowing?: (userId: string) => Promise<boolean>;
   onReturnToOwnProfile?: () => void;
+  currentUserId?: string;
+  getFollowers?: (userId: string, limit?: number, offset?: number) => Promise<any[]>;
+  getFollowing?: (userId: string, limit?: number, offset?: number) => Promise<any[]>;
 }
 
 type ProfileTab = 'posts' | 'resonance' | 'media' | 'hypothesis';
@@ -41,6 +46,9 @@ export default function ProfileView({
   unfollowUser,
   isFollowing: checkIsFollowing,
   onReturnToOwnProfile,
+  currentUserId,
+  getFollowers,
+  getFollowing,
 }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
@@ -52,11 +60,21 @@ export default function ProfileView({
   
   const [followingState, setFollowingState] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [followsYou, setFollowsYou] = useState(false);
+
+  // Follows modal state
+  const [followsModalType, setFollowsModalType] = useState<'followers' | 'following' | null>(null);
+  const [followsList, setFollowsList] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    followerCount: user.followerCount ?? 0,
+    followingCount: user.followingCount ?? 0
+  });
 
   useEffect(() => {
     setEditedName(user.name);
     setEditedBio(user.bio || '');
     setEditedLocation(user.location || '');
+    setStats({ followerCount: user.followerCount ?? 0, followingCount: user.followingCount ?? 0 });
   }, [user]);
 
   useEffect(() => {
@@ -88,20 +106,76 @@ export default function ProfileView({
 
   useEffect(() => {
     if (!isOwnProfile && checkIsFollowing) {
-      checkIsFollowing(user.id).then(setFollowingState).catch(() => setFollowingState(false));
+      checkIsFollowing(user.id)
+        .then(setFollowingState)
+        .catch(() => setFollowingState(false));
     }
-  }, [user.id, isOwnProfile, checkIsFollowing]);
+    // Determine if viewed user follows me (for Follow back)
+    if (!isOwnProfile && currentUserId && getFollowing) {
+      (async () => {
+        try {
+          const theirFollowing = await getFollowing(user.id, 100, 0);
+          setFollowsYou(theirFollowing.some((rel: any) => rel.user.id === currentUserId));
+        } catch {/* ignore */}
+      })();
+    }
+  }, [user.id, isOwnProfile, checkIsFollowing, currentUserId, getFollowing]);
 
   const handleFollowToggle = async () => {
     if (isFollowLoading || !followUser || !unfollowUser) return;
     setIsFollowLoading(true);
     try {
       const success = followingState ? await unfollowUser(user.id) : await followUser(user.id);
-      if (success) setFollowingState(!followingState);
+      if (success) {
+        setFollowingState(!followingState);
+        // Update counts locally
+        setStats(prev => ({
+          ...prev,
+          followerCount: prev.followerCount + (followingState ? -1 : 1)
+        }));
+        refreshFollowerCount();
+      }
     } catch (error) {
       console.error('Failed to toggle follow:', error);
     } finally {
       setIsFollowLoading(false);
+    }
+  };
+
+  const openFollowersModal = async () => {
+    if (!getFollowers) return;
+    try {
+      const list = await getFollowers(user.id, 100, 0);
+      setFollowsList(list);
+      setFollowsModalType('followers');
+    } catch (error) {
+      console.error('Failed to fetch followers:', error);
+    }
+  };
+
+  const openFollowingModal = async () => {
+    if (!getFollowing) return;
+    try {
+      const list = await getFollowing(user.id, 100, 0);
+      setFollowsList(list);
+      setFollowsModalType('following');
+    } catch (error) {
+      console.error('Failed to fetch following:', error);
+    }
+  };
+
+  const closeFollowsModal = () => {
+    setFollowsModalType(null);
+    setFollowsList([]);
+  };
+
+  // Refresh follower count periodically and after follow toggle
+  const refreshFollowerCount = async () => {
+    if (getFollowers) {
+      try {
+        const all = await getFollowers(user.id, 1000, 0);
+        setStats(s => ({ ...s, followerCount: all.length }));
+      } catch {/* ignore */}
     }
   };
 
@@ -185,7 +259,7 @@ export default function ProfileView({
                     </div>
                   </div>
                 ) : (
-                  <button onClick={handleFollowToggle} disabled={isFollowLoading} className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${followingState ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-gray-300' : 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400'} ${isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''}`}> {isFollowLoading ? 'Loading...' : followingState ? 'Following' : 'Follow'} </button>
+                  <button onClick={handleFollowToggle} disabled={isFollowLoading} className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${followingState ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-gray-300' : 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400'} ${isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''}`}> {isFollowLoading ? 'Loading...' : followingState ? 'Unfollow' : followsYou ? 'Follow back' : 'Follow'} </button>
                 )}
               </div>
               <p className="text-gray-400 mb-1">@{user.username}</p>
@@ -219,14 +293,22 @@ export default function ProfileView({
                 </span>
               </div>
               <div className="flex items-center gap-6">
-                <span className="text-text-primary">
-                  <span className="font-semibold">{user.followingCount?.toLocaleString() || '0'}</span>{' '}
+                <button
+                  onClick={openFollowingModal}
+                  disabled={!getFollowing}
+                  className="text-text-primary hover:underline disabled:opacity-50 disabled:cursor-default"
+                >
+                  <span className="font-semibold">{stats.followingCount.toLocaleString()}</span>{' '}
                   <span className="text-gray-400">Following</span>
-                </span>
-                <span className="text-text-primary">
-                  <span className="font-semibold">{user.followerCount?.toLocaleString() || '0'}</span>{' '}
+                </button>
+                <button
+                  onClick={openFollowersModal}
+                  disabled={!getFollowers}
+                  className="text-text-primary hover:underline disabled:opacity-50 disabled:cursor-default"
+                >
+                  <span className="font-semibold">{stats.followerCount.toLocaleString()}</span>{' '}
                   <span className="text-gray-400">Followers</span>
-                </span>
+                </button>
               </div>
             </div>
           </div>
@@ -254,6 +336,15 @@ export default function ProfileView({
           </nav>
         </div>
         <div className="flex-1"><div className="p-8">{renderTabContent()}</div></div>
+
+        {/* Follows Modal */}
+        <FollowsModal
+          title={followsModalType === 'following' ? 'Following' : 'Followers'}
+          follows={followsList}
+          isOpen={followsModalType !== null}
+          onClose={closeFollowsModal}
+          onUserClick={onUserClick}
+        />
       </div>
     </div>
   );

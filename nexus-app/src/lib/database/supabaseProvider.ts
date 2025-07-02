@@ -610,6 +610,8 @@ export class SupabaseProvider implements DatabaseProvider {
             avatar,
             role,
             stats,
+            follower_count,
+            following_count,
             created_at,
             updated_at
           )
@@ -791,7 +793,7 @@ export class SupabaseProvider implements DatabaseProvider {
       throw new Error(`Failed to follow user: ${error.message}`);
     }
 
-    return data || false;
+    return true;
   }
 
   async unfollowUser(followerId: string, followedId: string): Promise<boolean> {
@@ -806,7 +808,7 @@ export class SupabaseProvider implements DatabaseProvider {
       throw new Error(`Failed to unfollow user: ${error.message}`);
     }
 
-    return data || false;
+    return true;
   }
 
   async isFollowing(followerId: string, followedId: string): Promise<boolean> {

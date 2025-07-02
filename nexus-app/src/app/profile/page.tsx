@@ -126,6 +126,9 @@ export default function ProfilePage() {
             onLogout={handleLogout}
             onUpdateProfile={nexusData.updateUserProfile}
             isOwnProfile={true}
+            currentUserId={nexusData.currentUser.id}
+            getFollowers={nexusData.getFollowers}
+            getFollowing={nexusData.getFollowing}
           />
         </div>
       </div>

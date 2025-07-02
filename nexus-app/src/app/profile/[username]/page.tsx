@@ -247,6 +247,9 @@ export default function UserProfilePage() {
             followUser={nexusData.followUser}
             unfollowUser={nexusData.unfollowUser}
             isFollowing={nexusData.isFollowing}
+            currentUserId={nexusData.currentUser?.id}
+            getFollowers={nexusData.getFollowers}
+            getFollowing={nexusData.getFollowing}
             onReturnToOwnProfile={handleReturnToOwnProfile}
           />
         </div>
