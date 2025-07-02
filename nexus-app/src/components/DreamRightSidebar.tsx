@@ -6,12 +6,20 @@ import { DreamAnalytics } from '@/lib/types';
 interface DreamRightSidebarProps {
   dreamAnalytics: DreamAnalytics;
   emergingSymbols: string[];
+  onReverieClick?: () => void;
 }
 
 export default function DreamRightSidebar({ 
   dreamAnalytics, 
-  emergingSymbols 
+  emergingSymbols,
+  onReverieClick
 }: DreamRightSidebarProps) {
+  const handleExploreClick = () => {
+    if (onReverieClick) {
+      onReverieClick();
+    }
+  };
+
   return (
     <aside className="flex flex-col gap-6 p-6 overflow-y-auto glass-sidebar parallax-layer-2 depth-mid depth-responsive">
       {/* Dream Analytics Panel */}
@@ -59,7 +67,7 @@ export default function DreamRightSidebar({
           <div className="text-6xl text-purple-400 mb-4">
             ∞
           </div>
-          <button className="interactive-btn w-full py-2 text-sm font-medium rounded-lg bg-white/5 hover:bg-white/10 text-text-secondary hover:text-current-accent border border-white/10 hover:border-current-accent/30 transition-all duration-300 ripple-effect">
+          <button className="interactive-btn w-full py-2 text-sm font-medium rounded-lg bg-white/5 hover:bg-white/10 text-text-secondary hover:text-current-accent border border-white/10 hover:border-current-accent/30 transition-all duration-300 ripple-effect" onClick={handleExploreClick}>
             Explore
           </button>
         </div>

@@ -17,12 +17,14 @@ interface ActiveAgent {
 interface RightSidebarProps {
   systemVitals: SystemVital[];
   activeAgents: ActiveAgent[];
+  onReverieClick?: () => void;
 }
 
-export default function RightSidebar({ systemVitals, activeAgents }: RightSidebarProps) {
+export default function RightSidebar({ systemVitals, activeAgents, onReverieClick }: RightSidebarProps) {
   const handleReverieClick = () => {
-    // Placeholder for reverie portal functionality
-    console.log('Enter Reverie clicked');
+    if (onReverieClick) {
+      onReverieClick();
+    }
   };
 
   const getStatusColor = (status: string) => {

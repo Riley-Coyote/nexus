@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Search, MessageSquare, User, Menu, X } from 'lucide-react';
 import { HeaderProps } from '@/lib/types';
+import NotificationBanner from './NotificationBanner';
 
 export default function Header({ 
   currentMode, 
@@ -15,6 +16,7 @@ export default function Header({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showMessengerBanner, setShowMessengerBanner] = useState(false);
 
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -31,8 +33,7 @@ export default function Header({
   };
 
   const handleMessengerOpen = () => {
-    // Messenger open functionality will be implemented later
-    console.log('Open messenger');
+    setShowMessengerBanner(true);
   };
 
   const handleViewChange = (view: string) => {
@@ -74,6 +75,14 @@ export default function Header({
 
   return (
     <header id="app-header" className="nexus-header">
+      <NotificationBanner
+        show={showMessengerBanner}
+        onClose={() => setShowMessengerBanner(false)}
+        title="Messenger Coming Soon"
+        subtitle="We're building something amazing for you"
+        icon={MessageSquare}
+        variant="info"
+      />
       <div className="header-content">
         {/* Title Section - Always Left */}
         <div className="header-title-section">

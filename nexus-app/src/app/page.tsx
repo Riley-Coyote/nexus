@@ -13,6 +13,7 @@ import PostOverlay from '@/components/PostOverlay';
 import NexusFeed from '@/components/NexusFeed';
 import AuthPanel from '@/components/AuthPanel';
 import UserProfile from '@/components/UserProfile';
+import NotificationBanner from '@/components/NotificationBanner';
 import { Post, StreamEntry, JournalMode, ViewMode } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
@@ -35,6 +36,9 @@ export default function Home() {
   
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Banner state for Reverie clicks
+  const [showReverieBanner, setShowReverieBanner] = useState(false);
 
   // Handle URL parameters for direct post access
   useEffect(() => {
@@ -130,6 +134,10 @@ export default function Home() {
     router.push(`/profile/${username}?mode=${journalMode}`);
   };
 
+  const handleReverieClick = () => {
+    setShowReverieBanner(true);
+  };
+
   // Show auth panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return <AuthPanel onAuthSuccess={handleAuthSuccess} />;
@@ -173,6 +181,15 @@ export default function Home() {
   // Render main application UI
   return (
     <div className={`liminal-logbook ${journalMode === 'dream' ? 'mode-dream' : 'mode-logbook'}`}>
+      {/* Floating Reverie Banner */}
+      <NotificationBanner
+        show={showReverieBanner}
+        onClose={() => setShowReverieBanner(false)}
+        title="Reverie Portal Coming Soon"
+        subtitle="Deep consciousness exploration is in development"
+        variant={journalMode === 'dream' ? 'dream' : 'logbook'}
+      />
+      
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 
@@ -233,6 +250,7 @@ export default function Home() {
               <RightSidebar 
                 systemVitals={nexusData.systemVitals}
                 activeAgents={nexusData.activeAgents}
+                onReverieClick={handleReverieClick}
               />
             </>
           )}
@@ -260,6 +278,7 @@ export default function Home() {
               <DreamRightSidebar 
                 dreamAnalytics={nexusData.dreamAnalytics!}
                 emergingSymbols={nexusData.emergingSymbols}
+                onReverieClick={handleReverieClick}
               />
             </>
           )}
