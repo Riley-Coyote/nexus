@@ -279,6 +279,7 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async createBranch(parentId: string, childId: string): Promise<void> {
     try {
+      // 1) Create the branch relationship row (also fires branch_count_trigger)
       const { error } = await this.client.rpc('create_branch', {
         parent_id: parentId,
         child_id: childId
@@ -287,6 +288,17 @@ export class SupabaseProvider implements DatabaseProvider {
       if (error) {
         console.error('❌ Error creating branch:', error);
         throw new Error(`Failed to create branch: ${error.message}`);
+      }
+
+      // 2) Safety bump – ensure branch counter is incremented even if trigger/rules fail.
+      //    We attempt this in a best-effort fashion; if it errors we just log and continue.
+      try {
+        await this.client.rpc('update_branch_count', {
+          target_entry_id: parentId,
+          delta: 1
+        });
+      } catch (countErr: any) {
+        console.warn('⚠️   Attempted manual branch_count bump failed (may be safe to ignore):', countErr?.message || countErr);
       }
     } catch (error) {
       console.error('❌ Error in createBranch:', error);
