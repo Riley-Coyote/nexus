@@ -522,16 +522,26 @@ export const useNexusData = (): NexusData => {
     forceAuthRefresh,
     
     // Profile actions
-    updateUserProfile: useCallback(async (updates: { name?: string; bio?: string; location?: string }) => {
-      if (!authState.currentUser) {
-        throw new Error('No user logged in');
-      }
-      
-      await dataService.updateUserProfile(updates);
-      
-      // Refresh auth state to get updated user data
-      forceAuthRefresh();
-    }, [authState.currentUser, forceAuthRefresh]),
+    updateUserProfile: useCallback(
+      async (updates: { name?: string; bio?: string; location?: string }) => {
+        if (!authState.currentUser) {
+          throw new Error('No user logged in');
+        }
+
+        // Persist the update via the data service and receive the fresh user record
+        const updatedUser = await dataService.updateUserProfile(updates);
+
+        // Immediately update all local state that references the current user
+        setAuthState((prev) => ({
+          ...prev,
+          currentUser: updatedUser,
+        }));
+
+        // If we are currently viewing our own profile, keep it in sync too
+        setProfileUser((prev) => (prev && prev.id === updatedUser.id ? updatedUser : prev));
+      },
+      [authState.currentUser]
+    ),
     
     // User interaction checks
     hasUserResonated,

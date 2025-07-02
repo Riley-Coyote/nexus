@@ -769,7 +769,10 @@ export class SupabaseProvider implements DatabaseProvider {
       profileImage: supabaseUser.profile_image_url,
       bio: supabaseUser.bio,
       location: supabaseUser.location,
-      stats: supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 },
+      stats: {
+        ...(supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 }),
+        connections: supabaseUser.follower_count ?? 0
+      },
       followerCount: supabaseUser.follower_count || 0,
       followingCount: supabaseUser.following_count || 0,
       createdAt: supabaseUser.created_at

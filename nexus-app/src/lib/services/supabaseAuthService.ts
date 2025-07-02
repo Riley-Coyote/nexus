@@ -230,7 +230,10 @@ class SupabaseAuthService {
       role: supabaseUser.role,
       avatar: supabaseUser.avatar,
       profileImage: supabaseUser.profile_image_url,
-      stats: supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 },
+      stats: {
+        ...(supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 }),
+        connections: supabaseUser.follower_count ?? 0
+      },
       // @ts-ignore
       followerCount: supabaseUser.follower_count || 0,
       // @ts-ignore
@@ -362,7 +365,6 @@ class SupabaseAuthService {
       if (error) {
         return { success: false, error: error.message };
       }
-
       return { success: true };
     } catch (error) {
       console.error('Resend verification error:', error);
@@ -404,7 +406,8 @@ class SupabaseAuthService {
     if (!user) return;
 
     try {
-      const newStats = { ...user.stats };
+      const newStats = { ...user.stats } as any;
+      if (typeof newStats[statType] !== 'number') newStats[statType] = 0;
       newStats[statType] += increment;
 
       const { error } = await supabase
@@ -422,5 +425,6 @@ class SupabaseAuthService {
   }
 }
 
-// Export singleton instance
-export const authService = USE_MOCK_DATA ? (new MockAuthBridge() as any) : new SupabaseAuthService(); 
+// Export singleton instance so the rest of the app can import `authService`
+// without worrying about whether we're in mock mode or live Supabase mode.
+export const authService = USE_MOCK_DATA ? (new MockAuthBridge() as any) : new SupabaseAuthService();
