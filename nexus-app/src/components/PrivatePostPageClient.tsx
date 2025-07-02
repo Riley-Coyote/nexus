@@ -28,7 +28,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
         currentUser,
         customTitle: "DEEP DIVE",
         customStatus: `Exploring Thread: ${post.username}`,
-        hideNavigation: true
+        hideNavigation: false
       };
     }
     return {
