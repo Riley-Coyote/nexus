@@ -85,7 +85,7 @@ export interface NexusData {
   hasUserAmplified: (entryId: string) => boolean;
   
   // Feed-specific methods
-  getFlattenedStreamEntries: () => Promise<StreamEntryData[]>;
+  getFlattenedStreamEntries: (page?: number, limit?: number) => Promise<StreamEntryData[]>;
   getFlattenedLogbookEntries: () => Promise<StreamEntryData[]>;
   getDirectChildren: (parentId: string) => Promise<StreamEntryData[]>;
   getParentPost: (childId: string) => Promise<StreamEntryData | null>;
@@ -538,20 +538,10 @@ export const useNexusData = (): NexusData => {
     hasUserAmplified,
     
     // Feed-specific methods
-    getFlattenedStreamEntries: useCallback(async () => {
-      // Try to use already loaded data first if available
-      if (logbookEntries.length > 0 || sharedDreams.length > 0) {
-        const allEntries = [...logbookEntries, ...sharedDreams];
-        const sortedEntries = allEntries.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
-        return sortedEntries.map(convertToStreamEntryData);
-      }
-      
-      // Fallback to service call if no data loaded
-      const entries = await dataService.getFlattenedStreamEntries();
+    getFlattenedStreamEntries: useCallback(async (page?: number, limit?: number) => {
+      const entries = await dataService.getFlattenedStreamEntries(page ?? 1, limit ?? 20);
       return entries.map(convertToStreamEntryData);
-    }, [logbookEntries, sharedDreams]),
+    }, []),
     
     getFlattenedLogbookEntries: useCallback(async () => {
       // Try to use already loaded data first if available

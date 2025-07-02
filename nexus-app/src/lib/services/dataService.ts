@@ -1317,9 +1317,15 @@ class DataService {
   // ========== FEED-SPECIFIC METHODS ==========
 
   // Get all entries as individual posts (flattened, like Twitter/X)
-  async getFlattenedStreamEntries(): Promise<StreamEntry[]> {
+  async getFlattenedStreamEntries(page: number = 1, limit: number = 20): Promise<StreamEntry[]> {
     await this.initializeData();
-    
+
+    // Basic bounds-check so callers don't accidentally request 0 or negative limits
+    if (limit <= 0) limit = 20;
+    if (page <= 0) page = 1;
+
+    const offset = (page - 1) * limit;
+
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
       // Combine both arrays and sort by timestamp desc (newest first)
@@ -1327,33 +1333,41 @@ class DataService {
       const sortedEntries = allEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-      // Return WITHOUT threading - each post appears individually
-      return sortedEntries;
+      // Slice for pagination and return WITHOUT threading – each post appears individually
+      const pagedEntries = sortedEntries.slice(offset, offset + limit);
+
+      // Enrich with interaction data but DON'T build threading
+      const currentUser = authService.getCurrentUser();
+      return await this.enrichEntriesWithInteractions(pagedEntries, currentUser?.id);
     }
-    
+
     try {
       // Get entries from both types and combine
       const [logbookEntries, dreamEntries] = await Promise.all([
-        this.database.getEntries('logbook', { page: 1, limit: 100, sortBy: 'timestamp', sortOrder: 'desc' }),
-        this.database.getEntries('dream', { page: 1, limit: 100, sortBy: 'timestamp', sortOrder: 'desc' })
+        this.database.getEntries('logbook', { page, limit, sortBy: 'timestamp', sortOrder: 'desc' }),
+        this.database.getEntries('dream', {   page, limit, sortBy: 'timestamp', sortOrder: 'desc' })
       ]);
-      
+
       // Combine and sort by timestamp
       const allEntries = [...logbookEntries, ...dreamEntries];
       const sortedEntries = allEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-      
+
+      // Paginate slice to respect requested limit
+      const pagedEntries = sortedEntries.slice(offset, offset + limit);
+
       // Enrich with interaction data but DON'T build threading
       const currentUser = authService.getCurrentUser();
-      return await this.enrichEntriesWithInteractions(sortedEntries, currentUser?.id);
+      return await this.enrichEntriesWithInteractions(pagedEntries, currentUser?.id);
     } catch (error) {
       console.error('❌ Database error, falling back to mock data:', error);
       // Fallback: combine mock data and sort
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      return allEntries.sort((a, b) => 
+      const sortedEntries = allEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
+      return sortedEntries.slice(offset, offset + limit);
     }
   }
 

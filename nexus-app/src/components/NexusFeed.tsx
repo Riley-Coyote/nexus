@@ -10,7 +10,7 @@ interface NexusFeedProps {
   dreamEntries: any[]; // Legacy StreamEntryData format
   onPostClick?: (post: Post) => void;
   onUserClick?: (username: string) => void;
-  getFlattenedStreamEntries: () => Promise<any[]>;
+  getFlattenedStreamEntries: (page?: number, limit?: number) => Promise<any[]>;
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
   refreshDreamData?: () => Promise<void>;
@@ -36,21 +36,29 @@ export default function NexusFeed({
 }: NexusFeedProps) {
   const [flattenedEntries, setFlattenedEntries] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+  const [hasMore, setHasMore] = useState(true);
 
   // Load and convert entries to Post format
-  const loadFlattenedEntries = async () => {
+  const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const entries = await getFlattenedStreamEntries();
-      // Convert legacy format to new Post format
+      const entries = await getFlattenedStreamEntries(requestedPage, PAGE_SIZE);
       const convertedPosts = entries.map(entry => streamEntryDataToPost(entry));
-      
-      // Sort by timestamp (newest first)
-      const sortedPosts = convertedPosts.sort((a, b) => 
+
+      const sortedPosts = convertedPosts.sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-      
-      setFlattenedEntries(sortedPosts);
+
+      if (append) {
+        setFlattenedEntries(prev => [...prev, ...sortedPosts]);
+      } else {
+        setFlattenedEntries(sortedPosts);
+      }
+
+      // If returned less than page size, we've reached the end
+      setHasMore(sortedPosts.length === PAGE_SIZE);
     } catch (error) {
       console.error('Error loading flattened entries:', error);
     } finally {
@@ -59,8 +67,17 @@ export default function NexusFeed({
   };
 
   useEffect(() => {
-    loadFlattenedEntries();
+    // Reset pagination whenever underlying data changed (e.g., new post created)
+    setPage(1);
+    loadFlattenedEntries(1, false);
   }, [logbookEntries, dreamEntries]);
+
+  const handleLoadMore = async () => {
+    if (isLoading || !hasMore) return;
+    const nextPage = page + 1;
+    await loadFlattenedEntries(nextPage, true);
+    setPage(nextPage);
+  };
 
   // Handle branch creation with smart refresh
   const handleBranch = async (parentId: string, content: string) => {
@@ -90,7 +107,7 @@ export default function NexusFeed({
 
   if (isLoading && flattenedEntries.length === 0) {
     return (
-      <main className="py-4 sm:py-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+      <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-4 sm:pb-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
         <div className="max-w-4xl mx-auto w-full">
           <div className="glass-panel rounded-xl p-6 sm:p-8 text-center">
             <div className="text-text-quaternary text-lg mb-2">◊</div>
@@ -105,7 +122,7 @@ export default function NexusFeed({
   }
 
   return (
-    <main className="py-4 sm:py-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+    <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-4 sm:pb-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
       {/* Centered Feed Container */}
       <div className="max-w-4xl mx-auto w-full">
         {/* Feed Header */}
@@ -155,14 +172,14 @@ export default function NexusFeed({
         </div>
 
         {/* Load More Button */}
-        {flattenedEntries.length > 0 && (
+        {flattenedEntries.length > 0 && hasMore && (
           <div className="mt-6 sm:mt-8 text-center">
             <button 
               className="interactive-btn px-4 sm:px-6 py-2 sm:py-3 text-sm font-light text-text-secondary hover:text-text-primary transition-colors border border-white/10 rounded-lg hover:border-white/20"
-              onClick={loadFlattenedEntries}
+              onClick={handleLoadMore}
               disabled={isLoading}
             >
-              {isLoading ? 'Refreshing...' : 'Refresh Feed'}
+              {isLoading ? 'Loading...' : 'Load More'}
             </button>
           </div>
         )}
