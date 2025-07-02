@@ -107,7 +107,7 @@ export default function NexusFeed({
 
   if (isLoading && flattenedEntries.length === 0) {
     return (
-      <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-4 sm:pb-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+      <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
         <div className="max-w-4xl mx-auto w-full">
           <div className="glass-panel rounded-xl p-6 sm:p-8 text-center">
             <div className="text-text-quaternary text-lg mb-2">◊</div>
@@ -122,7 +122,7 @@ export default function NexusFeed({
   }
 
   return (
-    <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-4 sm:pb-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+    <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
       {/* Centered Feed Container */}
       <div className="max-w-4xl mx-auto w-full">
         {/* Feed Header */}
