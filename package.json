@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "express": "^5.1.0",
     "node-fetch": "^2.7.0"
   }
