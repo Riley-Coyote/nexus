@@ -228,8 +228,8 @@
             position: relative;
             z-index: 10;
             opacity: var(--atmosphere-mid);
-            margin-top: 72px; /* Space for header on desktop */
-            padding-top: 1rem;
+            margin-top: 0; /* Removed extra top margin */
+            padding-top: 0;
         }
         
         /* Ensure all page content areas have proper header spacing */
@@ -237,8 +237,8 @@
         .page-container,
         .app-main,
         [role="main"] {
-            margin-top: 72px !important;
-            padding-top: 1rem !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
         }
         
         /* Specific targeting for profile pages and containers */
@@ -306,7 +306,7 @@
             /* Add top padding to main content to prevent header overlap */
             main, .parallax-layer-3 {
                 height: calc(100vh - 60px) !important;
-                margin-top: 60px !important;
+                margin-top: 0 !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch !important;
             }
@@ -349,7 +349,7 @@
             /* Adjust main content for smaller header */
             main, .parallax-layer-3 {
                 height: calc(100vh - 56px) !important;
-                margin-top: 56px !important;
+                margin-top: 0 !important;
             }
             
             /* Small mobile spacing for profile pages */
@@ -2953,7 +2953,7 @@
                 -webkit-overflow-scrolling: touch;
                 overflow-y: auto;
                 overscroll-behavior-y: contain;
-                padding-top: 60px; /* Space for fixed header */
+                padding-top: 0; /* Removed extra top padding */
                 padding-bottom: 80px; /* Space for bottom nav */
                 margin-top: 0 !important;
             }
@@ -2965,8 +2965,8 @@
             .profile-view,
             .page-content,
             [data-view] main {
-                margin-top: 60px !important;
-                padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+                margin-top: 0 !important;
+                padding-top: calc(env(safe-area-inset-top) + 0px) !important;
                 min-height: calc(100vh - 60px) !important;
             }
             
