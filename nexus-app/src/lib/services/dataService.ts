@@ -1507,6 +1507,7 @@ class DataService {
   async getDirectChildren(parentId: string): Promise<StreamEntry[]> {
     await this.initializeData();
     
+    // ---------------- MOCK MODE ----------------
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
       // Find all entries that have this parentId
@@ -1518,24 +1519,36 @@ class DataService {
       );
     }
     
+    // ---------------- PRODUCTION (SUPABASE) ----------------
     try {
-      // Get all entries and filter for children
-      const [logbookEntries, dreamEntries] = await Promise.all([
-        this.database.getEntries('logbook', { page: 1, limit: 1000 }),
-        this.database.getEntries('dream', { page: 1, limit: 1000 })
-      ]);
-      
-      const allEntries = [...logbookEntries, ...dreamEntries];
-      const children = allEntries.filter(entry => entry.parentId === parentId);
-      
+      // 1) Prefer fetching children via the dedicated entry_branches table (new system)
+      const childIds = await this.database.getBranchChildren(parentId);
+      let children: StreamEntry[] = [];
+
+      if (childIds.length > 0) {
+        // Fetch the full entries in parallel
+        const fetched = await Promise.all(childIds.map(id => this.database!.getEntryById(id)));
+        children = fetched.filter((e): e is StreamEntry => e !== null);
+      }
+
+      // 2) Fallback: legacy check using parentId column for data created before entry_branches existed
+      if (children.length === 0) {
+        const [logbookEntries, dreamEntries] = await Promise.all([
+          this.database.getEntries('logbook', { page: 1, limit: 1000 }),
+          this.database.getEntries('dream', { page: 1, limit: 1000 })
+        ]);
+        const allEntries = [...logbookEntries, ...dreamEntries];
+        children = allEntries.filter(entry => entry.parentId === parentId);
+      }
+
       // Sort by timestamp (oldest first for conversation flow)
-      const sortedChildren = children.sort((a, b) => 
+      children.sort((a, b) => 
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
       
       // Enrich with interaction data
       const currentUser = authService.getCurrentUser();
-      return await this.enrichEntriesWithInteractions(sortedChildren, currentUser?.id);
+      return await this.enrichEntriesWithInteractions(children, currentUser?.id);
     } catch (error) {
       console.error('❌ Database error fetching children:', error);
       return [];
