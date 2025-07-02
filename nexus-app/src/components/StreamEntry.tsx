@@ -85,27 +85,29 @@ export default function StreamEntry({
     setLocalInteractions(entry.interactions);
   }, [entry.interactions]);
 
-  // Load user interaction state - ONLY if props weren't provided
+  // Load user interaction state - fetch only what parent hasn't provided
   useEffect(() => {
     const loadUserInteractionState = async () => {
       const currentUser = authService.getCurrentUser();
       if (currentUser) {
         try {
           const state = await dataService.getUserInteractionState(currentUser.id, entry.id);
-          setUserHasResonated(state.hasResonated);
-          setUserHasAmplified(state.hasAmplified);
+          
+          // Only update state if parent didn't provide explicit values
+          if (initialUserHasResonated === false) {
+            setUserHasResonated(state.hasResonated);
+          }
+          if (initialUserHasAmplified === false) {
+            setUserHasAmplified(state.hasAmplified);
+          }
         } catch (error) {
           console.error('Error loading user interaction state:', error);
         }
       }
     };
 
-    // Only fetch if parent hasn't provided the interaction state via props
-    const hasPropsData = initialUserHasResonated !== false || initialUserHasAmplified !== false;
-    if (!hasPropsData) {
-      loadUserInteractionState();
-    }
-  }, [entry.id, initialUserHasResonated, initialUserHasAmplified]);
+    loadUserInteractionState();
+  }, [entry.id]);
 
   // Update state when props change (parent has fresh data)
   useEffect(() => {

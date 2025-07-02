@@ -45,6 +45,7 @@ export interface NexusData {
   logbookEntriesData: StreamEntryData[];
   dreamEntriesData: StreamEntryData[];
   resonatedEntries: StreamEntryData[];
+  amplifiedEntries: StreamEntryData[];
   
   // Loading states
   isLoading: boolean;
@@ -56,6 +57,7 @@ export interface NexusData {
   refreshLogbookData: () => Promise<void>;
   refreshDreamData: () => Promise<void>;
   refreshResonatedEntries: () => Promise<void>;
+  refreshAmplifiedEntries: () => Promise<void>;
   smartRefresh: (entryId: string, refreshType?: 'all' | 'logbook' | 'dream' | 'resonance') => Promise<void>;
   submitEntry: (content: string, type: string, isPublic: boolean, mode: JournalMode) => Promise<void>;
   createBranch: (parentId: string, content: string) => Promise<void>;
@@ -161,26 +163,32 @@ export const useNexusData = (): NexusData => {
   // Resonated entries state
   const [resonatedEntries, setResonatedEntries] = useState<StreamEntryData[]>([]);
   
+  // Amplified entries state
+  const [amplifiedEntries, setAmplifiedEntries] = useState<StreamEntryData[]>([]);
+  
   // Load user resonated entries
   const loadResonatedEntries = useCallback(async () => {
-    if (!authState.currentUser) {
-      console.log('🔍 No current user, clearing resonated entries');
-      setResonatedEntries([]);
-      return;
-    }
-    
-    console.log(`🔍 Loading resonated entries for user: ${authState.currentUser.id}`);
+    if (!authState.currentUser) return;
     
     try {
-      // Use the new getResonatedEntries method that returns full entries directly
-      const resonatedEntries = await dataService.getResonatedEntries(authState.currentUser.id);
-      const resonatedEntriesData = resonatedEntries.map(convertToStreamEntryData);
-      
-      console.log(`✅ Loaded ${resonatedEntries.length} resonated entries:`, resonatedEntries.map(e => e.id));
-      setResonatedEntries(resonatedEntriesData);
+      const entries = await dataService.getResonatedEntries(authState.currentUser.id);
+      const entriesData = entries.map(convertToStreamEntryData);
+      setResonatedEntries(entriesData);
     } catch (error) {
-      console.error('❌ Failed to load resonated entries:', error);
-      setResonatedEntries([]);
+      console.error('Error loading resonated entries:', error);
+    }
+  }, [authState.currentUser]);
+  
+  // Load user amplified entries
+  const loadAmplifiedEntries = useCallback(async () => {
+    if (!authState.currentUser) return;
+    
+    try {
+      const entries = await dataService.getAmplifiedEntries(authState.currentUser.id);
+      const entriesData = entries.map(convertToStreamEntryData);
+      setAmplifiedEntries(entriesData);
+    } catch (error) {
+      console.error('Error loading amplified entries:', error);
     }
   }, [authState.currentUser]);
   
@@ -355,6 +363,9 @@ export const useNexusData = (): NexusData => {
     try {
       await dataService.amplifyEntry(entryId);
       
+      // Refresh amplified entries to get updated state
+      loadAmplifiedEntries();
+      
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
       
@@ -364,7 +375,7 @@ export const useNexusData = (): NexusData => {
       console.error('Failed to amplify entry:', error);
       throw error;
     }
-  }, []);
+  }, [loadAmplifiedEntries]);
 
   // Auth actions
   const login = useCallback(async (email: string, password: string) => {
@@ -425,8 +436,11 @@ export const useNexusData = (): NexusData => {
 
   const hasUserAmplified = useCallback((entryId: string): boolean => {
     if (!authState.currentUser) return false;
+    // Fast check: is the entry in the amplifiedEntries list we already fetched?
+    if (amplifiedEntries.some(e => e.id === entryId)) return true;
+    // Fallback to dataService utility (cached per-entry on first call)
     return dataService.hasUserAmplified(authState.currentUser.id, entryId);
-  }, [authState.currentUser]);
+  }, [authState.currentUser, amplifiedEntries]);
   
   // Hydration effect - check for existing session after client-side hydration
   useEffect(() => {
@@ -452,12 +466,13 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.isAuthenticated, refreshData]);
   
-  // Load resonated entries when user changes or on mount - FIXED DEPENDENCY
+  // Load resonated and amplified entries when user changes or on mount
   useEffect(() => {
     if (authState.isAuthenticated && authState.currentUser) {
       loadResonatedEntries();
+      loadAmplifiedEntries();
     }
-  }, [authState.currentUser?.id]); // Only depend on user ID, not the function
+  }, [authState.currentUser?.id]); // Only depend on user ID, not the functions
   
   // Expose dataService globally for testing in development
   useEffect(() => {
@@ -500,6 +515,7 @@ export const useNexusData = (): NexusData => {
     logbookEntriesData,
     dreamEntriesData,
     resonatedEntries,
+    amplifiedEntries,
     
     // Loading states
     isLoading,
@@ -511,6 +527,7 @@ export const useNexusData = (): NexusData => {
     refreshLogbookData,
     refreshDreamData,
     refreshResonatedEntries,
+    refreshAmplifiedEntries: loadAmplifiedEntries,
     smartRefresh,
     submitEntry,
     createBranch,

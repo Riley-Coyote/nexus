@@ -151,7 +151,7 @@ class DataService {
       
       // Load persisted interaction state (mock mode only)
       if (USE_MOCK_DATA) {
-        this.loadInteractionStateFromStorage();
+    
       }
 
       this.isInitialized = true;
@@ -856,6 +856,70 @@ class DataService {
     }
   }
 
+  async getAmplifiedEntries(userId: string): Promise<StreamEntry[]> {
+    await this.initializeData();
+    
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      
+      // Get user's amplified entry IDs
+      const userAmplifications = this.userAmplifications.get(userId) || new Set();
+      
+      // Find all entries that user has amplified and apply privacy filter
+      const currentUser = authService.getCurrentUser();
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      const amplifiedEntries = this.filterEntriesByPrivacy(
+        allEntries.filter(entry => userAmplifications.has(entry.id)),
+        currentUser?.id
+      );
+      
+      // Sort by timestamp desc (newest first)
+      return amplifiedEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }
+    
+    try {
+      // Get user's amplified entry IDs from database
+      const amplifiedEntryIds = await this.database.getUserAmplifications(userId);
+      
+      if (amplifiedEntryIds.length === 0) {
+        return [];
+      }
+      
+      // Batch fetch all amplified entries for better performance
+      const amplifiedEntries: StreamEntry[] = [];
+      
+      // Use Promise.allSettled to handle any individual entry fetch failures gracefully
+      const entryPromises = amplifiedEntryIds.map(async (entryId) => {
+        try {
+          const entry = await this.database!.getEntryById(entryId);
+          return entry;
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch amplified entry ${entryId}:`, error);
+          return null;
+        }
+      });
+      
+      const entryResults = await Promise.allSettled(entryPromises);
+      
+      // Collect successful results
+      entryResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          amplifiedEntries.push(result.value);
+        }
+      });
+      
+      // Sort by timestamp desc (newest first)
+      return amplifiedEntries.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    } catch (error) {
+      console.error('❌ Database error fetching amplified entries:', error);
+      return [];
+    }
+  }
+
   async getDreamAnalytics(): Promise<DreamAnalytics> {
     if (USE_MOCK_DATA) {
       await simulateApiDelay();
@@ -1009,14 +1073,12 @@ class DataService {
         // User already resonated, so remove resonance (UNRESONATING)
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
-        this.saveInteractionStateToStorage();
         console.log(`🔇 DataService: User unresonated from entry ${entryId} (${userResonances.size} total)`);
         return false;
       } else {
         // Add resonance (RESONATING)
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
-        this.saveInteractionStateToStorage();
         authService.updateUserStats('connections');
         console.log(`🔊 DataService: User resonated with entry ${entryId} (${userResonances.size} total)`);
         return true;
@@ -1056,13 +1118,11 @@ class DataService {
       if (wasAlreadyResonated) {
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
-        this.saveInteractionStateToStorage();
         console.log(`🔇 DataService: User unresonated from entry ${entryId} (fallback)`);
         return false;
       } else {
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
-        this.saveInteractionStateToStorage();
         authService.updateUserStats('connections');
         console.log(`🔊 DataService: User resonated with entry ${entryId} (fallback)`);
         return true;
@@ -1779,54 +1839,7 @@ class DataService {
     return this.database.getUserPostsByUsername(username, limit);
   }
 
-  // ===== Mock Mode Persistence Helpers =====
-  /** Load user interaction maps from localStorage (client-side only) */
-  private loadInteractionStateFromStorage() {
-    if (typeof window === 'undefined') return; // SSR safeguard
 
-    try {
-      const resItem = localStorage.getItem('nexus_user_resonances');
-      const ampItem = localStorage.getItem('nexus_user_amplifications');
-
-      if (resItem) {
-        const parsed: Record<string, string[]> = JSON.parse(resItem);
-        Object.entries(parsed).forEach(([userId, ids]) => {
-          this.userResonances.set(userId, new Set(ids));
-        });
-      }
-
-      if (ampItem) {
-        const parsed: Record<string, string[]> = JSON.parse(ampItem);
-        Object.entries(parsed).forEach(([userId, ids]) => {
-          this.userAmplifications.set(userId, new Set(ids));
-        });
-      }
-    } catch (e) {
-      console.warn('⚠️ Failed to load interaction state from storage:', e);
-    }
-  }
-
-  /** Persist current in-memory interaction maps to localStorage (client-side only) */
-  private saveInteractionStateToStorage() {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const resonancesObj: Record<string, string[]> = {};
-      this.userResonances.forEach((set, userId) => {
-        resonancesObj[userId] = Array.from(set);
-      });
-
-      const amplificationsObj: Record<string, string[]> = {};
-      this.userAmplifications.forEach((set, userId) => {
-        amplificationsObj[userId] = Array.from(set);
-      });
-
-      localStorage.setItem('nexus_user_resonances', JSON.stringify(resonancesObj));
-      localStorage.setItem('nexus_user_amplifications', JSON.stringify(amplificationsObj));
-    } catch (e) {
-      console.warn('⚠️ Failed to save interaction state to storage:', e);
-    }
-  }
 }
 
 // Export singleton instance
