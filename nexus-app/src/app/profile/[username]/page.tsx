@@ -148,8 +148,13 @@ export default function UserProfilePage() {
   // Get the profile user (either the viewed user or current user)
   const profileUser = nexusData.getCurrentProfileUser();
   
-  // Show "User not found" page when in 'other' mode but no user was found
-  if (nexusData.profileViewState.mode === 'other' && !profileUser) {
+  // Show "User not found" page only **after** loading completes
+  // Prevents a brief flash of the fallback while the profile is still loading
+  if (
+    nexusData.profileViewState.mode === 'other' &&
+    !nexusData.isLoading &&
+    !profileUser
+  ) {
     return (
       <div className={`liminal-logbook ${modeClass}`}>
         <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
