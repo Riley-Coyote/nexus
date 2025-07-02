@@ -147,7 +147,7 @@ export default function ProfileView({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto lg:overflow-hidden bg-deep-void">
+    <div className="flex flex-col h-full overflow-y-auto bg-deep-void">
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
         <div className="flex-shrink-0 p-8 border-b border-white/10">
           <div className="flex items-start gap-6">
