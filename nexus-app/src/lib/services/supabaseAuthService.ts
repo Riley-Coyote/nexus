@@ -149,6 +149,13 @@ class SupabaseAuthService {
       this.notifyAuthListeners();
     } catch (error) {
       console.error('Error handling auth state change:', error);
+      // In case the stored session tokens are stale or invalid (e.g. project keys changed),
+      // proactively sign out so localStorage is cleared and the next login starts clean.
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutErr) {
+        console.warn('Additional error while signing out after auth failure:', signOutErr);
+      }
       this.clearAuthState();
     }
   }
