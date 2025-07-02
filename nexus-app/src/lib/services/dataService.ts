@@ -9,7 +9,8 @@ import {
   ActiveDreamer,
   DreamAnalytics,
   DreamPatterns,
-  User
+  User,
+  JournalMode
 } from '../types';
 import { authService } from './supabaseAuthService';
 import { supabase } from '../supabase';
@@ -758,12 +759,15 @@ class DataService {
       const entry = await this.database.getEntryById(entryId);
       if (!entry) return null;
       
-      // Determine type based on entry properties
+      // Prefer the explicit entryType flag if present
+      if (entry.entryType) {
+        return entry.entryType;
+      }
+      // Fallback heuristic based on other properties
       if (entry.type.toLowerCase().includes('dream') || entry.resonance !== undefined) {
         return 'dream';
-      } else {
-        return 'logbook';
       }
+      return 'logbook';
     } catch (error) {
       console.error('❌ Error determining entry type:', error);
       return null;
@@ -900,6 +904,7 @@ class DataService {
       content: content,
       actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
       privacy: isPublic ? "public" : "private",
+      entryType: mode,
       interactions: {
         resonances: 0,
         branches: 0,
@@ -1140,6 +1145,9 @@ class DataService {
       content: childContent,
       actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
       privacy: parentEntry.privacy,
+      entryType: (parentEntry.entryType as JournalMode) ?? (
+        parentEntry.type.toLowerCase().includes('dream') ? 'dream' : 'logbook'
+      ),
       interactions: {
         resonances: 0,
         branches: 0,

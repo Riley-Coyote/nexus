@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS stream_entries (
     content TEXT NOT NULL,
     actions TEXT[] DEFAULT '{"Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"}',
     privacy TEXT DEFAULT 'public' CHECK (privacy IN ('public', 'private')),
+    entry_type TEXT NOT NULL DEFAULT 'logbook' CHECK (entry_type IN ('logbook', 'dream')),
     interactions JSONB DEFAULT '{"resonances": 0, "branches": 0, "amplifications": 0, "shares": 0}',
     threads JSONB DEFAULT '[]',
     is_amplified BOOLEAN DEFAULT false,
@@ -51,6 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_stream_entries_type ON stream_entries(type);
 CREATE INDEX IF NOT EXISTS idx_stream_entries_timestamp ON stream_entries(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_stream_entries_user_id ON stream_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_entries_privacy ON stream_entries(privacy);
+CREATE INDEX IF NOT EXISTS idx_stream_entries_entry_type ON stream_entries(entry_type);
 CREATE INDEX IF NOT EXISTS idx_user_interactions_user_id ON user_interactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_interactions_entry_id ON user_interactions(entry_id);
 CREATE INDEX IF NOT EXISTS idx_user_interactions_type ON user_interactions(interaction_type);

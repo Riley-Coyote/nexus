@@ -64,6 +64,8 @@ export interface Post {
     timestamp: string;
     content: string;
   };
+  // New field indicating whether entry belongs to logbook or dream
+  entryType?: JournalMode;
   // Additional fields for full compatibility
   children?: string[];
   actions?: string[];

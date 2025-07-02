@@ -137,6 +137,7 @@ export interface SupabaseStreamEntry {
     timestamp: string;
     content: string;
   };
+  entry_type: 'logbook' | 'dream';
   created_at: string;
   updated_at: string;
 }

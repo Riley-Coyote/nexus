@@ -68,7 +68,10 @@ export class SupabaseProvider implements DatabaseProvider {
       resonance: entry.resonance,
       coherence: entry.coherence,
       tags: entry.tags,
-      response: entry.response
+      response: entry.response,
+      entry_type: (entry.entryType ?? (
+        entry.type.toLowerCase().includes('dream') || entry.resonance !== undefined ? 'dream' : 'logbook'
+      ))
     };
   }
 
@@ -95,7 +98,8 @@ export class SupabaseProvider implements DatabaseProvider {
       resonance: supabaseEntry.resonance,
       coherence: supabaseEntry.coherence,
       tags: supabaseEntry.tags,
-      response: supabaseEntry.response
+      response: supabaseEntry.response,
+      entryType: supabaseEntry.entry_type as 'logbook' | 'dream'
     };
   }
 
@@ -126,14 +130,8 @@ export class SupabaseProvider implements DatabaseProvider {
 
     let query = this.client
       .from('stream_entries')
-      .select('*');
-
-    // Filter by type
-    if (type === 'logbook') {
-      query = query.not('type', 'ilike', '%dream%').not('type', 'ilike', '%lucid%');
-    } else {
-      query = query.or('type.ilike.%dream%,type.ilike.%lucid%');
-    }
+      .select('*')
+      .eq('entry_type', type);
 
     // Apply sorting and pagination
     query = query

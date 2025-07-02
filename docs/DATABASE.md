@@ -182,7 +182,7 @@ When you need to change the database schema (e.g., add a table or a column), fol
 
 ---
 
-## **�� Data Management**
+## **🔄 Data Management**
 
 ### **Reset Database** (Development only!)
 ```bash
@@ -232,3 +232,52 @@ GROUP BY interaction_type;
 ```
 
 **Need more complex queries?** Use the database management tools or ask the team! 
+
+---
+
+## 🚀 Running Supabase Migrations with the Supabase CLI
+
+Need to apply the SQL files in `supabase/migrations/` to either your **local Docker stack** or the **hosted Supabase project**?  Follow this checklist.
+
+### 1️⃣ One-time machine setup
+
+```bash
+brew install supabase/tap/supabase   # install / upgrade the CLI
+supabase login                       # opens browser → copy auth token
+```
+
+### 2️⃣ Link the repo to a Supabase project
+
+```bash
+cd nexus-app                         # project root (contains the supabase folder)
+supabase link --project-ref <PROJECT_REF>
+# <PROJECT_REF> is in the dashboard → Settings → General (looks like abcd1234)
+```
+This writes `.supabase/config.json` so future commands know which project to use.
+
+### 3️⃣ Local development workflow (Docker)
+
+```bash
+# Spin up Postgres + Kong + Studio
+supabase start
+
+# Apply **only** new migration files
+supabase db push                     # use supabase db reset to wipe & re-seed
+
+# Stop containers when finished
+supabase stop
+```
+
+### 4️⃣ Deploy migrations to the hosted database
+
+```bash
+# From the same directory (and after `git add` / commit if you like)
+supabase db push                     # applies new files to the linked project
+```
+The CLI stores each applied file & checksum in the `supabase_migrations` table.  Rerunning the command is safe—files already logged are skipped automatically.
+
+### 5️⃣ Troubleshooting tips
+
+* **"Cannot find project ref"** → run `supabase link --project-ref <ref>` again in repo root.
+* **Checksum mismatch** → never edit an already-applied file; add a new numbered migration instead (e.g., `012_fix_bug.sql`).
+* **Docker errors** → ensure Docker Desktop is running before `supabase start`. 
