@@ -65,7 +65,10 @@ export default function PostOverlay({
       if (!post) return;
       
       try {
-        const state = await dataService.getUserInteractionState('current-user', post.id);
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) return; // safety: user not authenticated
+
+        const state = await dataService.getUserInteractionState(currentUser.id, post.id);
         setUserHasResonated(state.hasResonated);
         setUserHasAmplified(state.hasAmplified);
       } catch (error) {

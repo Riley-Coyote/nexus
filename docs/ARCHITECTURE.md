@@ -156,3 +156,9 @@ submitBranch() → dataService.createBranch() → nexusData.createBranch() → r
 - **Debug-Friendly**: One-line toggle between mock and real data
 
 **Questions?** Check the code or ask the team! The architecture is designed to be simple and predictable. 
+
+## 🔄 Changelog
+
+| Date | Change |
+|------|--------|
+| 2025-07-03 | Fixed PostOverlay interaction-state bug (replaced hard-coded `'current-user'` with real authenticated ID). | 
