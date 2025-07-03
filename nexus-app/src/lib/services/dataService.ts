@@ -1416,14 +1416,9 @@ class DataService {
       return userResonances ? userResonances.has(entryId) : false;
     }
     
-    // In database mode, check the cache first
-    const userCache = this.userInteractionStatesCache.get(userId);
-    if (userCache && userCache.has(entryId) && this.isCacheValid()) {
-      return userCache.get(entryId)?.hasResonated || false;
-    }
-    
-    // If not in cache, return false (will be updated when cache is refreshed)
-    // Note: This is a synchronous method, so we can't await database calls here
+    // In database mode, this method is deprecated in favor of getEntryDetailsWithContext
+    // which provides fresh interaction states. For backward compatibility, return false.
+    console.warn('hasUserResonated called in database mode - use getEntryDetailsWithContext instead');
     return false;
   }
 
@@ -1434,14 +1429,9 @@ class DataService {
       return userAmplifications ? userAmplifications.has(entryId) : false;
     }
     
-    // In database mode, check the cache first
-    const userCache = this.userInteractionStatesCache.get(userId);
-    if (userCache && userCache.has(entryId) && this.isCacheValid()) {
-      return userCache.get(entryId)?.hasAmplified || false;
-    }
-    
-    // If not in cache, return false (will be updated when cache is refreshed)
-    // Note: This is a synchronous method, so we can't await database calls here
+    // In database mode, this method is deprecated in favor of getEntryDetailsWithContext
+    // which provides fresh interaction states. For backward compatibility, return false.
+    console.warn('hasUserAmplified called in database mode - use getEntryDetailsWithContext instead');
     return false;
   }
 
@@ -1926,6 +1916,97 @@ class DataService {
       }
     } catch (error) {
       console.error('Failed to load interaction state:', error);
+    }
+  }
+
+  // ========== SINGLE SOURCE OF TRUTH FOR ENTRY DETAILS ==========
+  
+  async getEntryDetailsWithContext(entryId: string): Promise<{
+    current: StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean };
+    parent: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean }) | null;
+    children: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean })[];
+  }> {
+    await this.initializeData();
+    
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User must be authenticated to view entry details');
+    }
+
+    if (USE_MOCK_DATA || !this.database) {
+      // Mock mode - get from local data
+      const allEntries = [...this.logbookEntries, ...this.sharedDreams];
+      const current = allEntries.find(e => e.id === entryId);
+      if (!current) {
+        throw new Error('Entry not found');
+      }
+
+      const parent = current.parentId ? allEntries.find(e => e.id === current.parentId) || null : null;
+      const children = allEntries.filter(e => e.parentId === entryId);
+
+      // Add user interaction states
+      const enrichEntry = (entry: StreamEntry) => ({
+        ...entry,
+        userHasResonated: this.hasUserResonated(currentUser.id, entry.id),
+        userHasAmplified: this.hasUserAmplified(currentUser.id, entry.id)
+      });
+
+      return {
+        current: enrichEntry(current),
+        parent: parent ? enrichEntry(parent) : null,
+        children: children.map(enrichEntry)
+      };
+    }
+
+    try {
+      // Database mode - make efficient queries
+      const currentEntry = await this.database.getEntryById(entryId);
+      if (!currentEntry) {
+        throw new Error('Entry not found');
+      }
+
+      // Get parent and children in parallel
+      const [parentEntry, childEntries] = await Promise.all([
+        currentEntry.parentId ? this.database.getEntryById(currentEntry.parentId) : Promise.resolve(null),
+        this.getDirectChildren(entryId)
+      ]);
+
+      // Collect all entry IDs for batch interaction state lookup
+      const allEntries = [currentEntry, ...(parentEntry ? [parentEntry] : []), ...childEntries];
+      const allEntryIds = allEntries.map(e => e.id);
+
+      // Batch fetch interaction counts and user states in parallel
+      const [interactionCounts, userInteractionStates] = await Promise.all([
+        this.database.getInteractionCounts(allEntryIds),
+        this.database.getUserInteractionStates(currentUser.id, allEntryIds)
+      ]);
+
+      // Enrich entries with fresh data
+      const enrichEntry = (entry: StreamEntry) => {
+        const counts = interactionCounts.get(entry.id);
+        const userStates = userInteractionStates.get(entry.id);
+        
+        return {
+          ...entry,
+          interactions: counts ? {
+            resonances: counts.resonanceCount,
+            branches: counts.branchCount,
+            amplifications: counts.amplificationCount,
+            shares: counts.shareCount
+          } : entry.interactions,
+          userHasResonated: userStates?.hasResonated || false,
+          userHasAmplified: userStates?.hasAmplified || false
+        };
+      };
+
+      return {
+        current: enrichEntry(currentEntry),
+        parent: parentEntry ? enrichEntry(parentEntry) : null,
+        children: childEntries.map(enrichEntry)
+      };
+    } catch (error) {
+      console.error('❌ Error fetching entry details with context:', error);
+      throw error;
     }
   }
 
