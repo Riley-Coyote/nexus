@@ -150,4 +150,7 @@ export interface ProfileViewState {
   mode: 'self' | 'other';
   userId?: string;
   username?: string;
-} 
+}
+
+// Legacy compatibility – treat StreamEntryData as identical to Post until full migration
+export type StreamEntryData = Post; 

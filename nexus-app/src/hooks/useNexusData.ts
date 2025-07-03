@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService, convertToStreamEntryData } from '../lib/services/dataService';
 import { authService } from '../lib/services/supabaseAuthService';
-import { StreamEntryData } from '../components/StreamEntry';
+import { StreamEntryData } from '../lib/types';
 import { 
   LogbookState, 
   NetworkStatus, 

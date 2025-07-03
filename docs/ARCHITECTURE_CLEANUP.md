@@ -22,7 +22,7 @@ Supabase DB → DataService → useNexusData →
 ### 0.2 Problems Identified
 | ID | Theme | Problem | Status |
 |----|-------|---------|--------|
-| D1 | Duplication | `StreamEntry.tsx` duplicates UI/logic already in `PostDisplay` | ❌
+| D1 | Duplication | `StreamEntry.tsx` duplicates UI/logic already in `PostDisplay` | ✅ Removed in PR _Cleanup-D1_
 | D2 | Duplication | `PostOverlay.tsx` duplicates interaction logic (modal) | ◐ (out-of-scope *for now*)
 | P1 | Props-drilling | Pages convert data & forward 10-15 callbacks | ❌
 | N1 | Network | `PostDisplay` still fetches `getUserInteractionState` even when parent knows | ❌
@@ -90,4 +90,25 @@ Supabase DB → DataService → useNexusData →
 
 ## 4. Appendix
 * Generated from commit on branch `main` @ <git-sha-to-fill-in-first-PR>
-* Keep all history; only append new information, never delete past notes. 
+* Keep all history; only append new information, never delete past notes.
+
+## Section D1: Retire `StreamEntry.tsx`
+
+* **Goal:** Eliminate duplicate renderer to reduce maintenance surface.  
+* **Touched Files:**  
+  * `src/components/StreamEntry.tsx` (deleted)  
+  * `src/lib/types.ts` (added `export type StreamEntryData = Post;`)  
+  * `src/lib/services/dataService.ts` – updated import path  
+  * `src/hooks/useNexusData.ts`, `src/components/PostOverlay.tsx`, `src/app/profile/[username]/page.tsx` – updated imports  
+* **Implementation Steps:**  
+  1. Add legacy alias `StreamEntryData` to `lib/types.ts`.  
+  2. Replace all imports of `../components/StreamEntry` with `../lib/types`.  
+  3. Delete `StreamEntry.tsx`.  
+* **Risk / Rollback:** Low – no component actively rendered; rollback by restoring file.  
+* **Test Plan:**  
+  1. **Build-OK:** `npm run dev` compiles with no unresolved modules.  
+  2. **Smoke-navigate:** Visit Home (Feed, Logbook, Dream), Resonance Field, Profile – pages load.  
+  3. **Open Modal:** Click a post; modal still loads (depends on `StreamEntryData` typings).  
+  4. **Regression sweep:** Create a post; resonance/amplify still work.  
+  5. **Console clean:** No "Cannot find module './StreamEntry'" errors.  
+* **Done When:** All checks pass and CI green. 

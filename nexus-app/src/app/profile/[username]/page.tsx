@@ -8,7 +8,7 @@ import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
 import AuthPanel from '@/components/AuthPanel';
 import { StreamEntry } from '@/lib/types';
-import { StreamEntryData } from '@/components/StreamEntry';
+import { StreamEntryData } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
 
 export default function UserProfilePage() {

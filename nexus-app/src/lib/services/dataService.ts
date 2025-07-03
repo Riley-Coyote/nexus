@@ -14,7 +14,7 @@ import {
 } from '../types';
 import { authService } from './supabaseAuthService';
 import { supabase } from '../supabase';
-import { StreamEntryData } from '../../components/StreamEntry';
+import { StreamEntryData } from '../types';
 import { DatabaseFactory } from '../database/factory';
 import { DatabaseProvider, InteractionCounts, UserInteractionState } from '../database/types';
 import {
