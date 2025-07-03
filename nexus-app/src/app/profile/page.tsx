@@ -81,6 +81,10 @@ export default function ProfilePage() {
     router.push(`/profile/${username}`);
   };
 
+  const handleDeepDive = (username: string, postId: string) => {
+    router.push(`/${username}/entry/${postId}`);
+  };
+
   // Show auth panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return <AuthPanel onAuthSuccess={() => nexusData.forceAuthRefresh()} />;
@@ -126,6 +130,8 @@ export default function ProfilePage() {
             onUserClick={handleUserClick}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
+            onBranch={nexusData.createBranch}
+            onDeepDive={handleDeepDive}
             hasUserResonated={nexusData.hasUserResonated}
             hasUserAmplified={nexusData.hasUserAmplified}
             onLogout={handleLogout}

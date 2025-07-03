@@ -123,6 +123,10 @@ export default function UserProfilePage() {
     }
   };
 
+  const handleDeepDive = (username: string, postId: string) => {
+    router.push(`/${username}/entry/${postId}`);
+  };
+
   const handleNavigateToFeed = () => {
     router.push('/');
   };
@@ -243,6 +247,8 @@ export default function UserProfilePage() {
             onUserClick={handleUserClick}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
+            onBranch={nexusData.createBranch}
+            onDeepDive={handleDeepDive}
             hasUserResonated={nexusData.hasUserResonated}
             hasUserAmplified={nexusData.hasUserAmplified}
             onLogout={nexusData.logout}

@@ -15,6 +15,8 @@ interface ProfileViewProps {
   onUserClick?: (username: string) => void;
   onResonate: (postId: string) => Promise<void>;
   onAmplify: (postId: string) => Promise<void>;
+  onBranch?: (parentId: string, content: string) => Promise<void>;
+  onDeepDive?: (username: string, postId: string) => void;
   hasUserResonated: (postId: string) => boolean;
   hasUserAmplified: (postId: string) => boolean;
   onLogout: () => void;
@@ -38,6 +40,8 @@ export default function ProfileView({
   onUserClick,
   onResonate, 
   onAmplify, 
+  onBranch,
+  onDeepDive,
   hasUserResonated, 
   hasUserAmplified,
   onLogout,
@@ -216,6 +220,16 @@ export default function ProfileView({
     }
   };
 
+  const handleBranch = async (parentId: string, content: string) => {
+    if (onBranch) {
+      await onBranch(parentId, content);
+    }
+  };
+
+  const handleDeepDive = (post: any) => {
+    onDeepDive?.(post.username, post.id);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'posts':
@@ -236,6 +250,8 @@ export default function ProfileView({
                     onUserClick={onUserClick}
                     onResonate={onResonate}
                     onAmplify={onAmplify}
+                    onBranch={handleBranch}
+                    onDeepDive={handleDeepDive}
                     userHasResonated={hasUserResonated(post.id)}
                     userHasAmplified={hasUserAmplified(post.id)}
                   />

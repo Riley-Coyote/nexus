@@ -294,15 +294,24 @@ export class SupabaseProvider implements DatabaseProvider {
         throw new Error(`Failed to create branch: ${error.message}`);
       }
 
-      // 2) Safety bump – ensure branch counter is incremented even if trigger/rules fail.
-      //    We attempt this in a best-effort fashion; if it errors we just log and continue.
+      // ────────────────────────────────────────────────────────────
+      // Fallback safety: if for any reason the trigger did NOT bump
+      // the branch counter, detect it and increment manually once.
+      // This avoids the previous double-increment bug while still
+      // ensuring the count is correct when the trigger is missing.
+      // ────────────────────────────────────────────────────────────
       try {
-        await this.client.rpc('update_branch_count', {
-          target_entry_id: parentId,
-          delta: 1
-        });
+        const countsMap = await this.getInteractionCounts([String(parentId)]);
+        const current = countsMap.get(String(parentId));
+        const branchCount = current?.branchCount ?? 0;
+        if (branchCount === 0) {
+          await this.client.rpc('update_branch_count', {
+            target_entry_id: parentId,
+            delta: 1,
+          });
+        }
       } catch (countErr: any) {
-        console.warn('⚠️   Attempted manual branch_count bump failed (may be safe to ignore):', countErr?.message || countErr);
+        console.warn('⚠️  Branch count fallback check failed:', countErr?.message || countErr);
       }
     } catch (error) {
       console.error('❌ Error in createBranch:', error);
