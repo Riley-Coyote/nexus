@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import PostDisplay from './PostDisplay';
+import PostList from './PostList';
 import { Post } from '@/lib/types';
-import { streamEntryDataToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
+import { streamEntryDataToPost } from '@/lib/utils/postUtils';
 
 interface NexusFeedProps {
   logbookEntries: any[]; // Legacy StreamEntryData format
@@ -113,22 +113,6 @@ export default function NexusFeed({
     onDeepDive?.(post.username, post.id);
   };
 
-  if (isLoading && flattenedEntries.length === 0) {
-    return (
-      <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
-        <div className="max-w-4xl mx-auto w-full">
-          <div className="glass-panel rounded-xl p-6 sm:p-8 text-center">
-            <div className="text-text-quaternary text-lg mb-2">◊</div>
-            <h3 className="text-text-secondary font-light mb-2">Loading feed...</h3>
-            <p className="text-text-tertiary text-sm">
-              Gathering entries from the nexus
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
       {/* Centered Feed Container */}
@@ -142,57 +126,28 @@ export default function NexusFeed({
           </div>
         </div>
 
-        {/* Feed Stream */}
-        <div className="flex flex-col gap-4 sm:gap-6">
-          {flattenedEntries.length > 0 ? (
-            flattenedEntries.map((post) => {
-              const context = getPostContext(post);
-              const displayMode = getDisplayMode('feed', post.content.length, !!post.parentId);
-              
-              return (
-                <PostDisplay
-                  key={post.id}
-                  post={post}
-                  context={context}
-                  displayMode={displayMode}
-                  onPostClick={onPostClick}
-                  onUserClick={onUserClick}
-                  onBranch={handleBranch}
-                  onResonate={onResonate}
-                  onAmplify={onAmplify}
-                  onShare={onShare}
-                  onDeepDive={handleDeepDive}
-                  userHasResonated={hasUserResonated?.(post.id) || false}
-                  userHasAmplified={hasUserAmplified?.(post.id) || false}
-                  onClose={() => {
-                    console.log(`Mobile close requested for post ${post.id}`);
-                  }}
-                />
-              );
-            })
-          ) : (
-            <div className="glass-panel rounded-xl p-6 sm:p-8 text-center">
-              <div className="text-text-quaternary text-lg mb-2">∅</div>
-              <h3 className="text-text-secondary font-light mb-2">No entries found</h3>
-              <p className="text-text-tertiary text-sm">
-                No entries available in the feed
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Load More Button */}
-        {flattenedEntries.length > 0 && hasMore && (
-          <div className="mt-6 sm:mt-8 text-center">
-            <button 
-              className="interactive-btn px-4 sm:px-6 py-2 sm:py-3 text-sm font-light text-text-secondary hover:text-text-primary transition-colors border border-white/10 rounded-lg hover:border-white/20"
-              onClick={handleLoadMore}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Loading...' : 'Load More'}
-            </button>
-          </div>
-        )}
+        {/* Feed Stream - Now using unified PostList */}
+        <PostList
+          posts={flattenedEntries}
+          context="feed"
+          displayMode="preview"
+          showInteractions={true}
+          showBranching={true}
+          enablePagination={true}
+          pageSize={PAGE_SIZE}
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onLoadMore={handleLoadMore}
+          onPostClick={onPostClick}
+          onUserClick={onUserClick}
+          onBranch={handleBranch}
+          onResonate={onResonate}
+          onAmplify={onAmplify}
+          onShare={onShare}
+          onDeepDive={handleDeepDive}
+          hasUserResonated={hasUserResonated}
+          hasUserAmplified={hasUserAmplified}
+        />
       </div>
     </main>
   );

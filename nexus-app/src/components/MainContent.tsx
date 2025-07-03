@@ -2,9 +2,9 @@
 
 import React from 'react';
 import EntryComposer from './EntryComposer';
-import PostDisplay from './PostDisplay';
+import PostList from './PostList';
 import { EntryComposerData, StreamEntry, Post } from '@/lib/types';
-import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
+import { streamEntryToPost } from '@/lib/utils/postUtils';
 
 interface MainContentProps {
   entryComposer: EntryComposerData;
@@ -40,31 +40,24 @@ export default function MainContent({
     onSubmitEntry?.(content, type, isPublic);
   };
 
-  const handleResonate = async (id: string) => {
-    if (onResonate) {
-      await onResonate(id);
+  const handleDeepDive = (post: Post) => {
+    onDeepDive?.(post.username, post.id);
+  };
+
+  const handlePostClick = (post: Post) => {
+    // Find the original StreamEntry for compatibility
+    const originalEntry = stream.find(entry => entry.id === post.id);
+    if (originalEntry) {
+      onPostClick?.(originalEntry);
     }
   };
 
   const handleBranch = async (parentId: string, content: string) => {
-    if (onBranch) {
-      await onBranch(parentId, content);
-    }
+    onBranch?.(parentId, content);
   };
 
-  const handleAmplify = async (id: string) => {
-    if (onAmplify) {
-      await onAmplify(id);
-    }
-  };
-
-  const handleShare = (id: string) => {
-    onShare?.(id);
-  };
-
-  const handleDeepDive = (post: Post) => {
-    onDeepDive?.(post.username, post.id);
-  };
+  // Convert stream entries to Post format
+  const posts = stream.map(streamEntry => streamEntryToPost(streamEntry));
 
   return (
     <main className="mode-logbook flex-1 h-full pt-8 pb-24 px-4 sm:px-8 md:px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
@@ -74,32 +67,25 @@ export default function MainContent({
         onSubmit={handleSubmitEntry}
       />
       
-      {/* Stream */}
-      <div id="logbook-stream" className="flex flex-col gap-6">
-        {stream.map((streamEntry) => {
-          // Convert StreamEntry to Post format
-          const post = streamEntryToPost(streamEntry);
-          const context = getPostContext(post);
-          const displayMode = getDisplayMode('logbook', post.content.length, !!post.parentId);
-          
-          return (
-            <PostDisplay
-              key={post.id}
-              post={post}
-              context={context}
-              displayMode={displayMode}
-              onResonate={handleResonate}
-              onBranch={handleBranch}
-              onAmplify={handleAmplify}
-              onShare={handleShare}
-              onDeepDive={handleDeepDive}
-              onPostClick={() => onPostClick?.(streamEntry)} // Pass original StreamEntry for compatibility
-              onUserClick={onUserClick}
-              userHasResonated={hasUserResonated?.(post.id) || false}
-              userHasAmplified={hasUserAmplified?.(post.id) || false}
-            />
-          );
-        })}
+      {/* Stream - Now using unified PostList */}
+      <div id="logbook-stream">
+        <PostList
+          posts={posts}
+          context="logbook"
+          displayMode="full"
+          showInteractions={true}
+          showBranching={true}
+          enablePagination={false}
+          onResonate={onResonate}
+          onBranch={handleBranch}
+          onAmplify={onAmplify}
+          onShare={onShare}
+          onDeepDive={handleDeepDive}
+          onPostClick={handlePostClick}
+          onUserClick={onUserClick}
+          hasUserResonated={hasUserResonated}
+          hasUserAmplified={hasUserAmplified}
+        />
       </div>
     </main>
   );

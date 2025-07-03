@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import PostDisplay from './PostDisplay';
+import PostList from './PostList';
 import { Post } from '@/lib/types';
 import { streamEntryDataToPost } from '@/lib/utils/postUtils';
 
@@ -85,6 +85,9 @@ export default function ResonanceField({
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
+  // Custom hasUserResonated function - always true in resonance field
+  const hasUserResonated = (entryId: string) => true;
+
   return (
     <main className="py-4 sm:py-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
       <div className="max-w-4xl mx-auto w-full">
@@ -101,41 +104,25 @@ export default function ResonanceField({
           </div>
         </div>
 
-        {/* Resonated Entries Stream */}
-        <div className="flex flex-col gap-4 sm:gap-6">
-          {sortedEntries.length > 0 ? (
-            sortedEntries.map((post) => (
-              <PostDisplay
-                key={post.id}
-                post={post}
-                context="resonance"
-                displayMode="full"
-                onPostClick={onPostClick}
-                onResonate={handleResonate}
-                onBranch={handleBranch}
-                onAmplify={handleAmplify}
-                userHasResonated={true} // Always true in resonance field
-                userHasAmplified={hasUserAmplified ? hasUserAmplified(post.id) : false}
-                onShare={onShare}
-                onDeepDive={handleDeepDive}
-                onClose={() => {
-                  console.log(`Mobile close requested for resonated post ${post.id}`);
-                }}
-              />
-            ))
-          ) : (
-            <div className="glass-panel rounded-xl p-6 sm:p-8 text-center">
-              <div className="text-text-quaternary text-4xl mb-4">◇</div>
-              <h3 className="text-text-secondary font-light mb-2">No resonated entries yet</h3>
-              <p className="text-text-tertiary text-sm mb-4">
-                Entries you resonate with will appear here
-              </p>
-              <p className="text-text-quaternary text-xs">
-                Visit the feed, logbook, or dreams to start resonating with content
-              </p>
-            </div>
-          )}
-        </div>
+        {/* Resonated Entries Stream - Now using unified PostList */}
+        <PostList
+          posts={sortedEntries}
+          context="resonance"
+          displayMode="full"
+          showInteractions={true}
+          showBranching={true}
+          enablePagination={false}
+          onPostClick={onPostClick}
+          onResonate={handleResonate}
+          onBranch={handleBranch}
+          onAmplify={handleAmplify}
+          hasUserResonated={hasUserResonated}
+          hasUserAmplified={hasUserAmplified}
+          onShare={onShare}
+          onDeepDive={handleDeepDive}
+          emptyStateIcon="◇"
+          emptyStateMessage="No resonated entries yet"
+        />
 
         {/* Action Footer */}
         {sortedEntries.length > 0 && (
