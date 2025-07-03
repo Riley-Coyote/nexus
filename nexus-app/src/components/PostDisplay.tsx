@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Post } from '@/lib/types';
-import { dataService } from '@/lib/services/dataService';
-import { authService } from '@/lib/services/authService';
 import { shareContent, createPostShareData } from '@/lib/utils/shareUtils';
 
 export interface PostDisplayProps {
@@ -65,6 +63,12 @@ export default function PostDisplay({
   const shouldShowPreview = displayMode === 'preview' && !isReply && post.content.length > 200 && !isExpanded;
   const shouldCollapse = shouldShowPreview || isMobileCollapsed;
 
+  // Sync interaction state from parent when props change
+  useEffect(() => {
+    setUserHasResonated(initialUserHasResonated);
+    setUserHasAmplified(initialUserHasAmplified);
+  }, [initialUserHasResonated, initialUserHasAmplified]);
+
   // Update local state when props change
   useEffect(() => {
     setLocalInteractions(post.interactions);
@@ -74,37 +78,7 @@ export default function PostDisplay({
     setIsExpanded(displayMode === 'full');
   }, [displayMode]);
 
-  // Load user interaction state - fetch only what parent hasn't provided
-  useEffect(() => {
-    const loadUserInteractionState = async () => {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) return; // wait until auth is ready
-
-      console.log('[PostDisplay] Checking interaction state for', post.id, 'user', currentUser?.id);
-      try {
-        const state = await dataService.getUserInteractionState(currentUser.id, post.id);
-        console.log('[PostDisplay] Fetched interaction state', state, 'for post', post.id);
-        
-        // Only update state if parent didn't provide explicit values
-        if (initialUserHasResonated === false) {
-          setUserHasResonated(state.hasResonated);
-        }
-        if (initialUserHasAmplified === false) {
-          setUserHasAmplified(state.hasAmplified);
-        }
-      } catch (error) {
-        console.error('Error loading user interaction state:', error);
-      }
-    };
-
-    loadUserInteractionState();
-  }, [post.id, authService.getCurrentUser()?.id]);
-
-  // Update state when props change (parent has fresh data)
-  useEffect(() => {
-    setUserHasResonated(initialUserHasResonated);
-    setUserHasAmplified(initialUserHasAmplified);
-  }, [initialUserHasResonated, initialUserHasAmplified]);
+  // Parent now always supplies interaction state; do not fetch here.
 
   // Check if interaction buttons need compact layout
   useEffect(() => {

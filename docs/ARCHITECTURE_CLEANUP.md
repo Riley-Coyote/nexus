@@ -25,7 +25,7 @@ Supabase DB → DataService → useNexusData →
 | D1 | Duplication | `StreamEntry.tsx` duplicates UI/logic already in `PostDisplay` | ✅ Removed in PR _Cleanup-D1_
 | D2 | Duplication | `PostOverlay.tsx` duplicates interaction logic (modal) | ◐ (out-of-scope *for now*)
 | P1 | Props-drilling | Pages convert data & forward 10-15 callbacks | ❌
-| N1 | Network | `PostDisplay` still fetches `getUserInteractionState` even when parent knows | ❌
+| N1 | Network | `PostDisplay` still fetches `getUserInteractionState` even when parent knows | ✅ Removed extra fetch in PR _Cleanup-N1_
 | G1 | Pagination | Feed paginates, Logbook/Dream do not | ❌
 | B1 | Bug | Modal calls `getUserInteractionState('current-user', …)` (wrong ID) | ✅ Fixed in PR _BugFix-B1_
 
@@ -112,3 +112,21 @@ Supabase DB → DataService → useNexusData →
   4. **Regression sweep:** Create a post; resonance/amplify still work.  
   5. **Console clean:** No "Cannot find module './StreamEntry'" errors.  
 * **Done When:** All checks pass and CI green. 
+
+## Section N1: Single Source of Truth for Interaction State
+
+* **Goal:** Ensure `PostDisplay` relies solely on props for interaction state, eliminating duplicate DB calls.  
+* **Touched Files:**  
+  * `src/components/PostDisplay.tsx` – removed imports of `dataService` and `authService`; deleted internal effect; added prop-sync effect.  
+* **Implementation Steps:**  
+  1. Delete `useEffect` that fetched `dataService.getUserInteractionState`.  
+  2. Remove unused imports.  
+  3. Add simple `useEffect` to sync `initialUserHasResonated/Amplified` props into state.  
+* **Risk / Rollback:** Low; relies on existing parent helpers; rollback by re-adding effect.  
+* **Test Plan:**  
+  1. **Build-OK**: `npm run dev` compiles (no unused-import errors).  
+  2. **Open Feed:** Counts for resonance/amplify match what you saw before.  
+  3. **Toggle Resonance:** Click ◊ on a post – count updates instantly; reload page – state persists (handled by parents).  
+  4. **Network tab:** Opening post list should no longer fire `GET /interactionState` requests for each post.  
+  5. **Console clean:** No errors about `authService` or missing imports.  
+* **Done When:** All checks pass and network panel confirms call removal. 

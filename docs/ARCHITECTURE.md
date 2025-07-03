@@ -162,4 +162,5 @@ submitBranch() → dataService.createBranch() → nexusData.createBranch() → r
 | Date | Change |
 |------|--------|
 | 2025-07-03 | Fixed PostOverlay interaction-state bug (replaced hard-coded `'current-user'` with real authenticated ID). |
-| 2025-07-03 | Deleted duplicate `StreamEntry.tsx`; added type alias in `lib/types.ts`. | 
+| 2025-07-03 | Deleted duplicate `StreamEntry.tsx`; added type alias in `lib/types.ts`. |
+| 2025-07-03 | `PostDisplay` no longer fetches user interaction state; parent is source of truth. | 
