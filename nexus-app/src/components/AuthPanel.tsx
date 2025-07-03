@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { authService } from '../lib/services/supabaseAuthService';
+import React, { useState, useRef } from 'react';
+import { authService, AuthResult } from '../lib/services/supabaseAuthService';
 
 interface AuthPanelProps {
   onAuthSuccess: () => void;
@@ -21,6 +21,21 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
     name: ''
   });
 
+  // Add ref to track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const safeSetState = (stateSetter: () => void) => {
+    if (isMountedRef.current) {
+      stateSetter();
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -38,95 +53,129 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
     return password.length >= 6;
   };
 
+  // Add timeout wrapper for auth operations
+  const withTimeout = async (promise: Promise<AuthResult>, timeoutMs: number = 30000): Promise<AuthResult> => {
+    return Promise.race([
+      promise,
+      new Promise<AuthResult>((_, reject) => {
+        setTimeout(() => reject(new Error('Operation timed out. Please check your connection and try again.')), timeoutMs);
+      })
+    ]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent multiple simultaneous submissions
+    if (isLoading) return;
+    
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
       if (authMode === 'reset') {
+        // Validation for reset
         if (!validateEmail(formData.email)) {
-          setError('Please enter a valid email address');
-          setIsLoading(false);
+          safeSetState(() => setError('Please enter a valid email address'));
           return;
         }
 
-        const result = await authService.resetPassword(formData.email);
+        const result = await withTimeout(authService.resetPassword(formData.email));
+        
+        if (!isMountedRef.current) return;
+        
         if (result.success) {
-          setSuccessMessage('Password reset email sent! Please check your inbox.');
-          setAuthMode('login');
+          safeSetState(() => {
+            setSuccessMessage('Password reset email sent! Please check your inbox.');
+            setAuthMode('login');
+          });
         } else {
-          setError(result.error || 'Failed to send password reset email');
+          safeSetState(() => setError(result.error || 'Failed to send password reset email'));
         }
+        
       } else if (authMode === 'login') {
+        // Validation for login
         if (!validateEmail(formData.email)) {
-          setError('Please enter a valid email address');
-          setIsLoading(false);
+          safeSetState(() => setError('Please enter a valid email address'));
           return;
         }
 
         if (!formData.password) {
-          setError('Please enter your password');
-          setIsLoading(false);
+          safeSetState(() => setError('Please enter your password'));
           return;
         }
 
-        const result = await authService.signIn(formData.email, formData.password);
+        const result = await withTimeout(authService.signIn(formData.email, formData.password));
+        
+        if (!isMountedRef.current) return;
+        
         if (result.success) {
+          // Success - component may unmount, so don't update state after this
           onAuthSuccess();
-          if (onLogin) onLogin(); // Call onLogin if provided
+          if (onLogin) onLogin();
         } else if (result.needsVerification) {
-          setSuccessMessage('Please check your email and verify your account before signing in.');
+          safeSetState(() => setSuccessMessage('Please check your email and verify your account before signing in.'));
         } else {
-          setError(result.error || 'Login failed');
+          safeSetState(() => setError(result.error || 'Login failed'));
         }
+        
       } else {
         // Signup validation
         if (!validateEmail(formData.email)) {
-          setError('Please enter a valid email address');
-          setIsLoading(false);
+          safeSetState(() => setError('Please enter a valid email address'));
           return;
         }
 
         if (!validatePassword(formData.password)) {
-          setError('Password must be at least 6 characters long');
-          setIsLoading(false);
+          safeSetState(() => setError('Password must be at least 6 characters long'));
           return;
         }
 
         if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match');
-          setIsLoading(false);
+          safeSetState(() => setError('Passwords do not match'));
           return;
         }
         
-        const result = await authService.signUp(
+        const result = await withTimeout(authService.signUp(
           formData.email, 
           formData.password,
           { name: formData.name || formData.email.split('@')[0] }
-        );
+        ));
+        
+        if (!isMountedRef.current) return;
         
         if (result.success) {
           if (result.needsVerification) {
-            setSuccessMessage('Account created! Please check your email and click the verification link to complete your signup.');
-            setAuthMode('login');
+            safeSetState(() => {
+              setSuccessMessage('Account created! Please check your email and click the verification link to complete your signup.');
+              setAuthMode('login');
+            });
           } else {
+            // Success - component may unmount, so don't update state after this
             onAuthSuccess();
-            if (onSignup) onSignup(); // Call onSignup if provided
+            if (onSignup) onSignup();
           }
         } else {
-          setError(result.error || 'Signup failed');
+          safeSetState(() => setError(result.error || 'Signup failed'));
         }
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Auth error:', err);
+      if (!isMountedRef.current) return;
+      
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      safeSetState(() => setError(errorMessage));
     } finally {
-      setIsLoading(false);
+      // Always reset loading state if component is still mounted
+      safeSetState(() => setIsLoading(false));
     }
   };
 
   const switchAuthMode = (mode: 'login' | 'signup' | 'reset') => {
+    // Prevent mode switching while loading
+    if (isLoading) return;
+    
     setAuthMode(mode);
     setError(null);
     setSuccessMessage(null);
@@ -144,14 +193,29 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       return;
     }
 
+    if (isLoading) return; // Prevent multiple simultaneous requests
+    
     setIsLoading(true);
-    const result = await authService.resendVerification(formData.email);
-    setIsLoading(false);
+    setError(null);
+    
+    try {
+      const result = await withTimeout(authService.resendVerification(formData.email));
+      
+      if (!isMountedRef.current) return;
 
-    if (result.success) {
-      setSuccessMessage('Verification email resent! Please check your inbox.');
-    } else {
-      setError(result.error || 'Failed to resend verification email');
+      if (result.success) {
+        safeSetState(() => setSuccessMessage('Verification email resent! Please check your inbox.'));
+      } else {
+        safeSetState(() => setError(result.error || 'Failed to resend verification email'));
+      }
+    } catch (err) {
+      console.error('Resend verification error:', err);
+      if (!isMountedRef.current) return;
+      
+      const errorMessage = err instanceof Error ? err.message : 'Failed to resend verification email';
+      safeSetState(() => setError(errorMessage));
+    } finally {
+      safeSetState(() => setIsLoading(false));
     }
   };
 
@@ -183,7 +247,8 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <button
                 type="button"
                 onClick={() => switchAuthMode('login')}
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all duration-300 ${
+                disabled={isLoading}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all duration-300 disabled:opacity-50 ${
                   authMode === 'login'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'text-gray-400 hover:text-gray-300'
@@ -194,7 +259,8 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <button
                 type="button"
                 onClick={() => switchAuthMode('signup')}
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all duration-300 ${
+                disabled={isLoading}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all duration-300 disabled:opacity-50 ${
                   authMode === 'signup'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'text-gray-400 hover:text-gray-300'
@@ -296,7 +362,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
                   type="button"
                   onClick={resendVerification}
                   disabled={isLoading}
-                  className="mt-2 text-xs text-emerald-400 hover:text-emerald-300 underline"
+                  className="mt-2 text-xs text-emerald-400 hover:text-emerald-300 underline disabled:opacity-50"
                 >
                   Resend verification email
                 </button>
@@ -335,7 +401,8 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <button
                 type="button"
                 onClick={() => switchAuthMode('reset')}
-                className="text-sm text-gray-400 hover:text-gray-300 underline"
+                disabled={isLoading}
+                className="text-sm text-gray-400 hover:text-gray-300 underline disabled:opacity-50"
               >
                 Forgot your password?
               </button>
@@ -347,7 +414,8 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <button
                 type="button"
                 onClick={() => switchAuthMode('login')}
-                className="text-sm text-gray-400 hover:text-gray-300 underline"
+                disabled={isLoading}
+                className="text-sm text-gray-400 hover:text-gray-300 underline disabled:opacity-50"
               >
                 Back to sign in
               </button>

@@ -22,8 +22,8 @@ class MockAuthBridge {
   private listeners: ((authState: AuthState) => void)[] = [];
 
   private notifyListeners() {
-    const state = mockAuthService.getAuthState();
-    this.listeners.forEach(cb => cb(state));
+    const authState = mockAuthService.getAuthState();
+    this.listeners.forEach(listener => listener(authState));
   }
 
   // Subscribe to auth state changes (in-memory implementation)
@@ -73,11 +73,11 @@ class MockAuthBridge {
 
   // ───────── State helpers ─────────
   getCurrentUser() {
-    return mockAuthService.getCurrentUser();
+    return mockAuthService.getAuthState().currentUser;
   }
 
   isAuthenticated() {
-    return mockAuthService.isAuthenticated();
+    return mockAuthService.getAuthState().isAuthenticated;
   }
 
   getAuthState() {
@@ -100,6 +100,7 @@ class SupabaseAuthService {
   };
   private initialized = false;
   private authListeners: ((authState: AuthState) => void)[] = [];
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     // Initialize auth state
@@ -107,19 +108,40 @@ class SupabaseAuthService {
   }
 
   private async initialize() {
+    // Prevent multiple simultaneous initializations
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
     if (this.initialized) return;
     
+    this.initializationPromise = this.performInitialization();
+    return this.initializationPromise;
+  }
+
+  private async performInitialization() {
     try {
-      // Check for existing session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Check for existing session with timeout
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Session check timeout')), 10000);
+      });
+
+      const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
       
-      if (session) {
-        await this.handleAuthStateChange(session);
+      if (error) {
+        console.warn('Session check error:', error);
+        await this.cleanupInvalidSession();
+        return;
+      }
+      
+      if (data.session) {
+        await this.handleAuthStateChange(data.session);
       }
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event);
+        console.log('Auth state changed:', event, session ? 'session exists' : 'no session');
         
         if (event === 'SIGNED_IN' && session) {
           await this.handleAuthStateChange(session);
@@ -127,17 +149,55 @@ class SupabaseAuthService {
           this.clearAuthState();
         } else if (event === 'TOKEN_REFRESHED' && session) {
           await this.handleAuthStateChange(session);
+        } else if (event === 'USER_UPDATED' && session) {
+          await this.handleAuthStateChange(session);
         }
       });
 
       this.initialized = true;
     } catch (error) {
       console.error('Error initializing auth:', error);
+      // On initialization error, clear any stale state
+      await this.cleanupInvalidSession();
+    } finally {
+      this.initializationPromise = null;
     }
+  }
+
+  private async cleanupInvalidSession() {
+    console.log('Cleaning up invalid session...');
+    try {
+      // Clear potential localStorage entries that might be stale
+      if (typeof window !== 'undefined') {
+        // Clear common Supabase auth keys
+        const keysToRemove = Object.keys(localStorage).filter(key => 
+          key.includes('supabase') && key.includes('auth')
+        );
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+      }
+      
+      // Sign out to clear any stale Supabase session
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (cleanupError) {
+      console.warn('Error during session cleanup:', cleanupError);
+    }
+    
+    this.clearAuthState();
   }
 
   private async handleAuthStateChange(session: Session) {
     try {
+      // Validate session before proceeding
+      if (!session.access_token || !session.user) {
+        throw new Error('Invalid session data');
+      }
+
+      // Check if session is expired
+      const now = Math.floor(Date.now() / 1000);
+      if (session.expires_at && session.expires_at < now) {
+        throw new Error('Session expired');
+      }
+
       const user = await this.createOrGetUserProfile(session.user);
       
       this.authState = {
@@ -149,45 +209,65 @@ class SupabaseAuthService {
       this.notifyAuthListeners();
     } catch (error) {
       console.error('Error handling auth state change:', error);
-      // In case the stored session tokens are stale or invalid (e.g. project keys changed),
-      // proactively sign out so localStorage is cleared and the next login starts clean.
-      try {
-        await supabase.auth.signOut();
-      } catch (signOutErr) {
-        console.warn('Additional error while signing out after auth failure:', signOutErr);
-      }
-      this.clearAuthState();
+      
+      // Enhanced cleanup for various error scenarios
+      await this.cleanupInvalidSession();
     }
   }
 
   private async createOrGetUserProfile(supabaseUser: SupabaseUser): Promise<User> {
-    // First, try to get existing user
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', supabaseUser.id)
-      .single();
+    try {
+      // First, try to get existing user with timeout
+      const fetchPromise = supabase
+        .from('users')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
 
-    if (existingUser && !fetchError) {
-      return this.mapSupabaseUserToAppUser(existingUser);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout')), 10000);
+      });
+
+      const { data: existingUser, error: fetchError } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]);
+
+      if (existingUser && !fetchError) {
+        return this.mapSupabaseUserToAppUser(existingUser);
+      }
+
+      // If user doesn't exist, create new profile
+      return await this.createNewUserProfile(supabaseUser);
+    } catch (error) {
+      console.error('Error in createOrGetUserProfile:', error);
+      throw new Error('Failed to create or retrieve user profile');
     }
+  }
 
+  private async createNewUserProfile(supabaseUser: SupabaseUser): Promise<User> {
     // Check if username already exists
     const baseUsername = supabaseUser.email?.split('@')[0] || `user_${supabaseUser.id.slice(0, 8)}`;
     let username = baseUsername;
     let counter = 1;
 
-    while (true) {
-      const { data: existingUsername } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .single();
+    // Find available username with timeout protection
+    while (counter < 100) { // Prevent infinite loops
+      try {
+        const { data: existingUsername } = await supabase
+          .from('users')
+          .select('username')
+          .eq('username', username)
+          .single();
 
-      if (!existingUsername) break;
-      
-      username = `${baseUsername}_${counter}`;
-      counter++;
+        if (!existingUsername) break;
+        
+        username = `${baseUsername}_${counter}`;
+        counter++;
+      } catch (error) {
+        // If query fails, use the current username attempt
+        break;
+      }
     }
 
     // Create new user profile
@@ -199,10 +279,8 @@ class SupabaseAuthService {
       avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
       role: 'Explorer',
       stats: { entries: 0, dreams: 0, connections: 0 },
-      // @ts-ignore
-      followerCount: supabaseUser.follower_count || 0,
-      // @ts-ignore
-      followingCount: supabaseUser.following_count || 0,
+      follower_count: 0,
+      following_count: 0,
       created_at: new Date().toISOString()
     };
 
@@ -236,9 +314,7 @@ class SupabaseAuthService {
         ...(supabaseUser.stats || { entries: 0, dreams: 0, connections: 0 }),
         connections: supabaseUser.follower_count ?? 0
       },
-      // @ts-ignore
       followerCount: supabaseUser.follower_count || 0,
-      // @ts-ignore
       followingCount: supabaseUser.following_count || 0,
       createdAt: supabaseUser.created_at
     };
@@ -267,9 +343,9 @@ class SupabaseAuthService {
 
   async signUp(email: string, password: string, userData?: { name?: string }): Promise<AuthResult> {
     try {
-      // Check if email already exists
-      const { data: existingUser } = await supabase.auth.getUser();
-      
+      // Ensure initialization is complete
+      await this.initialize();
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -284,6 +360,9 @@ class SupabaseAuthService {
       if (error) {
         if (error.message.includes('already registered')) {
           return { success: false, error: 'An account with this email already exists. Please sign in instead.' };
+        }
+        if (error.message.includes('rate limit')) {
+          return { success: false, error: 'Too many attempts. Please wait a moment and try again.' };
         }
         return { success: false, error: error.message };
       }
@@ -305,6 +384,12 @@ class SupabaseAuthService {
 
   async signIn(email: string, password: string): Promise<AuthResult> {
     try {
+      // Ensure initialization is complete
+      await this.initialize();
+
+      // Clear any existing session before attempting new sign-in
+      await supabase.auth.signOut({ scope: 'local' });
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -316,6 +401,9 @@ class SupabaseAuthService {
         }
         if (error.message.includes('Email not confirmed')) {
           return { success: false, error: 'Please verify your email address before signing in.', needsVerification: true };
+        }
+        if (error.message.includes('rate limit')) {
+          return { success: false, error: 'Too many attempts. Please wait a moment and try again.' };
         }
         return { success: false, error: error.message };
       }
@@ -333,15 +421,26 @@ class SupabaseAuthService {
         await this.handleAuthStateChange(data.session);
       } else {
         // Fallback: fetch current session and update
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          await this.handleAuthStateChange(sessionData.session);
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData.session) {
+            await this.handleAuthStateChange(sessionData.session);
+          } else {
+            throw new Error('No session after successful sign-in');
+          }
+        } catch (sessionError) {
+          console.error('Failed to get session after sign-in:', sessionError);
+          return { success: false, error: 'Sign-in succeeded but session setup failed. Please try again.' };
         }
       }
 
       return { success: true };
     } catch (error) {
       console.error('Signin error:', error);
+      
+      // On sign-in error, clean up any partial state
+      await this.cleanupInvalidSession();
+      
       return { success: false, error: 'An unexpected error occurred during signin.' };
     }
   }
@@ -351,6 +450,9 @@ class SupabaseAuthService {
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Signout error:', error);
+    } finally {
+      // Always clear local state regardless of API call success
+      this.clearAuthState();
     }
   }
 
@@ -365,6 +467,9 @@ class SupabaseAuthService {
       });
 
       if (error) {
+        if (error.message.includes('rate limit')) {
+          return { success: false, error: 'Please wait a moment before requesting another verification email.' };
+        }
         return { success: false, error: error.message };
       }
       return { success: true };
@@ -381,6 +486,9 @@ class SupabaseAuthService {
       });
 
       if (error) {
+        if (error.message.includes('rate limit')) {
+          return { success: false, error: 'Please wait a moment before requesting another password reset.' };
+        }
         return { success: false, error: error.message };
       }
 
@@ -400,29 +508,32 @@ class SupabaseAuthService {
   }
 
   getAuthState(): AuthState {
-    return { ...this.authState };
+    return this.authState;
   }
 
   async updateUserStats(statType: 'entries' | 'dreams' | 'connections', increment = 1): Promise<void> {
-    const user = this.getCurrentUser();
-    if (!user) return;
+    const currentUser = this.authState.currentUser;
+    if (!currentUser) return;
 
     try {
-      const newStats = { ...user.stats } as any;
-      if (typeof newStats[statType] !== 'number') newStats[statType] = 0;
+      // Update local state immediately for responsiveness
+      const newStats = { ...currentUser.stats };
       newStats[statType] += increment;
+      
+      this.authState.currentUser = {
+        ...currentUser,
+        stats: newStats
+      };
+      
+      this.notifyAuthListeners();
 
-      const { error } = await supabase
+      // Update in database
+      await supabase
         .from('users')
         .update({ stats: newStats })
-        .eq('id', user.id);
-
-      if (!error) {
-        user.stats = newStats;
-        this.notifyAuthListeners();
-      }
+        .eq('id', currentUser.id);
     } catch (error) {
-      console.error('Error updating user stats:', error);
+      console.error('Failed to update user stats:', error);
     }
   }
 }
