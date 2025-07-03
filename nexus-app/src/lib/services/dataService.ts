@@ -1410,13 +1410,39 @@ class DataService {
   }
 
   hasUserResonated(userId: string, entryId: string): boolean {
-    const userResonances = this.userResonances.get(userId);
-    return userResonances ? userResonances.has(entryId) : false;
+    // In mock mode, check the local maps
+    if (USE_MOCK_DATA || !this.database) {
+      const userResonances = this.userResonances.get(userId);
+      return userResonances ? userResonances.has(entryId) : false;
+    }
+    
+    // In database mode, check the cache first
+    const userCache = this.userInteractionStatesCache.get(userId);
+    if (userCache && userCache.has(entryId) && this.isCacheValid()) {
+      return userCache.get(entryId)?.hasResonated || false;
+    }
+    
+    // If not in cache, return false (will be updated when cache is refreshed)
+    // Note: This is a synchronous method, so we can't await database calls here
+    return false;
   }
 
   hasUserAmplified(userId: string, entryId: string): boolean {
-    const userAmplifications = this.userAmplifications.get(userId);
-    return userAmplifications ? userAmplifications.has(entryId) : false;
+    // In mock mode, check the local maps
+    if (USE_MOCK_DATA || !this.database) {
+      const userAmplifications = this.userAmplifications.get(userId);
+      return userAmplifications ? userAmplifications.has(entryId) : false;
+    }
+    
+    // In database mode, check the cache first
+    const userCache = this.userInteractionStatesCache.get(userId);
+    if (userCache && userCache.has(entryId) && this.isCacheValid()) {
+      return userCache.get(entryId)?.hasAmplified || false;
+    }
+    
+    // If not in cache, return false (will be updated when cache is refreshed)
+    // Note: This is a synchronous method, so we can't await database calls here
+    return false;
   }
 
   // ========== FEED-SPECIFIC METHODS ==========

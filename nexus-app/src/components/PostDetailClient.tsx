@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/lib/types';
 import PostDisplay from '@/components/PostDisplay';
@@ -27,18 +27,59 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
 
   const nexusData = useNexusData();
 
-  // Initialise flags on mount
+  // Load interaction states for all posts being displayed
+  const loadInteractionStates = useCallback(async () => {
+    if (!nexusData.currentUser) return;
+    
+    const allPosts = [post, ...(parent ? [parent] : []), ...childPosts];
+    const entryIds = allPosts.map(p => p.id);
+    
+    try {
+      // Force load the user interaction states for these specific entries
+      await Promise.all(entryIds.map(id => 
+        dataService.getUserInteractionState(nexusData.currentUser!.id, id)
+      ));
+      
+      console.log('✅ PostDetailClient: Loaded interaction states for entries:', entryIds);
+    } catch (error) {
+      console.error('❌ PostDetailClient: Failed to load interaction states:', error);
+    }
+  }, [post.id, parent?.id, childPosts.map(c => c.id).join(','), nexusData.currentUser?.id]);
+
+  // Load interaction states when component mounts or entries change
   useEffect(() => {
-    const initial: Record<string, { hasResonated: boolean; hasAmplified: boolean }> = {};
-    [post, ...(parent ? [parent] : []), ...childPosts].forEach(p => {
-      initial[p.id] = {
-        hasResonated: nexusData.hasUserResonated(p.id),
-        hasAmplified: nexusData.hasUserAmplified(p.id)
-      };
-    });
-    setFlags(initial);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    loadInteractionStates();
+  }, [loadInteractionStates]);
+
+  // Initialise flags on mount and when resonated/amplified entries change
+  useEffect(() => {
+    const updateFlags = async () => {
+      // Ensure interaction states are loaded first
+      await loadInteractionStates();
+      
+      const initial: Record<string, { hasResonated: boolean; hasAmplified: boolean }> = {};
+      [post, ...(parent ? [parent] : []), ...childPosts].forEach(p => {
+        const hasResonated = nexusData.hasUserResonated(p.id);
+        const hasAmplified = nexusData.hasUserAmplified(p.id);
+        
+        console.log(`🔍 PostDetailClient flags for ${p.id}:`, {
+          hasResonated,
+          hasAmplified,
+          resonatedEntriesCount: nexusData.resonatedEntries.length,
+          amplifiedEntriesCount: nexusData.amplifiedEntries.length
+        });
+        
+        initial[p.id] = {
+          hasResonated,
+          hasAmplified
+        };
+      });
+      setFlags(initial);
+      console.log('🎯 PostDetailClient final flags:', initial);
+    };
+    
+    updateFlags();
+  }, [post.id, parent?.id, childPosts.length, nexusData.resonatedEntries, nexusData.amplifiedEntries, nexusData.hasUserResonated, nexusData.hasUserAmplified, loadInteractionStates]);
 
   const mutatePost = (id: string, mutator: (p: Post) => Post) => {
     if (mainPost.id === id) setMainPost(mutator(mainPost));
