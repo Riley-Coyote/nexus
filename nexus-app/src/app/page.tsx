@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import LeftSidebar from '@/components/LeftSidebar';
 import MainContent from '@/components/MainContent';
@@ -21,14 +21,16 @@ import { postToStreamEntry } from '@/lib/utils/postUtils';
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const nexusData = useNexusData();
   
   // State management
-  const modeFromUrl = searchParams.get('mode');
-  const [journalMode, setJournalMode] = useState<JournalMode>(
-    modeFromUrl === 'dream' ? 'dream' : 'logbook'
+  const [journalMode, setJournalMode] = useState<JournalMode>(() =>
+    pathname.startsWith('/dream') ? 'dream' : 'logbook'
   );
-  const [viewMode, setViewMode] = useState<ViewMode>('default');
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    pathname === '/' || pathname === '/feed' ? 'feed' : 'default'
+  );
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
@@ -52,6 +54,19 @@ export default function Home() {
       }
     }
   }, [searchParams, nexusData.logbookEntries, nexusData.sharedDreams]);
+
+  // Sync journal/view state when path changes
+  useEffect(() => {
+    if (pathname === '/' || pathname === '/feed') {
+      setViewMode('feed');
+    } else if (pathname.startsWith('/dream')) {
+      setJournalMode('dream');
+      setViewMode('default');
+    } else if (pathname.startsWith('/logbook')) {
+      setJournalMode('logbook');
+      setViewMode('default');
+    }
+  }, [pathname]);
 
   // Handle opening posts (unified handler for both Post and StreamEntry)
   const handleOpenPost = (post: Post | StreamEntry) => {
@@ -92,24 +107,23 @@ export default function Home() {
   const handleModeChange = (mode: JournalMode) => {
     setJournalMode(mode);
     setViewMode('default');
-    // Update the URL to reflect the new mode
-    const params = new URLSearchParams(Array.from(searchParams.entries()));
-    params.set('mode', mode);
-    router.push(`/?${params.toString()}`);
+    if (mode === 'dream') {
+      router.push('/dream');
+    } else {
+      router.push('/logbook');
+    }
   };
 
   const handleViewChange = (view: ViewMode) => {
-    // Always preserve the mode in the URL
-    const modeParam = `?mode=${journalMode}`;
     if (view === 'profile') {
       if (nexusData.currentUser) {
-        router.push(`/profile/${nexusData.currentUser.username}${modeParam}`);
+        router.push(`/profile/${nexusData.currentUser.username}`);
       }
     } else if (view === 'resonance-field') {
-      router.push(`/resonance-field${modeParam}`);
+      router.push('/resonance-field');
     } else if (view === 'feed') {
       setViewMode('feed');
-      router.push(`/${modeParam}`);
+      router.push('/');
     } else {
       setViewMode(view);
     }
@@ -132,12 +146,12 @@ export default function Home() {
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
     if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}?mode=${journalMode}`);
+      router.push(`/profile/${nexusData.currentUser.username}`);
     }
   };
 
   const handleUserClick = (username: string) => {
-    router.push(`/profile/${username}?mode=${journalMode}`);
+    router.push(`/profile/${username}`);
   };
 
   const handleReverieClick = () => {

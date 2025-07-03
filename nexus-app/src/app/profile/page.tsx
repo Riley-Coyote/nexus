@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
@@ -13,6 +13,7 @@ import { postToStreamEntry } from '@/lib/utils/postUtils';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const nexusData = useNexusData();
   
   // Post overlay state
@@ -51,7 +52,11 @@ export default function ProfilePage() {
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
-    router.push(`/?mode=${mode}`);
+    if (mode === 'dream') {
+      router.push(`/dream/profile/${nexusData.currentUser?.username || ''}`);
+    } else {
+      router.push(`/logbook/profile/${nexusData.currentUser?.username || ''}`);
+    }
   };
 
   const handleNavigateToFeed = () => {
@@ -96,12 +101,16 @@ export default function ProfilePage() {
     );
   }
 
+  // Determine modeClass based on pathname for styling
+  const isDreamPath = pathname.startsWith('/dream');
+  const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
+
   return (
-    <div className="liminal-logbook">
+    <div className={`liminal-logbook ${modeClass}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
         {/* Header */}
         <Header 
-          currentMode="logbook"
+          currentMode={isDreamPath ? 'dream' : 'logbook'}
           currentView="profile"
           onModeChange={handleModeChange}
           onViewChange={(view) => {

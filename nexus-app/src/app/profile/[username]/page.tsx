@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
@@ -14,7 +14,7 @@ import { useNexusData } from '@/hooks/useNexusData';
 export default function UserProfilePage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const username = params.username as string;
   const nexusData = useNexusData();
   
@@ -25,10 +25,10 @@ export default function UserProfilePage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Determine mode from URL
-  const modeFromUrl = searchParams.get('mode');
-  const modeClass = modeFromUrl === 'dream' ? 'mode-dream' : 'mode-logbook';
-  const currentMode = modeFromUrl === 'dream' ? 'dream' : 'logbook';
+  // Determine mode from pathname
+  const isDreamPath = pathname.startsWith('/dream');
+  const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
+  const currentMode: 'logbook' | 'dream' = isDreamPath ? 'dream' : 'logbook';
 
   // Load the user profile when the component mounts or username changes
   useEffect(() => {
@@ -132,8 +132,11 @@ export default function UserProfilePage() {
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
-    // Navigate back to home page with the selected mode
-    router.push(`/?mode=${mode}`);
+    if (mode === 'dream') {
+      router.push(`/dream/profile/${username}`);
+    } else {
+      router.push(`/logbook/profile/${username}`);
+    }
   };
 
   // Show authentication panel if not authenticated

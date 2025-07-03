@@ -78,25 +78,27 @@ export default function PostDisplay({
   useEffect(() => {
     const loadUserInteractionState = async () => {
       const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        try {
-          const state = await dataService.getUserInteractionState(currentUser.id, post.id);
-          
-          // Only update state if parent didn't provide explicit values
-          if (initialUserHasResonated === false) {
-            setUserHasResonated(state.hasResonated);
-          }
-          if (initialUserHasAmplified === false) {
-            setUserHasAmplified(state.hasAmplified);
-          }
-        } catch (error) {
-          console.error('Error loading user interaction state:', error);
+      if (!currentUser) return; // wait until auth is ready
+
+      console.log('[PostDisplay] Checking interaction state for', post.id, 'user', currentUser?.id);
+      try {
+        const state = await dataService.getUserInteractionState(currentUser.id, post.id);
+        console.log('[PostDisplay] Fetched interaction state', state, 'for post', post.id);
+        
+        // Only update state if parent didn't provide explicit values
+        if (initialUserHasResonated === false) {
+          setUserHasResonated(state.hasResonated);
         }
+        if (initialUserHasAmplified === false) {
+          setUserHasAmplified(state.hasAmplified);
+        }
+      } catch (error) {
+        console.error('Error loading user interaction state:', error);
       }
     };
 
     loadUserInteractionState();
-  }, [post.id]);
+  }, [post.id, authService.getCurrentUser()?.id]);
 
   // Update state when props change (parent has fresh data)
   useEffect(() => {

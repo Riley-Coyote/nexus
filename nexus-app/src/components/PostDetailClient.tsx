@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Post } from '@/lib/types';
 import PostDisplay from '@/components/PostDisplay';
 import { dataService } from '@/lib/services/dataService';
+import { useNexusData } from '@/hooks/useNexusData';
 
 interface PostDetailClientProps {
   post: Post;
@@ -15,6 +16,9 @@ interface PostDetailClientProps {
 export default function PostDetailClient({ post, parent, childPosts }: PostDetailClientProps) {
   const router = useRouter();
   const [isInteracting, setIsInteracting] = useState(false);
+
+  // Get global nexus data to determine existing user interactions
+  const nexusData = useNexusData();
 
   // Debug logging - Client side
   console.log(`🎯 PostDetailClient Debug for ${post.id}:`);
@@ -98,6 +102,8 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               onBranch={handleBranch}
               onAmplify={handleAmplify}
               onShare={handleShare}
+              userHasResonated={nexusData.hasUserResonated(parent.id)}
+              userHasAmplified={nexusData.hasUserAmplified(parent.id)}
               onDeepDive={handleDeepDive}
             />
           </div>
@@ -124,7 +130,8 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
             onBranch={handleBranch}
             onAmplify={handleAmplify}
             onShare={handleShare}
-            // No onDeepDive - we're already viewing this post
+            userHasResonated={nexusData.hasUserResonated(post.id)}
+            userHasAmplified={nexusData.hasUserAmplified(post.id)}
             className="current-viewing-post"
           />
         </div>
@@ -149,6 +156,8 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               onAmplify={handleAmplify}
               onShare={handleShare}
               onDeepDive={handleDeepDive}
+              userHasResonated={nexusData.hasUserResonated(child.id)}
+              userHasAmplified={nexusData.hasUserAmplified(child.id)}
             />
           </div>
         </div>

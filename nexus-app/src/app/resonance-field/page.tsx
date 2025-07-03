@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ResonanceField from '@/components/ResonanceField';
 import PostOverlay from '@/components/PostOverlay';
@@ -13,7 +13,7 @@ import { postToStreamEntry } from '@/lib/utils/postUtils';
 
 export default function ResonanceFieldPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const nexusData = useNexusData();
   
   // Post overlay state
@@ -23,10 +23,10 @@ export default function ResonanceFieldPage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Determine mode from URL
-  const modeFromUrl = searchParams.get('mode');
-  const modeClass = modeFromUrl === 'dream' ? 'mode-dream' : 'mode-logbook';
-  const currentMode = modeFromUrl === 'dream' ? 'dream' : 'logbook';
+  // Determine mode from the pathname
+  const isDreamPath = pathname.startsWith('/dream');
+  const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
+  const currentMode: 'logbook' | 'dream' = isDreamPath ? 'dream' : 'logbook';
 
   const handleOpenPost = (post: Post | StreamEntry) => {
     // Convert Post to StreamEntry if needed
@@ -63,7 +63,11 @@ export default function ResonanceFieldPage() {
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
-    router.push(`/?mode=${mode}`);
+    if (mode === 'dream') {
+      router.push('/dream/resonance-field');
+    } else {
+      router.push('/logbook/resonance-field');
+    }
   };
 
   const handleNavigateToFeed = () => {
