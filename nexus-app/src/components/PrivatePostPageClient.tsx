@@ -1,11 +1,12 @@
 "use client";
 
 import React from 'react';
-import { Post } from '@/lib/types';
+import { Post, ViewMode } from '@/lib/types';
 import PostDetailClient from '@/components/PostDetailClient';
 import Header from '@/components/Header';
 import AuthPanel from '@/components/AuthPanel';
 import { useNexusData } from '@/hooks/useNexusData';
+import { useRouter } from 'next/navigation';
 
 interface PrivatePostPageClientProps {
   post: Post;
@@ -18,6 +19,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
   const nexusData = useNexusData();
   const currentUser = nexusData.currentUser;
   const isOwner = currentUser?.id === post.userId;
+  const router = useRouter();
 
   // Custom header props for deep dive mode
   const getHeaderProps = () => {
@@ -28,13 +30,35 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
         currentUser,
         customTitle: "DEEP DIVE",
         customStatus: `Exploring Thread: ${post.username}`,
-        hideNavigation: false
+        hideNavigation: false,
+        onModeChange: (mode: 'logbook' | 'dream') => {
+          router.push(`/${mode}`);
+        },
+        onViewChange: (view: ViewMode) => {
+          if (view === 'feed') router.push('/');
+          else if (view === 'resonance-field') router.push('/resonance-field');
+          else if (view === 'profile' && currentUser) router.push(`/profile/${currentUser.username}`);
+        },
+        onProfileClick: () => {
+          if (currentUser) router.push(`/profile/${currentUser.username}`);
+        }
       };
     }
     return {
       currentMode: "logbook" as const,
       currentView: "feed" as const,
-      currentUser
+      currentUser,
+      onModeChange: (mode: 'logbook' | 'dream') => {
+        router.push(`/${mode}`);
+      },
+      onViewChange: (view: ViewMode) => {
+        if (view === 'feed') router.push('/');
+        else if (view === 'resonance-field') router.push('/resonance-field');
+        else if (view === 'profile' && currentUser) router.push(`/profile/${currentUser.username}`);
+      },
+      onProfileClick: () => {
+        if (currentUser) router.push(`/profile/${currentUser.username}`);
+      }
     };
   };
 

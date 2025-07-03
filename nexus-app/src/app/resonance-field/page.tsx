@@ -63,11 +63,7 @@ export default function ResonanceFieldPage() {
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
-    if (mode === 'dream') {
-      router.push('/dream/resonance-field');
-    } else {
-      router.push('/logbook/resonance-field');
-    }
+    router.push(`/${mode}`);
   };
 
   const handleNavigateToFeed = () => {
