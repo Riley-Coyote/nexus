@@ -173,7 +173,11 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   async getEntryById(id: string): Promise<StreamEntry | null> {
-    const entryId = parseInt(id, 10);
+    const entryId = parseInt(id as any, 10);
+
+    // Normalised string version for subsequent look-ups
+    const idStr = String(id);
+
     const { data, error } = await this.client
       .from('stream_entries')
       .select('*')
@@ -191,8 +195,8 @@ export class SupabaseProvider implements DatabaseProvider {
     const entry = this.supabaseToStreamEntry(data);
     
     // Update with latest interaction counts
-    const interactionCounts = await this.getInteractionCounts([id]);
-    const counts = interactionCounts.get(id);
+    const interactionCounts = await this.getInteractionCounts([idStr]);
+    const counts = interactionCounts.get(idStr);
     if (counts) {
       entry.interactions = {
         resonances: counts.resonanceCount,
@@ -416,7 +420,7 @@ export class SupabaseProvider implements DatabaseProvider {
         throw new Error(`Failed to fetch branch children: ${error.message}`);
       }
 
-      return (data || []).map(row => row.child_entry_id);
+      return (data || []).map(row => String(row.child_entry_id));
     } catch (error) {
       console.error('❌ Error in getBranchChildren:', error);
       return [];
@@ -437,7 +441,7 @@ export class SupabaseProvider implements DatabaseProvider {
         throw new Error(`Failed to fetch branch parent: ${error.message}`);
       }
 
-      return data?.parent_entry_id || null;
+      return data ? String(data.parent_entry_id) : null;
     } catch (error) {
       console.error('❌ Error in getBranchParent:', error);
       return null;
@@ -476,8 +480,8 @@ export class SupabaseProvider implements DatabaseProvider {
       const childNodes = await this.buildBranchTreeManually(childId, maxDepth, currentDepth + 1);
       
       nodes.push({
-        entryId: childId,
-        parentId: rootId,
+        entryId: String(childId),
+        parentId: String(rootId),
         depth: currentDepth + 1,
         branchOrder: i,
         children: childNodes
