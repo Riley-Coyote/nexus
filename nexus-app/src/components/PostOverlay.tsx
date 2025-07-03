@@ -296,6 +296,8 @@ export default function PostOverlay({
   };
 
   const postTitle = post.title || generatePostTitle(post.content) || post.type;
+  // Hide interaction buttons in the preview modal as per new design requirement
+  const showInteractionButtons = false;
 
   return (
     <div 
@@ -491,44 +493,46 @@ export default function PostOverlay({
             )}
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <button 
-              onClick={handleResonate}
-              disabled={isInteracting}
-              className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
-            >
-              <span className="action-text hidden lg:inline">Resonate</span> 
-              <span className="action-symbol text-base sm:text-lg">◊</span>
-              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.resonances}</span>}
-            </button>
-            <button 
-              onClick={handleBranch}
-              disabled={isInteracting}
-              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
-            >
-              <span className="action-text hidden lg:inline">Branch</span> 
-              <span className="action-symbol text-base sm:text-lg">∞</span>
-              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.branches}</span>}
-            </button>
-            <button 
-              onClick={handleAmplify}
-              disabled={isInteracting}
-              className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
-            >
-              <span className="action-text hidden lg:inline">Amplify</span> 
-              <span className="action-symbol text-base sm:text-lg">≋</span>
-              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.amplifications}</span>}
-            </button>
-            <button 
-              onClick={handleShare}
-              disabled={isInteracting}
-              className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
-            >
-              <span className="action-text hidden lg:inline">Share</span> 
-              <span className="action-symbol text-base sm:text-lg">∆</span>
-              {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.shares}</span>}
-            </button>
-          </div>
+          {showInteractionButtons && (
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <button 
+                onClick={handleResonate}
+                disabled={isInteracting}
+                className={`interaction-btn ${userHasResonated ? 'resonated' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
+              >
+                <span className="action-text hidden lg:inline">Resonate</span> 
+                <span className="action-symbol text-base sm:text-lg">◊</span>
+                {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.resonances}</span>}
+              </button>
+              <button 
+                onClick={handleBranch}
+                disabled={isInteracting}
+                className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
+              >
+                <span className="action-text hidden lg:inline">Branch</span> 
+                <span className="action-symbol text-base sm:text-lg">∞</span>
+                {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.branches}</span>}
+              </button>
+              <button 
+                onClick={handleAmplify}
+                disabled={isInteracting}
+                className={`interaction-btn ${userHasAmplified ? 'amplified' : ''} text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
+              >
+                <span className="action-text hidden lg:inline">Amplify</span> 
+                <span className="action-symbol text-base sm:text-lg">≋</span>
+                {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.amplifications}</span>}
+              </button>
+              <button 
+                onClick={handleShare}
+                disabled={isInteracting}
+                className={`interaction-btn text-text-quaternary hover:text-text-primary transition-all text-xs sm:text-sm font-light flex items-center gap-1 sm:gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''} px-3 py-2 rounded-md hover:bg-white/5`}
+              >
+                <span className="action-text hidden lg:inline">Share</span> 
+                <span className="action-symbol text-base sm:text-lg">∆</span>
+                {post.interactions && <span className="interaction-count text-xs font-medium">{localInteractions.shares}</span>}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
