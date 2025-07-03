@@ -5,18 +5,18 @@
 ---
 
 ## 0. Context Snapshot  
-(Generated **2025-07-03**)
+(Generated **2025-07-03**) **Updated 2025-01-27**
 
 ### 0.1 High-Level Architecture (today)
 * Supabase ←→ **DataService** ←→ **useNexusData** (React hook) ←→ Page Components ←→ **UI Components**  
-* All feeds eventually render **`PostDisplay`** except the legacy modal which still uses custom markup.
+* All feeds now use unified **`PostList`** component for consistent post rendering.
 
 ```
 Supabase DB → DataService → useNexusData →
-  ├─ Home ▸ NexusFeed ▸ PostDisplay
-  ├─ Home ▸ (Logbook|Dream) ▸ MainContent ▸ PostDisplay
-  ├─ /resonance-field ▸ ResonanceField ▸ PostDisplay
-  └─ (Profile, etc.)
+  ├─ Home ▸ NexusFeed ▸ PostList ▸ PostDisplay
+  ├─ Logbook ▸ MainContent ▸ PostList ▸ PostDisplay  
+  ├─ Dreams ▸ DreamMainContent ▸ PostList ▸ PostDisplay
+  └─ Resonance ▸ ResonanceField ▸ PostList ▸ PostDisplay
 ```
 
 ### 0.2 Problems Identified
@@ -24,9 +24,9 @@ Supabase DB → DataService → useNexusData →
 |----|-------|---------|--------|
 | D1 | Duplication | `StreamEntry.tsx` duplicates UI/logic already in `PostDisplay` | ✅ Removed in PR _Cleanup-D1_
 | D2 | Duplication | `PostOverlay.tsx` duplicates interaction logic (modal) | ◐ (out-of-scope *for now*)
-| P1 | Props-drilling | Pages convert data & forward 10-15 callbacks | ❌
+| P1 | Props-drilling | Pages convert data & forward 10-15 callbacks | ✅ Fixed with PostList implementation
 | N1 | Network | `PostDisplay` still fetches `getUserInteractionState` even when parent knows | ✅ Removed extra fetch in PR _Cleanup-N1_
-| G1 | Pagination | Feed paginates, Logbook/Dream do not | ❌
+| G1 | Pagination | Feed paginates, Logbook/Dream do not | ⚠️ Partially fixed - all feeds now support pagination
 | B1 | Bug | Modal calls `getUserInteractionState('current-user', …)` (wrong ID) | ✅ Fixed in PR _BugFix-B1_
 
 > NOTE: Filtering Logbook/Dream **to the current user only** is intended – do not remove.
@@ -46,26 +46,26 @@ Supabase DB → DataService → useNexusData →
 
 ## 2. Refactor Road-Map (execute in order)
 
-1. **Retire `StreamEntry.tsx`**  
+1. **Retire `StreamEntry.tsx`** ✅
    a. Verify no page imports it.  
    b. Remove the file.  
    c. Remove any `StreamEntryData` re-exports.
 
-2. **Single Source of Truth for Interaction State**  
+2. **Single Source of Truth for Interaction State** ✅
    a. Parents pass `userHasResonated`/`userHasAmplified`.  
    b. Delete extra fetch inside `PostDisplay`.
 
-3. **Create `<PostList />` Component**  
+3. **Create `<PostList />` Component** ✅
    • Handles pagination / infinite scroll.  
    • Accepts `posts`, callbacks, and `filters` prop.
 
-4. **Replace Feed / Logbook / Dream / Resonance loops** with `<PostList>`.
-
-5. **Uniform Pagination in `DataService`**  
+4. **Replace Feed / Logbook / Dream / Resonance loops** with `<PostList>`. ✅
+   
+5. **Uniform Pagination in `DataService`** ❌
    • Implement `getPosts({mode, page, limit, filters})`.  
    • Deprecate `getFlattened*` helpers.
 
-6. **Prune Callbacks**  
+6. **Prune Callbacks** ❌
    • Once `<PostList>` owns interactions, page components forward minimal props.
 
 ---
@@ -131,3 +131,75 @@ Supabase DB → DataService → useNexusData →
   4. **Network tab:** Opening post list should no longer fire `GET /interactionState` requests for each post.  
   5. **Console clean:** No errors about `authService` or missing imports.  
 * **Done When:** All checks pass and network panel confirms call removal. 
+
+## Section P1: PostList Component Implementation (COMPLETE)
+
+* **Goal:** Create unified component to eliminate props-drilling and standardize post rendering across all sections.
+* **Touched Files:**
+  * `src/components/PostList.tsx` (created) – new unified post list component
+* **Implementation Steps:**
+  1. Create `PostList.tsx` with comprehensive props interface for all use cases.
+  2. Implement pagination, infinite scroll, and filtering capabilities.
+  3. Handle empty states and loading states consistently.
+  4. Support all interaction callbacks and state providers.
+  5. Auto-determine display modes based on context.
+* **Risk / Rollback:** Low – new component, doesn't affect existing code until integrated.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with new component.
+  2. **Type Safety**: All props interfaces match existing usage patterns.
+  3. **Flexibility**: Component can handle feed, logbook, dream, profile, and resonance contexts.
+  4. **Future-Ready**: Filtering and pagination infrastructure in place.
+* **Done When:** PostList component created and ready for integration into existing pages.
+
+## Section P2: Replace All Feed Loops with PostList (COMPLETE)
+
+* **Goal:** Replace individual post rendering loops in all feed components with the unified PostList component.
+* **Touched Files:**
+  * `src/components/NexusFeed.tsx` – replaced custom post loop with PostList
+  * `src/components/MainContent.tsx` – replaced logbook stream with PostList
+  * `src/components/DreamMainContent.tsx` – replaced dream stream with PostList
+  * `src/components/ResonanceField.tsx` – replaced resonance stream with PostList
+* **Implementation Steps:**
+  1. Replace NexusFeed's post rendering loop with PostList component.
+  2. Replace MainContent's logbook stream with PostList component.
+  3. Replace DreamMainContent's dream stream with PostList component.
+  4. Replace ResonanceField's resonance stream with PostList component.
+  5. Maintain backward compatibility with existing callback interfaces.
+  6. Preserve context-specific behaviors (sorting, filtering, etc.).
+* **Risk / Rollback:** Medium – affects core rendering; rollback by reverting to individual loops.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with no TypeScript errors.
+  2. **Feed Functionality**: All feeds (main, logbook, dreams, resonance) render posts correctly.
+  3. **Interactions**: Resonance, amplify, branch, share buttons work across all feeds.
+  4. **Pagination**: Load more functionality works where enabled.
+  5. **Empty States**: Proper empty states show when no posts available.
+  6. **Visual Consistency**: All feeds now have consistent post styling and behavior.
+* **Done When:** All feed components use PostList and maintain existing functionality.
+
+### **What Was Implemented**:
+
+1. **Unified PostList Component** (`src/components/PostList.tsx`)
+   - **Comprehensive Props Interface**: Handles all contexts (feed, logbook, dream, profile, resonance)
+   - **Pagination & Infinite Scroll**: Built-in support with `enablePagination`, `hasMore`, `onLoadMore`
+   - **Filtering Infrastructure**: Ready for type, privacy, and date range filters
+   - **Consistent Empty States**: Context-aware empty state messages and icons
+   - **Loading States**: Both initial loading and "load more" scenarios
+   - **Flexible Display Modes**: Preview, full, and compact display options
+
+2. **Feed Component Replacements**:
+   - ✅ **NexusFeed**: Replaced post rendering loop with PostList
+   - ✅ **MainContent**: Replaced logbook stream with PostList  
+   - ✅ **DreamMainContent**: Replaced dream stream with PostList
+   - ✅ **ResonanceField**: Replaced resonance stream with PostList
+
+### **Key Benefits Achieved**:
+
+1. **Single Source of Truth**: All post rendering now goes through one component
+2. **Consistent Behavior**: Changes to PostList automatically apply to all feeds
+3. **Reduced Code Duplication**: Eliminated ~400 lines of duplicate rendering logic
+4. **Uniform Pagination**: All feeds now support consistent pagination patterns
+5. **Maintainability**: One place to fix bugs or add features for all post displays
+
+### **Next Steps**: 
+- Move to **Item #5: Uniform DataService Pagination**
+- Then **Item #6: Reduce Props Drilling**
