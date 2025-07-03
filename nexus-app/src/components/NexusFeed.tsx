@@ -10,7 +10,20 @@ interface NexusFeedProps {
   dreamEntries: any[]; // Legacy StreamEntryData format
   onPostClick?: (post: Post) => void;
   onUserClick?: (username: string) => void;
-  getFlattenedStreamEntries: (page?: number, limit?: number) => Promise<any[]>;
+  getPosts: (options: {
+    mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
+    page?: number;
+    limit?: number;
+    userId?: string;
+    threaded?: boolean;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      type?: string;
+      privacy?: 'public' | 'private';
+      dateRange?: { start: Date; end: Date };
+    };
+  }) => Promise<any[]>;
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
   refreshDreamData?: () => Promise<void>;
@@ -27,7 +40,7 @@ export default function NexusFeed({
   dreamEntries, 
   onPostClick,
   onUserClick,
-  getFlattenedStreamEntries,
+  getPosts,
   createBranch,
   refreshLogbookData,
   refreshDreamData,
@@ -48,7 +61,12 @@ export default function NexusFeed({
   const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const entries = await getFlattenedStreamEntries(requestedPage, PAGE_SIZE);
+      const entries = await getPosts({
+        mode: 'feed',
+        page: requestedPage,
+        limit: PAGE_SIZE,
+        threaded: false // Feed should be flat
+      });
       const convertedPosts = entries.map(entry => streamEntryDataToPost(entry));
 
       const sortedPosts = convertedPosts.sort((a, b) =>

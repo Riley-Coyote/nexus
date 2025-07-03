@@ -86,8 +86,26 @@ export interface NexusData {
   hasUserResonated: (entryId: string) => boolean;
   hasUserAmplified: (entryId: string) => boolean;
   
-  // Feed-specific methods
+  // UNIFIED PAGINATION API (NEW)
+  getPosts: (options: {
+    mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
+    page?: number;
+    limit?: number;
+    userId?: string;
+    threaded?: boolean;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      type?: string;
+      privacy?: 'public' | 'private';
+      dateRange?: { start: Date; end: Date };
+    };
+  }) => Promise<StreamEntryData[]>;
+  
+  // Feed-specific methods (DEPRECATED - use getPosts instead)
+  /** @deprecated Use getPosts({mode: 'feed'}) instead */
   getFlattenedStreamEntries: (page?: number, limit?: number) => Promise<StreamEntryData[]>;
+  /** @deprecated Use getPosts({mode: 'logbook'}) instead */
   getFlattenedLogbookEntries: () => Promise<StreamEntryData[]>;
   getDirectChildren: (parentId: string) => Promise<StreamEntryData[]>;
   getParentPost: (childId: string) => Promise<StreamEntryData | null>;
@@ -566,12 +584,33 @@ export const useNexusData = (): NexusData => {
     hasUserResonated,
     hasUserAmplified,
     
-    // Feed-specific methods
+    // UNIFIED PAGINATION API (NEW)
+    getPosts: useCallback(async (options: {
+      mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
+      page?: number;
+      limit?: number;
+      userId?: string;
+      threaded?: boolean;
+      sortBy?: 'timestamp' | 'interactions';
+      sortOrder?: 'asc' | 'desc';
+      filters?: {
+        type?: string;
+        privacy?: 'public' | 'private';
+        dateRange?: { start: Date; end: Date };
+      };
+    }) => {
+      const entries = await dataService.getPosts(options);
+      return entries.map(convertToStreamEntryData);
+    }, [authState.currentUser]),
+    
+    // Feed-specific methods (DEPRECATED - use getPosts instead)
+    /** @deprecated Use getPosts({mode: 'feed'}) instead */
     getFlattenedStreamEntries: useCallback(async (page?: number, limit?: number) => {
       const entries = await dataService.getFlattenedStreamEntries(page ?? 1, limit ?? 20);
       return entries.map(convertToStreamEntryData);
     }, []),
     
+    /** @deprecated Use getPosts({mode: 'logbook'}) instead */
     getFlattenedLogbookEntries: useCallback(async () => {
       // Try to use already loaded data first if available
       if (logbookEntries.length > 0) {

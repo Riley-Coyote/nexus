@@ -2010,6 +2010,235 @@ class DataService {
     }
   }
 
+  // ========== UNIFIED PAGINATION API ==========
+
+  /**
+   * Unified method to get posts with consistent pagination across all contexts
+   * Replaces: getFlattenedStreamEntries, getLogbookEntries, getSharedDreams, getStreamEntries
+   */
+  async getPosts(options: {
+    mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
+    page?: number;
+    limit?: number;
+    userId?: string; // For profile mode or filtering to specific user
+    threaded?: boolean; // Whether to build threaded structure (default: false for feed, true for others)
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      type?: string;
+      privacy?: 'public' | 'private';
+      dateRange?: { start: Date; end: Date };
+    };
+  }): Promise<StreamEntry[]> {
+    await this.initializeData();
+
+    const {
+      mode,
+      page = 1,
+      limit = 20,
+      userId,
+      threaded = mode !== 'feed', // Feed is flat by default, others are threaded
+      sortBy = 'timestamp',
+      sortOrder = 'desc',
+      filters
+    } = options;
+
+    // Bounds checking
+    const safeLimit = Math.max(1, Math.min(limit, 100)); // Limit between 1-100
+    const safePage = Math.max(1, page);
+    const offset = (safePage - 1) * safeLimit;
+
+    if (USE_MOCK_DATA || !this.database) {
+      await simulateApiDelay();
+      return this._getPostsMock({
+        mode, page: safePage, limit: safeLimit, userId, threaded, sortBy, sortOrder, filters, offset
+      });
+    }
+
+    try {
+      return await this._getPostsDatabase({
+        mode, page: safePage, limit: safeLimit, userId, threaded, sortBy, sortOrder, filters, offset
+      });
+    } catch (error) {
+      console.error('❌ Database error in getPosts, falling back to mock data:', error);
+      return this._getPostsMock({
+        mode, page: safePage, limit: safeLimit, userId, threaded, sortBy, sortOrder, filters, offset
+      });
+    }
+  }
+
+  private async _getPostsMock(options: {
+    mode: string;
+    page: number;
+    limit: number;
+    userId?: string;
+    threaded: boolean;
+    sortBy: string;
+    sortOrder: string;
+    filters?: any;
+    offset: number;
+  }): Promise<StreamEntry[]> {
+    const { mode, limit, userId, threaded, sortBy, sortOrder, filters, offset } = options;
+    const currentUser = authService.getCurrentUser();
+
+    let sourceEntries: StreamEntry[] = [];
+
+    // Select source data based on mode
+    switch (mode) {
+      case 'feed':
+      case 'all':
+        sourceEntries = [...this.logbookEntries, ...this.sharedDreams];
+        break;
+      case 'logbook':
+        sourceEntries = [...this.logbookEntries];
+        break;
+      case 'dream':
+        sourceEntries = [...this.sharedDreams];
+        break;
+      case 'resonated':
+        if (!currentUser) return [];
+        const userResonances = this.userResonances.get(currentUser.id) || new Set();
+        sourceEntries = [...this.logbookEntries, ...this.sharedDreams]
+          .filter(entry => userResonances.has(entry.id));
+        break;
+      case 'amplified':
+        if (!currentUser) return [];
+        const userAmplifications = this.userAmplifications.get(currentUser.id) || new Set();
+        sourceEntries = [...this.logbookEntries, ...this.sharedDreams]
+          .filter(entry => userAmplifications.has(entry.id));
+        break;
+      case 'profile':
+        if (!userId) return [];
+        sourceEntries = [...this.logbookEntries, ...this.sharedDreams]
+          .filter(entry => entry.userId === userId);
+        break;
+      default:
+        throw new Error(`Unknown mode: ${mode}`);
+    }
+
+    // Apply privacy filter
+    const visibleEntries = this.filterEntriesByPrivacy(sourceEntries, currentUser?.id);
+
+    // Apply additional filters
+    let filteredEntries = visibleEntries;
+    if (filters) {
+      filteredEntries = filteredEntries.filter(entry => {
+        if (filters.type && entry.type !== filters.type) return false;
+        if (filters.privacy && entry.privacy !== filters.privacy) return false;
+        if (filters.dateRange) {
+          const entryDate = new Date(entry.timestamp);
+          if (entryDate < filters.dateRange.start || entryDate > filters.dateRange.end) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    // Sort entries
+    const sortedEntries = [...filteredEntries].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'timestamp') {
+        comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+      } else if (sortBy === 'interactions') {
+        const aTotal = a.interactions.resonances + a.interactions.amplifications;
+        const bTotal = b.interactions.resonances + b.interactions.amplifications;
+        comparison = aTotal - bTotal;
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+
+    // Apply pagination
+    const pagedEntries = sortedEntries.slice(offset, offset + limit);
+
+    // Enrich with interaction data
+    const enrichedEntries = await this.enrichEntriesWithInteractions(pagedEntries, currentUser?.id);
+
+    // Return threaded or flat based on mode
+    return threaded ? this.buildThreadedEntries(enrichedEntries) : enrichedEntries;
+  }
+
+  private async _getPostsDatabase(options: {
+    mode: string;
+    page: number;
+    limit: number;
+    userId?: string;
+    threaded: boolean;
+    sortBy: string;
+    sortOrder: string;
+    filters?: any;
+    offset: number;
+  }): Promise<StreamEntry[]> {
+    const { mode, page, limit, userId, threaded, sortBy, sortOrder, filters } = options;
+    const currentUser = authService.getCurrentUser();
+
+    let entries: StreamEntry[] = [];
+
+    // Fetch data based on mode
+    switch (mode) {
+      case 'feed':
+      case 'all':
+        const [logbookEntries, dreamEntries] = await Promise.all([
+          this.database!.getEntries('logbook', { page, limit, sortBy, sortOrder: sortOrder as 'asc' | 'desc' }),
+          this.database!.getEntries('dream', { page, limit, sortBy, sortOrder: sortOrder as 'asc' | 'desc' })
+        ]);
+        entries = [...logbookEntries, ...dreamEntries];
+        break;
+      case 'logbook':
+        entries = await this.database!.getEntries('logbook', { page, limit, sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
+        break;
+      case 'dream':
+        entries = await this.database!.getEntries('dream', { page, limit, sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
+        break;
+      case 'resonated':
+        if (!currentUser) return [];
+        entries = await this.getResonatedEntries(currentUser.id);
+        break;
+      case 'amplified':
+        if (!currentUser) return [];
+        entries = await this.getAmplifiedEntries(currentUser.id);
+        break;
+      case 'profile':
+        if (!userId) return [];
+        // Use existing getUserPostsByUsername method instead of non-existent getUserEntries
+        entries = await this.getUserPostsByUsername(userId, limit);
+        break;
+      default:
+        throw new Error(`Unknown mode: ${mode}`);
+    }
+
+    // Apply filters (database queries should ideally handle this, but fallback to client-side)
+    if (filters) {
+      entries = entries.filter(entry => {
+        if (filters.type && entry.type !== filters.type) return false;
+        if (filters.privacy && entry.privacy !== filters.privacy) return false;
+        if (filters.dateRange) {
+          const entryDate = new Date(entry.timestamp);
+          if (entryDate < filters.dateRange.start || entryDate > filters.dateRange.end) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    // Sort if needed (database should handle this, but ensure consistency)
+    if (sortBy === 'interactions') {
+      entries.sort((a, b) => {
+        const aTotal = a.interactions.resonances + a.interactions.amplifications;
+        const bTotal = b.interactions.resonances + b.interactions.amplifications;
+        const comparison = aTotal - bTotal;
+        return sortOrder === 'desc' ? -comparison : comparison;
+      });
+    }
+
+    // Enrich with interaction data
+    const enrichedEntries = await this.enrichEntriesWithInteractions(entries, currentUser?.id);
+
+    // Return threaded or flat based on mode
+    return threaded ? this.buildThreadedEntries(enrichedEntries) : enrichedEntries;
+  }
+
 }
 
 // Export singleton instance

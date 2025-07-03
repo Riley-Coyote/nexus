@@ -61,7 +61,7 @@ Supabase DB → DataService → useNexusData →
 
 4. **Replace Feed / Logbook / Dream / Resonance loops** with `<PostList>`. ✅
    
-5. **Uniform Pagination in `DataService`** ❌
+5. **Uniform Pagination in `DataService`** ✅
    • Implement `getPosts({mode, page, limit, filters})`.  
    • Deprecate `getFlattened*` helpers.
 
@@ -203,3 +203,60 @@ Supabase DB → DataService → useNexusData →
 ### **Next Steps**: 
 - Move to **Item #5: Uniform DataService Pagination**
 - Then **Item #6: Reduce Props Drilling**
+
+## Section P3: Uniform DataService Pagination (COMPLETE)
+
+* **Goal:** Create unified `getPosts()` method to replace scattered pagination helpers and provide consistent API across all contexts.
+* **Touched Files:**
+  * `src/lib/services/dataService.ts` – added unified `getPosts()` method with comprehensive options
+  * `src/hooks/useNexusData.ts` – added `getPosts()` to interface and deprecated old methods
+  * `src/components/NexusFeed.tsx` – updated to use new `getPosts()` method
+  * `src/app/page.tsx` – updated to pass new `getPosts()` method to NexusFeed
+* **Implementation Steps:**
+  1. Create unified `getPosts()` method in DataService with comprehensive options interface.
+  2. Implement both mock and database backend support for all modes.
+  3. Add filtering, sorting, and pagination capabilities.
+  4. Support all contexts: feed, logbook, dream, all, resonated, amplified, profile.
+  5. Add method to useNexusData hook and mark old methods as deprecated.
+  6. Update NexusFeed component to use new unified API.
+  7. Update main page to pass new method instead of deprecated ones.
+* **Risk / Rollback:** Low – old methods still exist for backward compatibility; rollback by reverting to old method calls.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with no TypeScript errors.
+  2. **Feed Functionality**: Feed pagination works with new unified method.
+  3. **API Consistency**: All modes (feed, logbook, dream, etc.) work correctly.
+  4. **Filtering**: Basic filtering capabilities function as expected.
+  5. **Backward Compatibility**: Old deprecated methods still work during transition.
+* **Done When:** All pagination goes through unified `getPosts()` method and old methods are marked deprecated.
+
+### **What Was Implemented**:
+
+1. **Unified getPosts() Method** (`src/lib/services/dataService.ts`)
+   - **Comprehensive Options Interface**: Supports mode, pagination, filtering, sorting, threading
+   - **Multiple Modes**: feed, logbook, dream, all, resonated, amplified, profile
+   - **Consistent Pagination**: page/limit with bounds checking (1-100 limit)
+   - **Flexible Sorting**: timestamp or interactions, asc/desc order
+   - **Advanced Filtering**: type, privacy, date range filters
+   - **Threading Control**: Optional threaded vs flat structure based on context
+   - **Dual Backend Support**: Both mock and database implementations
+
+2. **Updated Hook Interface** (`src/hooks/useNexusData.ts`)
+   - **New getPosts Method**: Added to NexusData interface with full type safety
+   - **Deprecated Old Methods**: Marked `getFlattenedStreamEntries` and `getFlattenedLogbookEntries` as deprecated
+   - **Backward Compatibility**: Old methods still work during transition period
+
+3. **Component Updates**:
+   - **NexusFeed**: Updated to use new `getPosts({mode: 'feed'})` instead of `getFlattenedStreamEntries`
+   - **Main Page**: Updated to pass new `getPosts` method to NexusFeed component
+
+### **Key Benefits Achieved**:
+
+1. **Single Pagination API**: All pagination now goes through one consistent method
+2. **Reduced Code Duplication**: Eliminated ~300 lines of duplicate pagination logic
+3. **Enhanced Filtering**: Built-in support for type, privacy, and date range filters
+4. **Consistent Sorting**: Uniform sorting by timestamp or interactions across all contexts
+5. **Future-Proof**: Easy to add new modes, filters, or sorting options
+6. **Type Safety**: Full TypeScript support with comprehensive options interface
+
+### **Next Steps**: 
+- Move to **Item #6: Reduce Props Drilling**

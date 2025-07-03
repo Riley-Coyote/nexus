@@ -239,7 +239,7 @@ export default function Home() {
               dreamEntries={nexusData.dreamEntriesData}
               onPostClick={handleOpenPost}
               onUserClick={handleUserClick}
-              getFlattenedStreamEntries={nexusData.getFlattenedStreamEntries}
+              getPosts={nexusData.getPosts}
               createBranch={nexusData.createBranch}
               refreshLogbookData={nexusData.refreshLogbookData}
               refreshDreamData={nexusData.refreshDreamData}
