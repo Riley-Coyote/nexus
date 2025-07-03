@@ -11,9 +11,11 @@ interface ResonanceFieldProps {
   refreshResonatedEntries?: () => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
+  onBranch?: (parentId: string, content: string) => Promise<void>;
   hasUserAmplified?: (entryId: string) => boolean;
   refreshAmplifiedEntries?: () => Promise<void>;
   onShare?: (entryId: string) => void;
+  onDeepDive?: (post: Post) => void;
 }
 
 export default function ResonanceField({ 
@@ -22,9 +24,11 @@ export default function ResonanceField({
   refreshResonatedEntries,
   onResonate,
   onAmplify,
+  onBranch,
   hasUserAmplified,
   refreshAmplifiedEntries,
-  onShare
+  onShare,
+  onDeepDive
 }: ResonanceFieldProps) {
   const [convertedEntries, setConvertedEntries] = useState<Post[]>([]);
 
@@ -62,6 +66,20 @@ export default function ResonanceField({
     }
   };
 
+  const handleBranch = async (parentId: string, content: string) => {
+    if (!onBranch) return;
+    try {
+      await onBranch(parentId, content);
+      // After creating a branch we don't necessarily need to refresh resonance data
+    } catch (error) {
+      console.error('Error handling branch in ResonanceField:', error);
+    }
+  };
+
+  const handleDeepDive = (post: Post) => {
+    onDeepDive?.(post);
+  };
+
   // Sort entries by timestamp (newest first)
   const sortedEntries = [...convertedEntries].sort((a, b) => 
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -94,11 +112,12 @@ export default function ResonanceField({
                 displayMode="full"
                 onPostClick={onPostClick}
                 onResonate={handleResonate}
+                onBranch={handleBranch}
                 onAmplify={handleAmplify}
                 userHasResonated={true} // Always true in resonance field
                 userHasAmplified={hasUserAmplified ? hasUserAmplified(post.id) : false}
                 onShare={onShare}
-                showBranching={false} // Disable branching in resonance field
+                onDeepDive={handleDeepDive}
                 onClose={() => {
                   console.log(`Mobile close requested for resonated post ${post.id}`);
                 }}

@@ -93,6 +93,10 @@ export default function ResonanceFieldPage() {
     }
   };
 
+  const handleDeepDive = (username: string, postId: string) => {
+    router.push(`/${username}/entry/${postId}`);
+  };
+
   // Show auth panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return <AuthPanel onAuthSuccess={() => nexusData.forceAuthRefresh()} />;
@@ -133,9 +137,11 @@ export default function ResonanceFieldPage() {
             refreshResonatedEntries={nexusData.refreshResonatedEntries}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
+            onBranch={nexusData.createBranch}
             hasUserAmplified={nexusData.hasUserAmplified}
             refreshAmplifiedEntries={nexusData.refreshAmplifiedEntries}
             onShare={handleShare}
+            onDeepDive={(post) => handleDeepDive(post.username, post.id)}
           />
         </div>
       </div>
