@@ -215,7 +215,7 @@ export class SupabaseProvider implements DatabaseProvider {
     const { data, error } = await this.client
       .from('stream_entries')
       .update(supabaseUpdates)
-      .eq('id', id)
+      .eq('id', parseInt(id, 10))
       .select()
       .single();
 
@@ -231,7 +231,7 @@ export class SupabaseProvider implements DatabaseProvider {
     const { error } = await this.client
       .from('stream_entries')
       .delete()
-      .eq('id', id);
+      .eq('id', parseInt(id, 10));
 
     if (error) {
       console.error('❌ Error deleting entry:', error);
@@ -247,7 +247,7 @@ export class SupabaseProvider implements DatabaseProvider {
     try {
       const { data, error } = await this.client.rpc('toggle_user_resonance', {
         target_user_id: userId,
-        target_entry_id: entryId
+        target_entry_id: parseInt(entryId, 10)
       });
 
       if (error) {
@@ -266,7 +266,7 @@ export class SupabaseProvider implements DatabaseProvider {
     try {
       const { data, error } = await this.client.rpc('toggle_user_amplification', {
         target_user_id: userId,
-        target_entry_id: entryId
+        target_entry_id: parseInt(entryId, 10)
       });
 
       if (error) {
@@ -285,8 +285,8 @@ export class SupabaseProvider implements DatabaseProvider {
     try {
       // 1) Create the branch relationship row (also fires branch_count_trigger)
       const { error } = await this.client.rpc('create_branch', {
-        parent_id: parentId,
-        child_id: childId
+        parent_id: parseInt(parentId, 10),
+        child_id: parseInt(childId, 10)
       });
 
       if (error) {
@@ -306,7 +306,7 @@ export class SupabaseProvider implements DatabaseProvider {
         const branchCount = current?.branchCount ?? 0;
         if (branchCount === 0) {
           await this.client.rpc('update_branch_count', {
-            target_entry_id: parentId,
+            target_entry_id: parseInt(parentId, 10),
             delta: 1,
           });
         }
@@ -321,12 +321,17 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getInteractionCounts(entryIds: string[]): Promise<Map<string, InteractionCounts>> {
     try {
+      // Convert string IDs to numbers for the database function
+      const numericIds = entryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      
       const { data, error } = await this.client.rpc('get_interaction_counts', {
-        entry_ids: entryIds
+        entry_ids: numericIds
       });
 
       if (error) {
         console.error('❌ Error fetching interaction counts:', error);
+        console.error('❌ Entry IDs passed:', entryIds);
+        console.error('❌ Numeric IDs passed:', numericIds);
         throw new Error(`Failed to fetch interaction counts: ${error.message}`);
       }
 
@@ -334,6 +339,7 @@ export class SupabaseProvider implements DatabaseProvider {
       
       if (data) {
         data.forEach((row: any) => {
+          // Convert back to string for the map key
           countsMap.set(String(row.entry_id), {
             resonanceCount: row.resonance_count || 0,
             branchCount: row.branch_count || 0,
@@ -352,10 +358,13 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getUserInteractionStates(userId: string, entryIds: string[]): Promise<Map<string, UserInteractionState>> {
     try {
+      // Convert string IDs to numbers for the database function
+      const numericIds = entryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      
       // Preferred path: call the RPC (requires the database function to exist)
       const { data, error } = await this.client.rpc('get_user_interaction_states', {
         target_user_id: userId,
-        entry_ids: entryIds
+        entry_ids: numericIds
       });
 
       if (!error && data) {
@@ -381,12 +390,12 @@ export class SupabaseProvider implements DatabaseProvider {
           .from('user_resonances')
           .select('entry_id')
           .eq('user_id', userId)
-          .in('entry_id', entryIds),
+          .in('entry_id', numericIds),
         this.client
           .from('user_amplifications')
           .select('entry_id')
           .eq('user_id', userId)
-          .in('entry_id', entryIds)
+          .in('entry_id', numericIds)
       ]);
 
       if (resonancesResp.error) {
@@ -396,14 +405,14 @@ export class SupabaseProvider implements DatabaseProvider {
         console.error('❌ Error fetching amplifications fallback:', amplificationsResp.error);
       }
 
-      const resonatedIds = new Set<string>((resonancesResp.data || []).map(r => r.entry_id));
-      const amplifiedIds = new Set<string>((amplificationsResp.data || []).map(r => r.entry_id));
+      const resonatedIds = new Set<string>((resonancesResp.data || []).map(r => String(r.entry_id)));
+      const amplifiedIds = new Set<string>((amplificationsResp.data || []).map(r => String(r.entry_id)));
 
       const statesMap = new Map<string, UserInteractionState>();
       entryIds.forEach(id => {
         statesMap.set(String(id), {
-          hasResonated: resonatedIds.has(id),
-          hasAmplified: amplifiedIds.has(id)
+          hasResonated: resonatedIds.has(String(id)),
+          hasAmplified: amplifiedIds.has(String(id))
         });
       });
 
@@ -421,7 +430,7 @@ export class SupabaseProvider implements DatabaseProvider {
       const { data, error } = await this.client
         .from('entry_branches')
         .select('child_entry_id')
-        .eq('parent_entry_id', parentId)
+        .eq('parent_entry_id', parseInt(parentId, 10))
         .order('branch_order', { ascending: true });
 
       if (error) {
@@ -441,7 +450,7 @@ export class SupabaseProvider implements DatabaseProvider {
       const { data, error } = await this.client
         .from('entry_branches')
         .select('parent_entry_id')
-        .eq('child_entry_id', childId)
+        .eq('child_entry_id', parseInt(childId, 10))
         .single();
 
       if (error) {
@@ -461,7 +470,7 @@ export class SupabaseProvider implements DatabaseProvider {
     try {
       // Recursive CTE query to build tree structure
       const { data, error } = await this.client.rpc('get_branch_tree', {
-        root_id: rootId,
+        root_id: parseInt(rootId, 10),
         max_depth: maxDepth
       });
 
@@ -507,7 +516,7 @@ export class SupabaseProvider implements DatabaseProvider {
       .from('user_resonances')
       .insert([{
         user_id: userId,
-        entry_id: entryId
+        entry_id: parseInt(entryId, 10)
       }]);
 
     if (error && error.code !== '23505') { // Ignore unique constraint violations
@@ -521,7 +530,7 @@ export class SupabaseProvider implements DatabaseProvider {
       .from('user_resonances')
       .delete()
       .eq('user_id', userId)
-      .eq('entry_id', entryId);
+      .eq('entry_id', parseInt(entryId, 10));
 
     if (error) {
       console.error('❌ Error removing resonance:', error);
@@ -549,7 +558,7 @@ export class SupabaseProvider implements DatabaseProvider {
       .from('user_amplifications')
       .insert([{
         user_id: userId,
-        entry_id: entryId
+        entry_id: parseInt(entryId, 10)
       }]);
 
     if (error && error.code !== '23505') { // Ignore unique constraint violations
@@ -563,7 +572,7 @@ export class SupabaseProvider implements DatabaseProvider {
       .from('user_amplifications')
       .delete()
       .eq('user_id', userId)
-      .eq('entry_id', entryId);
+      .eq('entry_id', parseInt(entryId, 10));
 
     if (error) {
       console.error('❌ Error removing amplification:', error);
@@ -593,17 +602,17 @@ export class SupabaseProvider implements DatabaseProvider {
     try {
       if (type === 'resonances') {
         await this.client.rpc('update_resonance_count', {
-          target_entry_id: entryId,
+          target_entry_id: parseInt(entryId, 10),
           delta: delta
         });
       } else if (type === 'amplifications') {
         await this.client.rpc('update_amplification_count', {
-          target_entry_id: entryId,
+          target_entry_id: parseInt(entryId, 10),
           delta: delta
         });
       } else if (type === 'branches') {
         await this.client.rpc('update_branch_count', {
-          target_entry_id: entryId,
+          target_entry_id: parseInt(entryId, 10),
           delta: delta
         });
       }

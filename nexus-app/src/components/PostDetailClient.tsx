@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/lib/types';
 import PostDisplay from '@/components/PostDisplay';
@@ -17,8 +17,34 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
   const router = useRouter();
   const [isInteracting, setIsInteracting] = useState(false);
 
-  // Get global nexus data to determine existing user interactions
+  // Local copies for optimistic updates
+  const [mainPost, setMainPost] = useState<Post>(post);
+  const [parentPost, setParentPost] = useState<Post | null>(parent);
+  const [childrenPosts, setChildrenPosts] = useState<Post[]>(childPosts);
+
+  // Per-post interaction flags (resonated / amplified)
+  const [flags, setFlags] = useState<Record<string, { hasResonated: boolean; hasAmplified: boolean }>>({});
+
   const nexusData = useNexusData();
+
+  // Initialise flags on mount
+  useEffect(() => {
+    const initial: Record<string, { hasResonated: boolean; hasAmplified: boolean }> = {};
+    [post, ...(parent ? [parent] : []), ...childPosts].forEach(p => {
+      initial[p.id] = {
+        hasResonated: nexusData.hasUserResonated(p.id),
+        hasAmplified: nexusData.hasUserAmplified(p.id)
+      };
+    });
+    setFlags(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const mutatePost = (id: string, mutator: (p: Post) => Post) => {
+    if (mainPost.id === id) setMainPost(mutator(mainPost));
+    if (parentPost && parentPost.id === id) setParentPost(mutator(parentPost));
+    setChildrenPosts(prev => prev.map(c => (c.id === id ? mutator(c) : c)));
+  };
 
   // Debug logging - Client side
   console.log(`🎯 PostDetailClient Debug for ${post.id}:`);
@@ -39,13 +65,30 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
   };
 
   const handleResonate = async (postId: string) => {
+    if (isInteracting) return;
     setIsInteracting(true);
     try {
-      await dataService.resonateWithEntry(postId);
-      // Optionally refresh the page or update state
-      router.refresh();
+      const newState = await dataService.resonateWithEntry(postId);
+
+      // optimistic count + flag
+      mutatePost(postId, p => ({
+        ...p,
+        interactions: {
+          ...p.interactions,
+          resonances: p.interactions.resonances + (newState ? 1 : -1)
+        }
+      }));
+
+      setFlags(prev => ({
+        ...prev,
+        [postId]: {
+          ...prev[postId],
+          hasResonated: newState
+        }
+      }));
     } catch (error) {
       console.error('Error resonating with entry:', error);
+      router.refresh();
     } finally {
       setIsInteracting(false);
     }
@@ -65,13 +108,29 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
   };
 
   const handleAmplify = async (postId: string) => {
+    if (isInteracting) return;
     setIsInteracting(true);
     try {
-      await dataService.amplifyEntry(postId);
-      // Optionally refresh the page or update state
-      router.refresh();
+      const newState = await dataService.amplifyEntry(postId);
+
+      mutatePost(postId, p => ({
+        ...p,
+        interactions: {
+          ...p.interactions,
+          amplifications: p.interactions.amplifications + (newState ? 1 : -1)
+        }
+      }));
+
+      setFlags(prev => ({
+        ...prev,
+        [postId]: {
+          ...prev[postId],
+          hasAmplified: newState
+        }
+      }));
     } catch (error) {
       console.error('Error amplifying entry:', error);
+      router.refresh();
     } finally {
       setIsInteracting(false);
     }
@@ -85,7 +144,7 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
   return (
     <div className="conversation-thread">
       {/* Parent Context */}
-      {parent && (
+      {parentPost && (
         <div className="thread-level parent-level">
           <div className="thread-connector">
             <div className="thread-line parent-line"></div>
@@ -93,7 +152,7 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
           </div>
           <div className="thread-content">
             <PostDisplay
-              post={parent}
+              post={parentPost}
               context="feed"
               displayMode="compact"
               showBranching={true}
@@ -102,8 +161,8 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               onBranch={handleBranch}
               onAmplify={handleAmplify}
               onShare={handleShare}
-              userHasResonated={nexusData.hasUserResonated(parent.id)}
-              userHasAmplified={nexusData.hasUserAmplified(parent.id)}
+              userHasResonated={flags[parentPost.id]?.hasResonated}
+              userHasAmplified={flags[parentPost.id]?.hasAmplified}
               onDeepDive={handleDeepDive}
             />
           </div>
@@ -121,7 +180,7 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
         </div>
         <div className="thread-content">
           <PostDisplay
-            post={post}
+            post={mainPost}
             context="feed"
             displayMode="full"
             showBranching={true}
@@ -130,15 +189,15 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
             onBranch={handleBranch}
             onAmplify={handleAmplify}
             onShare={handleShare}
-            userHasResonated={nexusData.hasUserResonated(post.id)}
-            userHasAmplified={nexusData.hasUserAmplified(post.id)}
+            userHasResonated={flags[mainPost.id]?.hasResonated}
+            userHasAmplified={flags[mainPost.id]?.hasAmplified}
             className="current-viewing-post"
           />
         </div>
       </div>
 
       {/* Children */}
-      {childPosts.map((child, idx) => (
+      {childrenPosts.map((child, idx) => (
         <div key={child.id} className="thread-level child-level">
           <div className="thread-connector">
             <div className="thread-line child-line"></div>
@@ -156,8 +215,8 @@ export default function PostDetailClient({ post, parent, childPosts }: PostDetai
               onAmplify={handleAmplify}
               onShare={handleShare}
               onDeepDive={handleDeepDive}
-              userHasResonated={nexusData.hasUserResonated(child.id)}
-              userHasAmplified={nexusData.hasUserAmplified(child.id)}
+              userHasResonated={flags[child.id]?.hasResonated}
+              userHasAmplified={flags[child.id]?.hasAmplified}
             />
           </div>
         </div>

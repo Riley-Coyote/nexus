@@ -122,6 +122,7 @@ Supabase DB → DataService → useNexusData →
   1. Delete `useEffect` that fetched `dataService.getUserInteractionState`.  
   2. Remove unused imports.  
   3. Add simple `useEffect` to sync `initialUserHasResonated/Amplified` props into state.  
+  4. Updated `dataService.getEntryById` to enrich a single entry with interaction counts so PostDetail pages show correct numbers.  
 * **Risk / Rollback:** Low; relies on existing parent helpers; rollback by re-adding effect.  
 * **Test Plan:**  
   1. **Build-OK**: `npm run dev` compiles (no unused-import errors).  

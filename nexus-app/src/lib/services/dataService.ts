@@ -1337,13 +1337,21 @@ class DataService {
   async getEntryById(entryId: string): Promise<StreamEntry | null> {
     await this.initializeData();
     
+    const currentUser = authService.getCurrentUser();
+
     if (USE_MOCK_DATA || !this.database) {
       const allEntries = [...this.logbookEntries, ...this.sharedDreams];
-      return allEntries.find(e => e.id === entryId) || null;
+      const entry = allEntries.find(e => e.id === entryId) || null;
+      if (!entry) return null;
+      const [enriched] = await this.enrichEntriesWithInteractions([entry], currentUser?.id);
+      return enriched;
     }
-    
+
     try {
-      return await this.database.getEntryById(entryId);
+      const entry = await this.database.getEntryById(entryId);
+      if (!entry) return null;
+      const [enriched] = await this.enrichEntriesWithInteractions([entry], currentUser?.id);
+      return enriched;
     } catch (error) {
       console.error('❌ Error fetching entry by ID:', error);
       return null;
