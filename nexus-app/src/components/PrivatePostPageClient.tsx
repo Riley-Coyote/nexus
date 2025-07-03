@@ -1,12 +1,13 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Post, ViewMode } from '@/lib/types';
 import PostDetailClient from '@/components/PostDetailClient';
 import Header from '@/components/Header';
 import AuthPanel from '@/components/AuthPanel';
 import { useNexusData } from '@/hooks/useNexusData';
 import { useRouter } from 'next/navigation';
+import UserProfile from '@/components/UserProfile';
 
 interface PrivatePostPageClientProps {
   post: Post;
@@ -20,6 +21,26 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
   const currentUser = nexusData.currentUser;
   const isOwner = currentUser?.id === post.userId;
   const router = useRouter();
+
+  // Profile modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleProfileClick = () => {
+    setIsProfileModalOpen(true);
+  };
+
+  const handleLogout = () => {
+    nexusData.logout();
+    setIsProfileModalOpen(false);
+    router.push('/');
+  };
+
+  const handleViewProfile = () => {
+    setIsProfileModalOpen(false);
+    if (currentUser) {
+      router.push(`/profile/${currentUser.username}`);
+    }
+  };
 
   // Custom header props for deep dive mode
   const getHeaderProps = () => {
@@ -39,9 +60,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
           else if (view === 'resonance-field') router.push('/resonance-field');
           else if (view === 'profile' && currentUser) router.push(`/profile/${currentUser.username}`);
         },
-        onProfileClick: () => {
-          if (currentUser) router.push(`/profile/${currentUser.username}`);
-        }
+        onProfileClick: handleProfileClick
       };
     }
     return {
@@ -56,9 +75,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
         else if (view === 'resonance-field') router.push('/resonance-field');
         else if (view === 'profile' && currentUser) router.push(`/profile/${currentUser.username}`);
       },
-      onProfileClick: () => {
-        if (currentUser) router.push(`/profile/${currentUser.username}`);
-      }
+      onProfileClick: handleProfileClick
     };
   };
 
@@ -102,6 +119,17 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
           <PostDetailClient post={post} parent={parent} childPosts={childPosts} />
         </div>
       </main>
+
+      {/* User Profile Modal */}
+      {currentUser && (
+        <UserProfile
+          user={currentUser}
+          onLogout={handleLogout}
+          onViewProfile={handleViewProfile}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
+      )}
     </div>
   );
 } 

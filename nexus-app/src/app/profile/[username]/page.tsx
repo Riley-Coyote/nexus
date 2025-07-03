@@ -132,11 +132,7 @@ export default function UserProfilePage() {
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
-    if (mode === 'dream') {
-      router.push(`/dream/profile/${username}`);
-    } else {
-      router.push(`/logbook/profile/${username}`);
-    }
+    router.push(`/${mode}`);
   };
 
   // Show authentication panel if not authenticated

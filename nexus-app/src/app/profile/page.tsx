@@ -52,11 +52,7 @@ export default function ProfilePage() {
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
-    if (mode === 'dream') {
-      router.push(`/dream/profile/${nexusData.currentUser?.username || ''}`);
-    } else {
-      router.push(`/logbook/profile/${nexusData.currentUser?.username || ''}`);
-    }
+    router.push(`/${mode}`);
   };
 
   const handleNavigateToFeed = () => {
