@@ -321,7 +321,7 @@ export class SupabaseProvider implements DatabaseProvider {
       
       if (data) {
         data.forEach((row: any) => {
-          countsMap.set(row.entry_id, {
+          countsMap.set(String(row.entry_id), {
             resonanceCount: row.resonance_count || 0,
             branchCount: row.branch_count || 0,
             amplificationCount: row.amplification_count || 0,
