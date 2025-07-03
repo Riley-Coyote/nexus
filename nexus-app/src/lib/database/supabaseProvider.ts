@@ -527,7 +527,8 @@ export class SupabaseProvider implements DatabaseProvider {
       throw new Error(`Failed to fetch user resonances: ${error.message}`);
     }
 
-    return (data || []).map(row => row.entry_id);
+    // Convert to string to keep type consistency across the app
+    return (data || []).map(row => String(row.entry_id));
   }
 
   async addUserAmplification(userId: string, entryId: string): Promise<void> {
@@ -568,7 +569,8 @@ export class SupabaseProvider implements DatabaseProvider {
       throw new Error(`Failed to fetch user amplifications: ${error.message}`);
     }
 
-    return (data || []).map(row => row.entry_id);
+    // Convert to string to keep type consistency across the app
+    return (data || []).map(row => String(row.entry_id));
   }
 
   async updateEntryInteractions(entryId: string, type: InteractionType, delta: number): Promise<void> {
