@@ -352,7 +352,7 @@ export class SupabaseProvider implements DatabaseProvider {
       if (!error && data) {
         const statesMap = new Map<string, UserInteractionState>();
         data.forEach((row: any) => {
-          statesMap.set(row.entry_id, {
+          statesMap.set(String(row.entry_id), {
             hasResonated: row.has_resonated || false,
             hasAmplified: row.has_amplified || false
           });
@@ -392,7 +392,7 @@ export class SupabaseProvider implements DatabaseProvider {
 
       const statesMap = new Map<string, UserInteractionState>();
       entryIds.forEach(id => {
-        statesMap.set(id, {
+        statesMap.set(String(id), {
           hasResonated: resonatedIds.has(id),
           hasAmplified: amplifiedIds.has(id)
         });
