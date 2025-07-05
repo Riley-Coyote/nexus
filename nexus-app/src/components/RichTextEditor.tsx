@@ -26,7 +26,7 @@ export default function RichTextEditor({
   // Initialise TipTap editor
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ history: true }),
+      StarterKit,
       Underline,
       Strike,
     ],
