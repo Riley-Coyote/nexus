@@ -158,6 +158,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       errors.push('Password must be at least 12 characters long');
     }
     
+    if (password.length > 25) {
+      errors.push('Password must be no more than 25 characters long');
+    }
+    
     if (!/(?=.*[0-9])/.test(password)) {
       errors.push('Password must contain at least one number');
     }
@@ -525,6 +529,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
                 placeholder="Enter your full name"
                 required
                 disabled={isLoading}
+                maxLength={25}
               />
             </div>
           )}
@@ -544,6 +549,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               placeholder={authMode === 'signup' ? 'Choose a unique username' : 'Enter your username or email'}
               required
               disabled={isLoading}
+              maxLength={25}
             />
           </div>
 
@@ -631,10 +637,11 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
                 value={formData.password}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
-                placeholder={authMode === 'signup' ? 'Create a strong password (min 12 characters)' : 'Enter your password'}
+                placeholder={authMode === 'signup' ? 'Create a strong password (12-25 characters)' : 'Enter your password'}
                 required
                 disabled={isLoading}
                 minLength={authMode === 'signup' ? 12 : 6}
+                maxLength={25}
               />
               
               {/* Password Requirements (signup only) */}
@@ -643,10 +650,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
                   <p className="text-gray-400 font-medium">Password Requirements:</p>
                   <ul className="space-y-1">
                     <li className={`flex items-center space-x-2 ${
-                      formData.password.length >= 12 ? 'text-emerald-400' : 'text-gray-500'
+                      formData.password.length >= 12 && formData.password.length <= 25 ? 'text-emerald-400' : 'text-gray-500'
                     }`}>
-                      <span>{formData.password.length >= 12 ? '✓' : '•'}</span>
-                      <span>At least 12 characters</span>
+                      <span>{formData.password.length >= 12 && formData.password.length <= 25 ? '✓' : '•'}</span>
+                      <span>12-25 characters</span>
                     </li>
                     <li className={`flex items-center space-x-2 ${
                       /(?=.*[0-9])/.test(formData.password) ? 'text-emerald-400' : 'text-gray-500'
@@ -683,6 +690,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
                 required
                 disabled={isLoading}
                 minLength={6}
+                maxLength={25}
               />
             </div>
           )}
