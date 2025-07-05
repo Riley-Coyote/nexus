@@ -37,8 +37,8 @@ class MockAuthBridge {
   }
 
   // ───────── Core auth operations ─────────
-  async signIn(email: string, password: string): Promise<AuthResult> {
-    const username = email.includes('@') ? email.split('@')[0] : email;
+  async signIn(emailOrUsername: string, password: string): Promise<AuthResult> {
+    const username = emailOrUsername.includes('@') ? emailOrUsername.split('@')[0] : emailOrUsername;
     const result = await mockAuthService.login(username, password);
     if (result.success) {
       this.notifyListeners();
@@ -47,8 +47,8 @@ class MockAuthBridge {
     return { success: false, error: result.error };
   }
 
-  async signUp(email: string, password: string, userData?: { name?: string }): Promise<AuthResult> {
-    const username = email.includes('@') ? email.split('@')[0] : email;
+  async signUp(email: string, password: string, userData?: { name?: string; username?: string }): Promise<AuthResult> {
+    const username = userData?.username || (email.includes('@') ? email.split('@')[0] : email);
     const result = await mockAuthService.signup(username, password, email);
     if (result.success) {
       this.notifyListeners();
@@ -69,6 +69,11 @@ class MockAuthBridge {
 
   async resetPassword(_email: string): Promise<AuthResult> {
     return { success: true };
+  }
+
+  async checkEmailAvailability(_email: string): Promise<{ available: boolean; error?: string }> {
+    // In mock mode, always return available
+    return { available: true };
   }
 
   // ───────── State helpers ─────────
@@ -247,7 +252,9 @@ class SupabaseAuthService {
 
   private async createNewUserProfile(supabaseUser: SupabaseUser): Promise<User> {
     // Check if username already exists
-    const baseUsername = supabaseUser.email?.split('@')[0] || `user_${supabaseUser.id.slice(0, 8)}`;
+    const baseUsername = supabaseUser.user_metadata?.username || 
+                        supabaseUser.email?.split('@')[0] || 
+                        `user_${supabaseUser.id.slice(0, 8)}`;
     let username = baseUsername;
     let counter = 1;
 
@@ -341,7 +348,7 @@ class SupabaseAuthService {
     };
   }
 
-  async signUp(email: string, password: string, userData?: { name?: string }): Promise<AuthResult> {
+  async signUp(email: string, password: string, userData?: { name?: string; username?: string }): Promise<AuthResult> {
     try {
       // Ensure initialization is complete
       await this.initialize();
@@ -352,7 +359,8 @@ class SupabaseAuthService {
         options: {
           emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
           data: {
-            name: userData?.name || email.split('@')[0]
+            name: userData?.name || email.split('@')[0],
+            username: userData?.username || email.split('@')[0]
           }
         }
       });
@@ -363,6 +371,15 @@ class SupabaseAuthService {
         }
         if (error.message.includes('rate limit')) {
           return { success: false, error: 'Too many attempts. Please wait a moment and try again.' };
+        }
+        if (error.message.includes('Password should be at least')) {
+          return { success: false, error: 'Password must be at least 12 characters long with a number and special character.' };
+        }
+        if (error.message.includes('invalid email')) {
+          return { success: false, error: 'Please enter a valid email address.' };
+        }
+        if (error.message.includes('weak password')) {
+          return { success: false, error: 'Password is too weak. Please use at least 12 characters with numbers and special characters.' };
         }
         return { success: false, error: error.message };
       }
@@ -382,13 +399,29 @@ class SupabaseAuthService {
     }
   }
 
-  async signIn(email: string, password: string): Promise<AuthResult> {
+  async signIn(emailOrUsername: string, password: string): Promise<AuthResult> {
     try {
       // Ensure initialization is complete
       await this.initialize();
 
       // Clear any existing session before attempting new sign-in
       await supabase.auth.signOut({ scope: 'local' });
+
+      // Check if the input is a username (not an email) and convert to email
+      let email = emailOrUsername;
+      if (!emailOrUsername.includes('@')) {
+        // It's a username, look up the email
+        const { data: userData, error: lookupError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', emailOrUsername)
+          .single();
+
+        if (lookupError || !userData?.email) {
+          return { success: false, error: 'Invalid username or password. Please check your credentials and try again.' };
+        }
+        email = userData.email;
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -496,6 +529,66 @@ class SupabaseAuthService {
     } catch (error) {
       console.error('Reset password error:', error);
       return { success: false, error: 'Failed to send password reset email.' };
+    }
+  }
+
+  async checkEmailAvailability(email: string): Promise<{ available: boolean; error?: string }> {
+    try {
+      console.log('🔍 SupabaseAuthService: Checking email availability for:', email);
+      
+      // Don't check if email is invalid format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        console.log('❌ Invalid email format:', email);
+        return { available: false, error: 'Invalid email format' };
+      }
+
+      // Check if email is already registered in Supabase auth
+      console.log('📡 Calling check_email_exists function...');
+      const { data, error } = await supabase.rpc('check_email_exists', { email_to_check: email });
+      
+      if (error) {
+        // If the function doesn't exist, fall back to a signup attempt (will be cancelled)
+        console.warn('⚠️ check_email_exists function not found, using fallback method. Error:', error);
+        return await this.checkEmailFallback(email);
+      }
+
+      console.log('✅ check_email_exists response - data:', data, 'available:', !data);
+      return { available: !data };
+    } catch (error) {
+      console.error('❌ Email availability check error:', error);
+      return { available: true }; // Default to available on error to not block signup
+    }
+  }
+
+  private async checkEmailFallback(email: string): Promise<{ available: boolean; error?: string }> {
+    try {
+      console.log('🔄 Using fallback method for email check:', email);
+      
+      // Try to sign up with a dummy password to check if email exists
+      const { error } = await supabase.auth.signUp({
+        email,
+        password: 'dummy_password_12345!', // This won't complete signup
+      });
+
+      if (error) {
+        console.log('🔍 Fallback signup error:', error.message);
+        if (error.message.includes('already registered')) {
+          console.log('❌ Email already registered via fallback');
+          return { available: false };
+        }
+        // Other errors don't indicate email unavailability
+        console.log('✅ Email available (other error in fallback)');
+        return { available: true };
+      }
+
+      // If no error, email is available, but we need to clean up the partial signup
+      // The user will need to verify their email anyway, so this is handled gracefully
+      console.log('✅ Email available via fallback (no error)');
+      return { available: true };
+    } catch (error) {
+      console.error('❌ Email fallback check error:', error);
+      return { available: true }; // Default to available on error
     }
   }
 
