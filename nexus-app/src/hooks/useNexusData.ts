@@ -502,7 +502,7 @@ export const useNexusData = (): NexusData => {
         getUserResonances: (userId: string) => dataService.debugGetUserResonances(userId),
         refreshResonatedEntries: () => loadResonatedEntries()
       };
-      console.log('🔧 Development Mode: Access debugging via window.nexusDataService and window.debugResonance');
+      // console.log('🔧 Development Mode: Access debugging via window.nexusDataService and window.debugResonance');
     }
   }, []);
   

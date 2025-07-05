@@ -4336,3 +4336,15 @@
         .border-current-accent {
           border-color: var(--current-accent) !important;
         }
+
+        .rich-text-content b {
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .rich-text-content[contenteditable='true']:empty:before {
+          content: attr(data-placeholder);
+          color: var(--text-quaternary);
+          font-weight: 200;
+          opacity: 0.7;
+        }

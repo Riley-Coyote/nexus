@@ -50,31 +50,31 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   // Debounced email availability check
   const checkEmailAvailability = React.useCallback(async (email: string) => {
-    console.log('🚀 checkEmailAvailability called with:', email);
+    // console.log('🚀 checkEmailAvailability called with:', email);
     
     // Clear any existing timeout
     if (emailCheckTimeoutRef.current) {
-      console.log('⏰ Clearing existing timeout');
+      // console.log('⏰ Clearing existing timeout');
       clearTimeout(emailCheckTimeoutRef.current);
     }
 
     // Don't check if email is empty or invalid format
     if (!email || !validateEmail(email)) {
-      console.log('❌ Email empty or invalid, clearing status');
+      // console.log('❌ Email empty or invalid, clearing status');
       safeSetState(() => setEmailStatus({ checking: false, available: null }));
       return;
     }
 
     // Set checking state immediately
-    console.log('⏳ Setting checking state');
+    // console.log('⏳ Setting checking state');
     safeSetState(() => setEmailStatus({ checking: true, available: null }));
 
     // Debounce the actual API call
     emailCheckTimeoutRef.current = setTimeout(async () => {
       try {
-        console.log('🔍 Checking username availability for:', email);
+        // console.log('🔍 Checking username availability for:', email);
         const result = await authService.checkEmailAvailability(email);
-        console.log('✅ Username check result:', result);
+        // console.log('✅ Username check result:', result);
         
         // Direct state update - React will handle if component is unmounted
         const newStatus = {
@@ -82,10 +82,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           available: result.available,
           error: result.error
         };
-        console.log('🔄 Setting emailStatus to:', newStatus);
+        // console.log('🔄 Setting emailStatus to:', newStatus);
         setEmailStatus(newStatus);
               } catch (error) {
-          console.error('❌ Email check error:', error);
+          // console.error('❌ Email check error:', error);
           
           setEmailStatus({
             checking: false,
@@ -98,25 +98,25 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   // Debug: Log when checkEmailAvailability changes
   React.useEffect(() => {
-    console.log('🔧 checkEmailAvailability function changed/created');
+    // console.log('🔧 checkEmailAvailability function changed/created');
   }, [checkEmailAvailability]);
 
   // Clear username status when not in signup mode
   React.useEffect(() => {
     if (authMode !== 'signup') {
-      console.log('🧹 Clearing username status - not in signup mode');
+      // console.log('🧹 Clearing username status - not in signup mode');
       setEmailStatus({ checking: false, available: null });
     }
   }, [authMode]);
 
   // Debug: Log emailStatus changes
   React.useEffect(() => {
-    console.log('📊 emailStatus changed:', emailStatus);
+    // console.log('📊 emailStatus changed:', emailStatus);
   }, [emailStatus]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    console.log('📝 Input changed:', name, value);
+    // console.log('📝 Input changed:', name, value);
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Clear messages when user starts typing
@@ -137,11 +137,11 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    console.log('👁️ Input blur:', name, value);
+    // console.log('👁️ Input blur:', name, value);
     
     // Check email availability on blur for signup mode
     if (name === 'email' && authMode === 'signup' && value && validateEmail(value)) {
-      console.log('🎯 Triggering email check on blur');
+      // console.log('🎯 Triggering email check on blur');
       checkEmailAvailability(value);
     }
   };
@@ -387,7 +387,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         }
       }
     } catch (err) {
-      console.error('Auth error:', err);
+      // console.error('Auth error:', err);
       if (!isMountedRef.current) return;
       
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -444,7 +444,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         safeSetState(() => setError(result.error || 'Failed to resend verification email'));
       }
     } catch (err) {
-      console.error('Resend verification error:', err);
+      // console.error('Resend verification error:', err);
       if (!isMountedRef.current) return;
       
       const errorMessage = err instanceof Error ? err.message : 'Failed to resend verification email';

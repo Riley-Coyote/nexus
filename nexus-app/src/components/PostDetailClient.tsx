@@ -50,7 +50,7 @@ export default function PostDetailClient({ post: initialPost, parent: initialPar
         children: details.children.map(convertToEnrichedPost)
       });
 
-      console.log('✅ PostDetailClient: Loaded fresh entry details with interaction states');
+      // console.log('✅ PostDetailClient: Loaded fresh entry details with interaction states');
     } catch (error) {
       console.error('❌ PostDetailClient: Failed to load entry details:', error);
     } finally {
@@ -109,7 +109,7 @@ export default function PostDetailClient({ post: initialPost, parent: initialPar
   };
 
   const handleShare = (postId: string) => {
-    console.log(`Share interaction on post ${postId}`);
+    // console.log(`Share interaction on post ${postId}`);
   };
 
   if (isLoading) {

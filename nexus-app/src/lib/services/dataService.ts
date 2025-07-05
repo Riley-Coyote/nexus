@@ -127,9 +127,9 @@ class DataService {
         // Initialize database connection
         this.database = DatabaseFactory.getInstance();
         await this.database.connect();
-        console.log('✅ Database connected successfully');
-        console.log('🗄️ Data Source: Supabase Database (New Efficient System)');
-        console.log('🚀 Features: Atomic operations, batch fetching, proper branching');
+        // console.log('✅ Database connected successfully');
+        // console.log('🗄️ Data Source: Supabase Database (New Efficient System)');
+        // console.log('🚀 Features: Atomic operations, batch fetching, proper branching');
       } else {
         // Initialize with mock data if no entries exist (mock mode)
         if (this.logbookEntries.length === 0) {
@@ -142,10 +142,10 @@ class DataService {
         this.initializeMockBranchRelationships();
         // Initialize test resonances for demo
         this.initializeTestResonances();
-        console.log('📝 Using mock data mode');
-        console.log('🧪 Data Source: In-Memory Mock Data');
+        // console.log('📝 Using mock data mode');
+        // console.log('🧪 Data Source: In-Memory Mock Data');
         if (DEBUG_USE_MOCK_DATA) {
-          console.log('🚩 Debug flag enabled: Change DEBUG_USE_MOCK_DATA in dataService.ts to switch');
+          // console.log('🚩 Debug flag enabled: Change DEBUG_USE_MOCK_DATA in dataService.ts to switch');
         }
       }
       
@@ -159,8 +159,8 @@ class DataService {
       console.error('❌ Failed to initialize data service:', error);
       // Fallback to mock mode if database fails
       if (!USE_MOCK_DATA) {
-        console.log('⚠️ Database failed, falling back to in-memory mock data');
-        console.log('🧪 Data Source: In-Memory Mock Data (Fallback)');
+        // console.log('⚠️ Database failed, falling back to in-memory mock data');
+        // console.log('🧪 Data Source: In-Memory Mock Data (Fallback)');
         if (this.logbookEntries.length === 0) {
           this.logbookEntries = [...mockLogbookEntries];
         }
@@ -221,7 +221,7 @@ class DataService {
       entry.interactions.resonances = (entry.interactions.resonances || 0) + 1;
     });
     
-    console.log(`🧪 Initialized ${entriesToResonate.length} test resonances for user: ${userId}`);
+    // console.log(`🧪 Initialized ${entriesToResonate.length} test resonances for user: ${userId}`);
   }
 
   // ========== ADVANCED THREADING UTILITIES ==========
@@ -280,12 +280,12 @@ class DataService {
     if (THREADING_CONFIG.enableStats) {
       const stats = this.getThreadingStats(result);
       const modeLabel = mode ? `${mode.toUpperCase()}` : `${selectedMode.toUpperCase()}${THREADING_CONFIG.mode === 'adaptive' ? ' (auto)' : ''}`;
-      console.log(`🧵 Threading Performance [${modeLabel}]:`, {
-        duration: `${duration.toFixed(2)}ms`,
-        entriesProcessed: entries.length,
-        resultEntries: result.length,
-        ...stats
-      });
+      // console.log(`🧵 Threading Performance [${modeLabel}]:`, {
+      //   duration: `${duration.toFixed(2)}ms`,
+      //   entriesProcessed: entries.length,
+      //   resultEntries: result.length,
+      //   ...stats
+      // });
     }
     
     return result;
@@ -321,13 +321,13 @@ class DataService {
       
       // Cycle detection
       if (visited.has(entryId)) {
-        console.warn(`🔄 Cycle detected at entry ${entryId}, skipping...`);
+        // console.warn(`🔄 Cycle detected at entry ${entryId}, skipping...`);
         continue;
       }
       
       // Depth limit protection
       if (depth > maxDepth) {
-        console.warn(`📏 Max depth (${maxDepth}) reached at entry ${entryId}, truncating...`);
+        // console.warn(`📏 Max depth (${maxDepth}) reached at entry ${entryId}, truncating...`);
         continue;
       }
       
@@ -554,10 +554,11 @@ class DataService {
 
   // Allow runtime switching of threading mode
   setThreadingMode(mode: 'dfs' | 'bfs' | 'adaptive'): void {
+    // console.log('🤖 Adaptive threading mode enabled - will choose best algorithm per conversation');
     if (mode === 'adaptive') {
-      console.log('🤖 Adaptive threading mode enabled - will choose best algorithm per conversation');
+      // console.log('🤖 Adaptive threading mode enabled - will choose best algorithm per conversation');
     } else {
-      console.log(`🧵 Threading mode set to: ${mode.toUpperCase()}`);
+      // console.log(`🧵 Threading mode set to: ${mode.toUpperCase()}`);
     }
     // Store the configuration mode (including 'adaptive')
     Object.assign(THREADING_CONFIG, { mode });
@@ -1073,14 +1074,14 @@ class DataService {
         // User already resonated, so remove resonance (UNRESONATING)
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
-        console.log(`🔇 DataService: User unresonated from entry ${entryId} (${userResonances.size} total)`);
+        // console.log(`🔇 DataService: User unresonated from entry ${entryId} (${userResonances.size} total)`);
         return false;
       } else {
         // Add resonance (RESONATING)
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
         authService.updateUserStats('connections');
-        console.log(`🔊 DataService: User resonated with entry ${entryId} (${userResonances.size} total)`);
+        // console.log(`🔊 DataService: User resonated with entry ${entryId} (${userResonances.size} total)`);
         return true;
       }
     }
@@ -1091,9 +1092,9 @@ class DataService {
       
       if (newState) {
         authService.updateUserStats('connections');
-        console.log(`🔊 DataService: User resonated with entry ${entryId} (database)`);
+        // console.log(`🔊 DataService: User resonated with entry ${entryId} (database)`);
       } else {
-        console.log(`🔇 DataService: User unresonated from entry ${entryId} (database)`);
+        // console.log(`🔇 DataService: User unresonated from entry ${entryId} (database)`);
       }
       
       // Clear cache to force refresh
@@ -1118,13 +1119,13 @@ class DataService {
       if (wasAlreadyResonated) {
         userResonances.delete(entryId);
         this.updateEntryInteraction(entryId, 'resonances', -1);
-        console.log(`🔇 DataService: User unresonated from entry ${entryId} (fallback)`);
+        // console.log(`🔇 DataService: User unresonated from entry ${entryId} (fallback)`);
         return false;
       } else {
         userResonances.add(entryId);
         this.updateEntryInteraction(entryId, 'resonances', 1);
         authService.updateUserStats('connections');
-        console.log(`🔊 DataService: User resonated with entry ${entryId} (fallback)`);
+        // console.log(`🔊 DataService: User resonated with entry ${entryId} (fallback)`);
         return true;
       }
     }
@@ -1418,7 +1419,7 @@ class DataService {
     
     // In database mode, this method is deprecated in favor of getEntryDetailsWithContext
     // which provides fresh interaction states. For backward compatibility, return false.
-    console.warn('hasUserResonated called in database mode - use getEntryDetailsWithContext instead');
+    // console.warn('hasUserResonated called in database mode - use getEntryDetailsWithContext instead');
     return false;
   }
 
@@ -1431,7 +1432,7 @@ class DataService {
     
     // In database mode, this method is deprecated in favor of getEntryDetailsWithContext
     // which provides fresh interaction states. For backward compatibility, return false.
-    console.warn('hasUserAmplified called in database mode - use getEntryDetailsWithContext instead');
+    // console.warn('hasUserAmplified called in database mode - use getEntryDetailsWithContext instead');
     return false;
   }
 
@@ -1619,7 +1620,7 @@ class DataService {
         entry.interactions.resonances = (entry.interactions.resonances || 0) + 1;
       });
       
-      console.log(`🧪 Initialized ${entriesToResonate.length} test resonances for user: ${currentUser.name} (${userId})`);
+      // console.log(`🧪 Initialized ${entriesToResonate.length} test resonances for user: ${userId}`);
     }
     
     // Also add some generic demo users for when no one is logged in
@@ -1649,13 +1650,13 @@ class DataService {
     }
     this.userResonances.get(userId)!.add(entryId);
     this.updateEntryInteraction(entryId, 'resonances', 1);
-    console.log(`🐛 DEBUG: Added resonance ${entryId} for user ${userId}`);
+    // console.log(`🐛 DEBUG: Added resonance ${entryId} for user ${userId}`);
   }
 
   // Debug method to get current resonances for a user (for testing)
   debugGetUserResonances(userId: string): string[] {
     if (!USE_MOCK_DATA && !DEBUG_USE_MOCK_DATA) {
-      console.log('🚫 Debug methods only available in mock mode');
+      // console.log('🚫 Debug methods only available in mock mode');
       return [];
     }
     
@@ -1706,7 +1707,7 @@ class DataService {
       const user = mockUsers.find(u => u.id === currentUser.id);
       if (user) {
         Object.assign(user, cleaned, { updated_at: new Date().toISOString() });
-        console.log(`[Mock] Updated profile for user ${currentUser.id}:`, cleaned);
+        // console.log(`[Mock] Updated profile for user ${currentUser.id}:`, cleaned);
         return Promise.resolve(user);
       }
       throw new Error('User not found in mock data.');
@@ -1748,7 +1749,7 @@ class DataService {
     }
 
     if (USE_MOCK_DATA || !this.database || !this.database.followUser) {
-      console.log('📝 Follow user in mock mode (no persistence):', { followerId: currentUser.id, followedId });
+      // console.log('📝 Follow user in mock mode (no persistence):', { followerId: currentUser.id, followedId });
       return true;
     }
     
@@ -1765,7 +1766,7 @@ class DataService {
     }
 
     if (USE_MOCK_DATA || !this.database || !this.database.unfollowUser) {
-      console.log('📝 Unfollow user in mock mode (no persistence):', { followerId: currentUser.id, followedId });
+      // console.log('📝 Unfollow user in mock mode (no persistence):', { followerId: currentUser.id, followedId });
       return true;
     }
     
@@ -1866,7 +1867,7 @@ class DataService {
         .slice(0, limit)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       
-      console.log(`📝 Found ${userPosts.length} mock posts for user: ${username}`);
+      // console.log(`📝 Found ${userPosts.length} mock posts for user: ${username}`);
       return userPosts;
     }
     
