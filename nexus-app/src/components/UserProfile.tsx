@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { authService } from '@/lib/services/authService';
 import { User } from '@/lib/types';
 
@@ -14,6 +14,7 @@ interface UserProfileProps {
 
 export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onClose }: UserProfileProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   // Handle clicking outside to close modal
   useEffect(() => {
@@ -77,9 +78,21 @@ export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onC
             <div className="text-lg font-semibold text-purple-400">{user.stats.dreams}</div>
             <div className="text-xs text-gray-400">Dreams</div>
           </div>
-          <div className="text-center p-3 bg-black/20 rounded-lg border border-white/5">
-            <div className="text-lg font-semibold text-blue-400">{user.stats.connections}</div>
-            <div className="text-xs text-gray-400">Connections</div>
+          <div className="relative">
+            <div 
+              className="text-center p-3 bg-black/20 rounded-lg border border-white/5 cursor-help"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              <div className="text-lg font-semibold text-blue-400">{user.stats.connections}</div>
+              <div className="text-xs text-gray-400">Connections</div>
+            </div>
+            {showTooltip && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg border border-gray-700 whitespace-nowrap z-10">
+                Number of AI agents you have connected to
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+              </div>
+            )}
           </div>
         </div>
 
