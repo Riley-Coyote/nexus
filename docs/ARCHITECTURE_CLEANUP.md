@@ -26,8 +26,12 @@ Supabase DB → DataService → useNexusData →
 | D2 | Duplication | `PostOverlay.tsx` duplicates interaction logic (modal) | ◐ (out-of-scope *for now*)
 | P1 | Props-drilling | Pages convert data & forward 10-15 callbacks | ✅ Fixed with PostList implementation
 | N1 | Network | `PostDisplay` still fetches `getUserInteractionState` even when parent knows | ✅ Removed extra fetch in PR _Cleanup-N1_
-| G1 | Pagination | Feed paginates, Logbook/Dream do not | ⚠️ Partially fixed - all feeds now support pagination
+| G1 | Pagination | Feed paginates, Logbook/Dream do not | ✅ Fixed - all feeds now support pagination
 | B1 | Bug | Modal calls `getUserInteractionState('current-user', …)` (wrong ID) | ✅ Fixed in PR _BugFix-B1_
+| **G2** | **Pagination** | **NexusFeed pagination resets on every data change, causing 30+ posts to load** | ❌ **Critical Issue**
+| **P2** | **Performance** | **All posts render in DOM simultaneously, causing memory/scroll issues** | ❌ **Needs Virtual Scrolling**
+| **G3** | **Pagination** | **Inconsistent pagination limits across sections (20 vs 50 vs unlimited)** | ❌ **Needs Standardization**
+| **P3** | **Performance** | **No cleanup of large post lists, potential memory leaks** | ❌ **Optimization Needed**
 
 > NOTE: Filtering Logbook/Dream **to the current user only** is intended – do not remove.
 
@@ -67,6 +71,22 @@ Supabase DB → DataService → useNexusData →
 
 6. **Prune Callbacks** ❌
    • Once `<PostList>` owns interactions, page components forward minimal props.
+
+7. **Fix Pagination Reset Bug** ❌ **← NEXT PRIORITY**
+   • Remove useEffect dependency on logbookEntries/dreamEntries in NexusFeed.
+   • Implement smart refresh strategy.
+
+8. **Add Virtual Scrolling** ❌
+   • Implement react-window for efficient rendering.
+   • Only render visible posts + buffer.
+
+9. **Standardize Pagination Limits** ❌
+   • Consistent page sizes across all sections.
+   • Add pagination to remaining sections.
+
+10. **Performance Optimizations** ❌
+    • Memory cleanup and lazy loading.
+    • Image optimization and caching.
 
 ---
 
@@ -260,3 +280,103 @@ Supabase DB → DataService → useNexusData →
 
 ### **Next Steps**: 
 - Move to **Item #6: Reduce Props Drilling**
+
+## Section G2: Fix Pagination Reset Bug (CRITICAL)
+
+* **Goal:** Eliminate pagination reset on every data change that causes 30+ posts to load on refresh.
+* **Touched Files:**
+  * `src/components/NexusFeed.tsx` – remove problematic useEffect dependency
+  * `src/hooks/useNexusData.ts` – add smart refresh capabilities
+* **Implementation Steps:**
+  1. Remove `useEffect(() => { setPage(1); loadFlattenedEntries(1, false); }, [logbookEntries, dreamEntries])` from NexusFeed.
+  2. Replace with smart refresh that only resets when user is at top of feed.
+  3. Add debouncing to prevent excessive refreshes.
+  4. Implement proper state management for pagination persistence.
+  5. Add manual refresh button for explicit data updates.
+* **Risk / Rollback:** Medium – affects core pagination behavior; rollback by restoring useEffect.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with no errors.
+  2. **Pagination Persistence**: Load more posts, refresh page – should show same number of posts.
+  3. **No Reset**: Create new post – pagination should not reset to page 1.
+  4. **Smart Refresh**: When at top of feed, new posts should appear automatically.
+  5. **Performance**: No excessive API calls on component re-renders.
+  6. **Manual Refresh**: Refresh button should work to get latest posts.
+* **Done When:** Pagination persists across refreshes and doesn't reset on data changes.
+
+## Section P4: Add Virtual Scrolling
+
+* **Goal:** Implement virtual scrolling to handle large post lists efficiently and improve performance.
+* **Touched Files:**
+  * `src/components/PostList.tsx` – add react-window integration
+  * `package.json` – add react-window dependency
+  * `src/components/VirtualPostList.tsx` (new) – virtual scrolling wrapper
+* **Implementation Steps:**
+  1. Install react-window and @types/react-window dependencies.
+  2. Create VirtualPostList component using FixedSizeList.
+  3. Calculate dynamic post heights for variable-size content.
+  4. Implement intersection observer for auto-loading more posts.
+  5. Add smooth scrolling and scroll position restoration.
+  6. Integrate virtual scrolling into PostList component as optional feature.
+  7. Add performance monitoring and optimization.
+* **Risk / Rollback:** Low – optional feature; rollback by disabling virtual scrolling.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with new dependencies.
+  2. **Smooth Scrolling**: Large post lists (100+) scroll smoothly without lag.
+  3. **Memory Usage**: Monitor memory usage – should be significantly lower.
+  4. **Auto-Loading**: Scroll to bottom triggers loading more posts automatically.
+  5. **Scroll Position**: Navigation preserves scroll position when returning to feed.
+  6. **Performance**: Rendering performance improved with large datasets.
+* **Done When:** Virtual scrolling works smoothly and provides measurable performance improvements.
+
+## Section G3: Standardize Pagination Limits
+
+* **Goal:** Implement consistent pagination limits and add pagination to all sections that lack it.
+* **Touched Files:**
+  * `src/components/MainContent.tsx` – enable pagination for logbook
+  * `src/components/DreamMainContent.tsx` – enable pagination for dreams
+  * `src/components/ResonanceField.tsx` – enable pagination for resonance
+  * `src/components/ProfileView.tsx` – enable pagination for profile posts
+  * `src/lib/services/dataService.ts` – standardize default limits
+* **Implementation Steps:**
+  1. Set standard page size to 20 posts across all sections.
+  2. Enable pagination in MainContent (logbook) with proper state management.
+  3. Enable pagination in DreamMainContent with load more functionality.
+  4. Enable pagination in ResonanceField with consistent behavior.
+  5. Add pagination to ProfileView for user posts.
+  6. Update DataService to use consistent limits (20 default, 100 max).
+  7. Add loading states and "Load More" buttons to all sections.
+* **Risk / Rollback:** Low – incremental changes; rollback by disabling pagination per section.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with no errors.
+  2. **Consistent Limits**: All sections load 20 posts initially.
+  3. **Load More**: All sections have working "Load More" buttons.
+  4. **Performance**: Initial page loads faster with limited posts.
+  5. **User Experience**: Consistent pagination behavior across all sections.
+  6. **Memory Usage**: Lower memory usage with paginated content.
+* **Done When:** All sections have consistent 20-post pagination with load more functionality.
+
+## Section P5: Performance Optimizations
+
+* **Goal:** Implement memory cleanup, lazy loading, and performance optimizations for better scalability.
+* **Touched Files:**
+  * `src/components/PostDisplay.tsx` – add lazy loading for images
+  * `src/components/PostList.tsx` – add cleanup and optimization
+  * `src/hooks/useNexusData.ts` – add caching and memory management
+  * `src/lib/services/dataService.ts` – optimize data fetching
+* **Implementation Steps:**
+  1. Implement lazy loading for post images and heavy content.
+  2. Add cleanup for unmounted components and large state objects.
+  3. Implement intelligent caching with TTL for frequently accessed data.
+  4. Add image optimization and progressive loading.
+  5. Implement debouncing for search and filter operations.
+  6. Add performance monitoring and metrics collection.
+  7. Optimize re-rendering with React.memo and useMemo.
+* **Risk / Rollback:** Low – optimization changes; rollback by removing optimizations.
+* **Test Plan:**
+  1. **Build-OK**: `npm run dev` compiles with optimizations.
+  2. **Memory Cleanup**: No memory leaks when navigating between sections.
+  3. **Image Loading**: Images load progressively and don't block rendering.
+  4. **Caching**: Frequently accessed data loads from cache when available.
+  5. **Performance Metrics**: Measurable improvements in load times and responsiveness.
+  6. **Mobile Performance**: Better performance on lower-end mobile devices.
+* **Done When:** Performance optimizations provide measurable improvements without regressions.
