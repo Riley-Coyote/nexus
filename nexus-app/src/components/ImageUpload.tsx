@@ -76,15 +76,48 @@ export default function ImageUpload({
       };
       reader.readAsDataURL(file);
 
-      // Upload to storage
-      const result = await storageService.uploadProfileImage(userId, file, type);
+      // Upload to storage with timeout protection
+      const uploadPromise = storageService.uploadProfileImage(userId, file, type);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Upload timeout after 45 seconds')), 45000);
+      });
       
-      // Call onUpload with the URL
-      onUpload(result.publicUrl);
+      const result = await Promise.race([uploadPromise, timeoutPromise]);
+      
+      // Validate the result before proceeding
+      if (!result || typeof result !== 'object') {
+        throw new Error('Invalid upload result received');
+      }
+      
+      if (!result.publicUrl || typeof result.publicUrl !== 'string') {
+        throw new Error('Invalid image URL received from upload service');
+      }
+      
+      // Ensure the URL is properly formatted
+      const imageUrl = result.publicUrl.trim();
+      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        throw new Error('Invalid image URL format');
+      }
+      
+      // Call onUpload with the validated URL
+      onUpload(imageUrl);
       
     } catch (error) {
       console.error('Upload error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
+      let errorMessage = 'Failed to upload image';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          errorMessage = 'Upload timed out. Please try again with a smaller image.';
+        } else if (error.message.includes('size')) {
+          errorMessage = 'Image is too large. Please choose a smaller image.';
+        } else if (error.message.includes('type') || error.message.includes('format')) {
+          errorMessage = 'Invalid image format. Please choose a JPEG, PNG, WebP, or GIF image.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       onError(errorMessage);
       // Reset preview on error
       setPreviewUrl(currentImageUrl || null);

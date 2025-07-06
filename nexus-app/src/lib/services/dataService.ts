@@ -2035,9 +2035,14 @@ class DataService {
           Array.from(this.userAmplifications.entries()).map(([userId, set]) => [userId, Array.from(set)])
         ),
       };
-      localStorage.setItem('nexusInteractionState', JSON.stringify(state));
+      
+      // Validate that the state object can be serialized
+      const serializedState = JSON.stringify(state);
+      localStorage.setItem('nexusInteractionState', serializedState);
     } catch (error) {
       console.error('Failed to save interaction state:', error);
+      // Clear potentially corrupted data
+      localStorage.removeItem('nexusInteractionState');
     }
   }
 
@@ -2047,21 +2052,40 @@ class DataService {
     try {
       const raw = localStorage.getItem('nexusInteractionState');
       if (!raw) return;
-      const state = JSON.parse(raw);
-      if (state.userResonances) {
-        this.userResonances.clear();
-        for (const [userId, ids] of Object.entries(state.userResonances)) {
-          this.userResonances.set(userId, new Set(ids as string[]));
+      
+      // Validate JSON format before parsing
+      if (raw.startsWith('{') && raw.endsWith('}')) {
+        const state = JSON.parse(raw);
+        
+        // Validate the parsed state structure
+        if (state && typeof state === 'object') {
+          if (state.userResonances) {
+            this.userResonances.clear();
+            for (const [userId, ids] of Object.entries(state.userResonances)) {
+              if (Array.isArray(ids)) {
+                this.userResonances.set(userId, new Set(ids as string[]));
+              }
+            }
+          }
+          if (state.userAmplifications) {
+            this.userAmplifications.clear();
+            for (const [userId, ids] of Object.entries(state.userAmplifications)) {
+              if (Array.isArray(ids)) {
+                this.userAmplifications.set(userId, new Set(ids as string[]));
+              }
+            }
+          }
+        } else {
+          console.warn('Invalid interaction state structure, clearing data');
+          localStorage.removeItem('nexusInteractionState');
         }
-      }
-      if (state.userAmplifications) {
-        this.userAmplifications.clear();
-        for (const [userId, ids] of Object.entries(state.userAmplifications)) {
-          this.userAmplifications.set(userId, new Set(ids as string[]));
-        }
+      } else {
+        console.warn('Corrupted interaction state in localStorage, clearing data');
+        localStorage.removeItem('nexusInteractionState');
       }
     } catch (error) {
       console.error('Failed to load interaction state:', error);
+      localStorage.removeItem('nexusInteractionState');
     }
   }
 

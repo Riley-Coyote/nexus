@@ -132,20 +132,67 @@ export default function ProfileView({
       return;
     }
 
+    // Validate image URLs
+    const profileImageUrl = editedProfileImage.trim();
+    const bannerImageUrl = editedBannerImage.trim();
+    
+    if (profileImageUrl && !isValidImageUrl(profileImageUrl)) {
+      setValidationError('Profile image URL is not valid. Please upload a new image.');
+      return;
+    }
+    
+    if (bannerImageUrl && !isValidImageUrl(bannerImageUrl)) {
+      setValidationError('Banner image URL is not valid. Please upload a new image.');
+      return;
+    }
+
     try {
-      await onUpdateProfile({ 
-        name, 
-        bio, 
-        location,
-        profileImage: editedProfileImage,
-        bannerImage: editedBannerImage
-      });
+      // Create a clean update object with validated data
+      const updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string } = {
+        name,
+        bio,
+        location
+      };
+      
+      // Only include image URLs if they are valid
+      if (profileImageUrl) {
+        updates.profileImage = profileImageUrl;
+      }
+      if (bannerImageUrl) {
+        updates.bannerImage = bannerImageUrl;
+      }
+      
+      await onUpdateProfile(updates);
       setIsEditing(false);
       setValidationError(null);
     } catch (error: any) {
       console.error('Failed to update profile:', error);
       // If backend returned a message use it, else generic
       setValidationError(error?.message || 'Failed to update profile.');
+    }
+  };
+
+  // Helper function to validate image URLs
+  const isValidImageUrl = (url: string): boolean => {
+    if (!url) return true; // Empty is valid (no image)
+    
+    try {
+      // Check basic URL format
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return false;
+      }
+      
+      // Try to create URL object to validate format
+      new URL(url);
+      
+      // Check if it's not corrupted data like "[object Object]"
+      if (url.includes('[object') || url.includes('undefined') || url.includes('null')) {
+        return false;
+      }
+      
+      return true;
+    } catch {
+      return false;
     }
   };
 

@@ -49,6 +49,8 @@ export default function ResonanceField({
       }
     } catch (error) {
       console.error('Error handling resonance in ResonanceField:', error);
+      // CRITICAL: Re-throw the error so PostDisplay component gets the error signal
+      throw error;
     }
   };
 
@@ -63,6 +65,8 @@ export default function ResonanceField({
       }
     } catch (error) {
       console.error('Error handling amplify in ResonanceField:', error);
+      // CRITICAL: Re-throw the error so PostDisplay component gets the error signal
+      throw error;
     }
   };
 
@@ -71,8 +75,11 @@ export default function ResonanceField({
     try {
       await onBranch(parentId, content);
       // After creating a branch we don't necessarily need to refresh resonance data
+      // SUCCESS: Let the UI know the operation completed successfully
     } catch (error) {
       console.error('Error handling branch in ResonanceField:', error);
+      // CRITICAL: Re-throw the error so PostDisplay component gets the error signal
+      throw error;
     }
   };
 

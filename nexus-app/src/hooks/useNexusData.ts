@@ -491,9 +491,29 @@ export const useNexusData = (): NexusData => {
     return dataService.hasUserAmplified(authState.currentUser.id, entryId);
   }, [authState.currentUser, amplifiedEntries]);
   
-  // Hydration effect - check for existing session after client-side hydration
+  // Hydration effect - check for corrupted storage data
   useEffect(() => {
     setIsLoading(false);
+    
+    // Check for corrupted localStorage data on mount
+    if (typeof window !== 'undefined') {
+      try {
+        // Import authService for storage check
+        import('../lib/services/authService').then(({ authService }) => {
+          if (authService.hasCorruptedStorageData()) {
+            console.warn('Detected corrupted localStorage data, cleaning up...');
+            authService.clearAllStorageData();
+            // Force refresh auth state after cleanup
+            setTimeout(() => {
+              const currentAuthState = authService.getAuthState();
+              setAuthState(currentAuthState);
+            }, 100);
+          }
+        });
+      } catch (error) {
+        console.error('Error checking for corrupted storage data:', error);
+      }
+    }
     
     // Set up auth state listener
     const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {

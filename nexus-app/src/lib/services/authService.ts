@@ -18,8 +18,17 @@ class AuthService {
 
   private initialize() {
     if (this.initialized) return;
-    this.loadUsers();
-    this.checkExistingSession();
+    
+    // Check for corrupted localStorage data and fix it
+    if (this.hasCorruptedStorageData()) {
+      console.warn('Detected corrupted localStorage data, cleaning up...');
+      this.clearAllStorageData();
+    } else {
+      // Load data normally if not corrupted
+      this.loadUsers();
+      this.checkExistingSession();
+    }
+    
     this.initialized = true;
   }
 
@@ -339,6 +348,83 @@ class AuthService {
       }
     }
   }
+
+  // Public method to clear potentially corrupted localStorage data
+  // Can be called by users experiencing storage-related issues
+  clearAllStorageData(): void {
+    if (typeof window !== 'undefined') {
+      try {
+        // Clear all NEXUS-related localStorage entries
+        const keysToRemove = Object.keys(localStorage).filter(key =>
+          key.startsWith('nexus_') || key.startsWith('liminal_') || key === 'nexusInteractionState'
+        );
+        
+        keysToRemove.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+          } catch (error) {
+            console.warn(`Failed to remove localStorage key ${key}:`, error);
+          }
+        });
+        
+        console.log('Cleared NEXUS localStorage data');
+      } catch (error) {
+        console.error('Failed to clear localStorage data:', error);
+      }
+    }
+    
+    // Reset auth state
+    this.authState = {
+      isAuthenticated: false,
+      currentUser: null,
+      sessionToken: null
+    };
+    
+    // Reset users data
+    this.users = {};
+    this.createDemoUsers();
+  }
+
+  // Method to detect if localStorage might have corrupted data
+  hasCorruptedStorageData(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    try {
+      // Check for common signs of corrupted data
+      const userData = localStorage.getItem('nexus_user_data');
+      const usersData = localStorage.getItem('nexus_users');
+      const interactionData = localStorage.getItem('nexusInteractionState');
+      
+      // Check if any data contains "[object Object]" string
+      const corruptedPatterns = ['[object Object]', 'undefined', 'null'];
+      
+      return [userData, usersData, interactionData].some(data => 
+        data && corruptedPatterns.some(pattern => data.includes(pattern))
+      );
+    } catch (error) {
+      console.error('Error checking for corrupted storage data:', error);
+      return true; // Assume corrupted if we can't check
+    }
+  }
 }
 
-export const authService = new AuthService(); 
+// Export the service instance
+export const authService = new AuthService();
+
+// Expose cleanup function globally in development for debugging
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  (window as any).nexusDebug = {
+    clearStorageData: () => authService.clearAllStorageData(),
+    checkForCorruptedData: () => authService.hasCorruptedStorageData(),
+    getStorageContents: () => {
+      if (typeof window === 'undefined') return {};
+      return {
+        nexus_user_data: localStorage.getItem('nexus_user_data'),
+        nexus_users: localStorage.getItem('nexus_users'),
+        nexus_session_token: localStorage.getItem('nexus_session_token'),
+        nexusInteractionState: localStorage.getItem('nexusInteractionState')
+      };
+    }
+  };
+  console.log('🔧 Development Mode: Access debugging via window.nexusDebug');
+} 

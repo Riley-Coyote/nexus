@@ -527,14 +527,43 @@ class SupabaseAuthService {
   }
 
   async signOut(): Promise<void> {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Signout error:', error);
-    } finally {
-      // Always clear local state regardless of API call success
-      this.clearAuthState();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Supabase sign out error:', error);
     }
+    
+    // Clear user data from state
+    this.clearAuthState();
+    
+    // Clear potential localStorage entries that might be stale
+    if (typeof window !== 'undefined') {
+      try {
+        const keysToRemove = Object.keys(localStorage).filter(key =>
+          key.startsWith('nexus_') || key.startsWith('liminal_')
+        );
+        keysToRemove.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+          } catch (error) {
+            console.warn(`Failed to remove localStorage key ${key}:`, error);
+          }
+        });
+      } catch (error) {
+        console.error('Error clearing localStorage on signOut:', error);
+        // Try to clear the most important keys manually
+        try {
+          localStorage.removeItem('nexus_session_token');
+          localStorage.removeItem('nexus_user_data');
+          localStorage.removeItem('nexus_users');
+          localStorage.removeItem('nexusInteractionState');
+        } catch (e) {
+          console.warn('Manual localStorage cleanup also failed:', e);
+        }
+      }
+    }
+    
+    // Notify listeners
+    this.notifyAuthListeners();
   }
 
   async resendVerification(email: string): Promise<AuthResult> {
