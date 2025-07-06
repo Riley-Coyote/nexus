@@ -653,7 +653,7 @@ export const useNexusData = (): NexusData => {
     return unsubscribe;
   }, []);
 
-  // FIXED: Load user interaction states when posts are available
+  // OPTIMIZED: Load user interaction states when posts are available
   // This effect watches for logbookEntries and sharedDreams changes and loads user interaction states
   useEffect(() => {
     const loadUserInteractionStates = async () => {
@@ -667,11 +667,19 @@ export const useNexusData = (): NexusData => {
       // Load all posts (removed testing limit)
       const allPosts = [...logbookEntries, ...sharedDreams];
       const allPostIds = allPosts.map(e => e.id);
+      
+      // OPTIMIZATION: Only load if posts actually changed
+      const currentPostIdsStr = allPostIds.sort().join(',');
+      const prevPostIdsStr = currentPostIds.sort().join(',');
+      
+      if (currentPostIdsStr === prevPostIdsStr && isUserStatesLoaded) {
+        console.log(`⏭️ Skipping user interaction states load - same posts already loaded`);
+        return;
+      }
+      
       setCurrentPostIds(allPostIds);
       
       console.log(`🔄 Loading user interaction states for ${allPostIds.length} posts`);
-      console.log(`🔍 USER ID: ${authState.currentUser.id}`);
-      console.log(`🔍 POST IDS: [${allPostIds.slice(0, 10).join(', ')}${allPostIds.length > 10 ? '...' : ''}]`);
       
       if (allPostIds.length > 0) {
         try {
@@ -682,18 +690,10 @@ export const useNexusData = (): NexusData => {
           
           const interactedCount = Array.from(states.values()).filter(s => s.hasResonated || s.hasAmplified).length;
           
-          console.log(`🔍 FINAL STATES MAP: ${states.size} posts loaded, ${interactedCount} with interactions`);
-          
           setUserInteractionStates(states);
           setIsUserStatesLoaded(true);
           console.log(`✅ User interaction states loaded: ${states.size} total, ${interactedCount} with interactions`);
           
-          // Show summary of interactions found
-          if (interactedCount > 0) {
-            const resonatedCount = Array.from(states.values()).filter(s => s.hasResonated).length;
-            const amplifiedCount = Array.from(states.values()).filter(s => s.hasAmplified).length;
-            console.log(`📊 Interaction summary: ${resonatedCount} resonated, ${amplifiedCount} amplified`);
-          }
         } catch (error) {
           console.error('❌ Failed to load user interaction states:', error);
           setIsUserStatesLoaded(true); // Still allow rendering
@@ -705,7 +705,17 @@ export const useNexusData = (): NexusData => {
     };
 
     loadUserInteractionStates();
-  }, [authState.isAuthenticated, authState.currentUser, logbookEntries, sharedDreams]);
+  }, [
+    authState.isAuthenticated, 
+    authState.currentUser, 
+    // Use lengths instead of full arrays to prevent excessive triggers
+    logbookEntries.length, 
+    sharedDreams.length,
+    // Include first few post IDs to detect actual content changes
+    logbookEntries.slice(0, 3).map(e => e.id).join(','),
+    sharedDreams.slice(0, 3).map(e => e.id).join(','),
+    isUserStatesLoaded
+  ]);
 
   // NEW: Auto-refresh data when user returns to feed
   // This ensures data is always fresh when navigating back to feed

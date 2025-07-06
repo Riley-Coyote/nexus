@@ -28,6 +28,10 @@ class UserInteractionService {
   // Batch loading state management
   private loadingPromises: Map<string, Promise<Map<string, UserInteractionState>>> = new Map();
   
+  // Debouncing to prevent rapid successive calls
+  private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
+  private readonly DEBOUNCE_DELAY = 100; // 100ms debounce delay
+  
   /**
    * Batch load user interaction states for all posts on current page
    * This is the core method that follows the social media playbook
@@ -38,6 +42,13 @@ class UserInteractionService {
     }
 
     const cacheKey = `${userId}:${postIds.sort().join(',')}`;
+    
+    // DEBOUNCING: Clear any existing timer for this cache key
+    if (this.debounceTimers.has(cacheKey)) {
+      clearTimeout(this.debounceTimers.get(cacheKey)!);
+      this.debounceTimers.delete(cacheKey);
+      console.log(`⏰ Debounced duplicate call for ${postIds.length} posts`);
+    }
     
     // Check if we're already loading this batch
     if (this.loadingPromises.has(cacheKey)) {
@@ -52,17 +63,26 @@ class UserInteractionService {
       return cachedStates;
     }
 
-    // Create loading promise
-    const loadingPromise = this.executeBatchLoad(userId, postIds);
-    this.loadingPromises.set(cacheKey, loadingPromise);
+    // DEBOUNCING: Create a promise that will be resolved after the debounce delay
+    return new Promise((resolve) => {
+      const timer = setTimeout(async () => {
+        this.debounceTimers.delete(cacheKey);
+        
+        // Create loading promise
+        const loadingPromise = this.executeBatchLoad(userId, postIds);
+        this.loadingPromises.set(cacheKey, loadingPromise);
 
-    try {
-      const result = await loadingPromise;
-      return result;
-    } finally {
-      // Clean up loading promise
-      this.loadingPromises.delete(cacheKey);
-    }
+        try {
+          const result = await loadingPromise;
+          resolve(result);
+        } finally {
+          // Clean up loading promise
+          this.loadingPromises.delete(cacheKey);
+        }
+      }, this.DEBOUNCE_DELAY);
+      
+      this.debounceTimers.set(cacheKey, timer);
+    });
   }
 
   /**
@@ -70,38 +90,9 @@ class UserInteractionService {
    */
   private async executeBatchLoad(userId: string, postIds: string[]): Promise<Map<string, UserInteractionState>> {
     console.log(`🔄 Batch loading user interaction states for ${postIds.length} posts`);
-    console.log(`🔍 User ID: ${userId}`);
-    console.log(`🔍 Post IDs: [${postIds.slice(0, 10).join(', ')}${postIds.length > 10 ? '...' : ''}]`);
     
     try {
-      // Check if user has ANY resonances/amplifications in the database
-      const [allUserResonances, allUserAmplifications] = await Promise.all([
-        supabase
-          .from('user_resonances')
-          .select('*')
-          .eq('user_id', userId)
-          .limit(10),
-        supabase
-          .from('user_amplifications')
-          .select('*')
-          .eq('user_id', userId)
-          .limit(10)
-      ]);
-      
-      console.log(`🔍 USER'S RESONANCES: ${allUserResonances.data?.length || 0} found`);
-      console.log(`🔍 USER'S AMPLIFICATIONS: ${allUserAmplifications.data?.length || 0} found`);
-      
-      if (allUserResonances.error) {
-        console.error('❌ Error querying user_resonances table:', allUserResonances.error);
-        console.log('🔍 This might mean the table doesn\'t exist or has permission issues');
-      }
-      if (allUserAmplifications.error) {
-        console.error('❌ Error querying user_amplifications table:', allUserAmplifications.error);
-        console.log('🔍 This might mean the table doesn\'t exist or has permission issues');
-      }
-      
-      // Now do the actual queries for our specific posts
-      console.log(`🔄 Querying for specific posts...`);
+      // Query for user's interactions with the specific posts
       const [resonanceData, amplificationData] = await Promise.all([
         supabase
           .from('user_resonances')
@@ -114,9 +105,6 @@ class UserInteractionService {
           .eq('user_id', userId)
           .in('entry_id', postIds)
       ]);
-
-      console.log(`🔍 RESONANCE MATCHES: ${resonanceData.data?.length || 0} found`);
-      console.log(`🔍 AMPLIFICATION MATCHES: ${amplificationData.data?.length || 0} found`);
 
       if (resonanceData.error) {
         console.error('❌ Error loading user resonances for posts:', resonanceData.error);
@@ -133,10 +121,6 @@ class UserInteractionService {
         amplificationData.data?.map(item => String(item.entry_id)) || []
       );
 
-      console.log(`🔍 PROCESSED RESONATED IDS: [${Array.from(resonatedPostIds).join(', ')}]`);
-      console.log(`🔍 PROCESSED AMPLIFIED IDS: [${Array.from(amplifiedPostIds).join(', ')}]`);
-      console.log(`✅ Found ${resonatedPostIds.size} resonated, ${amplifiedPostIds.size} amplified posts`);
-
       // Process results into efficient Map structure
       const statesMap = new Map<string, UserInteractionState>();
       
@@ -150,9 +134,7 @@ class UserInteractionService {
         };
         statesMap.set(postId, state);
         
-        // Only log interactions found
         if (state.hasResonated || state.hasAmplified) {
-          console.log(`✨ Post ${postId} - resonated: ${state.hasResonated}, amplified: ${state.hasAmplified}`);
           interactedCount++;
         }
       });
@@ -165,7 +147,6 @@ class UserInteractionService {
       
     } catch (error) {
       console.error('❌ Failed to batch load user interaction states:', error);
-      console.log('🔍 Error details:', error);
       return new Map();
     }
   }
@@ -270,6 +251,16 @@ class UserInteractionService {
    * Clear cache for a specific user (on logout)
    */
   clearUserCache(userId: string): void {
+    // Clear debounce timers for this user
+    const keysToDelete: string[] = [];
+    this.debounceTimers.forEach((timer, key) => {
+      if (key.startsWith(`${userId}:`)) {
+        clearTimeout(timer);
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => this.debounceTimers.delete(key));
+    
     this.userStatesCache.delete(userId);
     this.cacheTimestamps.delete(userId);
     console.log(`🧹 Cleared interaction cache for user ${userId}`);
@@ -279,6 +270,10 @@ class UserInteractionService {
    * Clear all caches (for debugging)
    */
   clearAllCaches(): void {
+    // Clear debounce timers
+    this.debounceTimers.forEach(timer => clearTimeout(timer));
+    this.debounceTimers.clear();
+    
     this.userStatesCache.clear();
     this.cacheTimestamps.clear();
     this.loadingPromises.clear();
