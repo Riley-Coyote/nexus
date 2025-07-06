@@ -259,6 +259,9 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.currentUser]);
   
+  // Store all dreams (unfiltered) for proper filtering
+  const [allDreams, setAllDreams] = useState<StreamEntry[]>([]);
+  
   // Load dream data
   const loadDreamData = useCallback(async () => {
     setIsLoadingDreams(true);
@@ -272,17 +275,27 @@ export const useNexusData = (): NexusData => {
       
       setDreamStateMetrics(metrics);
       setActiveDreamers(dreamers);
-      // Filter dreams by current user
-      const userId = authState.currentUser?.id;
-      const filteredDreams = userId ? dreams.filter(entry => entry.userId === userId) : [];
-      setSharedDreams(filteredDreams);
+      // Store all dreams for filtering
+      setAllDreams(dreams);
       setDreamAnalytics(analytics);
     } catch (error) {
       console.error('Failed to load dream data:', error);
     } finally {
       setIsLoadingDreams(false);
     }
-  }, [authState.currentUser]);
+  }, []);
+  
+  // Filter dreams whenever auth state or all dreams change
+  useEffect(() => {
+    const userId = authState.currentUser?.id;
+    if (userId && allDreams.length > 0) {
+      const filteredDreams = allDreams.filter(entry => entry.userId === userId);
+      setSharedDreams(filteredDreams);
+    } else if (!userId) {
+      // If no user is logged in, show empty array
+      setSharedDreams([]);
+    }
+  }, [authState.currentUser, allDreams]);
   
   // Refresh all data
   const refreshData = useCallback(async () => {
