@@ -515,8 +515,15 @@ class SupabaseAuthService {
 
   async resetPassword(email: string): Promise<AuthResult> {
     try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const redirectUrl = `${siteUrl}/auth/reset-password?type=recovery`;
+      
+      // Temporary debug logging
+      console.log('🔍 NEXT_PUBLIC_SITE_URL:', siteUrl);
+      console.log('🔍 Full redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?type=recovery`
+        redirectTo: redirectUrl
       });
 
       if (error) {
