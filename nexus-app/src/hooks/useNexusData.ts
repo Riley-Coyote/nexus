@@ -201,9 +201,6 @@ export const useNexusData = (): NexusData => {
       const entriesData = entries.map(convertToStreamEntryData);
       setResonatedEntries(entriesData);
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Resonated entries loaded successfully:', entriesData.length);
-      }
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         console.error('❌ Error loading resonated entries:', error);
@@ -227,9 +224,6 @@ export const useNexusData = (): NexusData => {
       const entriesData = entries.map(convertToStreamEntryData);
       setAmplifiedEntries(entriesData);
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Amplified entries loaded successfully:', entriesData.length);
-      }
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         console.error('❌ Error loading amplified entries:', error);
@@ -409,12 +403,10 @@ export const useNexusData = (): NexusData => {
   // Resonate with entry - OPTIMIZED and SIMPLIFIED
   const resonateWithEntry = useCallback(async (entryId: string) => {
     try {
-      console.log(`🔄 Processing resonance for entry: ${entryId}`);
       
       // Call dataService and get the result (true = resonated, false = unresonated)
       const isNowResonated = await dataService.resonateWithEntry(entryId);
       
-      console.log(`${isNowResonated ? '✅ Resonated with' : '❌ Unresonated from'} entry: ${entryId}`);
       
       // Only refresh resonated entries - single refresh call
       await refreshResonatedEntries();
@@ -422,7 +414,6 @@ export const useNexusData = (): NexusData => {
       // Update auth state to reflect new stats
       setAuthState(authService.getAuthState());
       
-      console.log(`✅ Resonance operation complete`);
     } catch (error) {
       console.error('❌ Failed to resonate with entry:', error);
       throw error;
@@ -520,7 +511,7 @@ export const useNexusData = (): NexusData => {
       
       if (newAuthState.isAuthenticated && newAuthState.currentUser) {
         if (process.env.NODE_ENV !== 'production') {
-          console.log('🔑 User authenticated:', newAuthState.currentUser);
+          
         }
         // Load real data after authentication
         refreshData();

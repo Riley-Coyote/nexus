@@ -50,7 +50,6 @@ export default function ResonanceFieldPage() {
       } else if (action === 'Amplify ≋' || action === 'amplify') {
         await nexusData.amplifyEntry(postId);
       }
-      console.log(`${action} interaction on post ${postId}`);
     } catch (error) {
       console.error('Failed to perform action:', error);
     }
@@ -59,7 +58,7 @@ export default function ResonanceFieldPage() {
   const handleShare = (postId: string) => {
     // The share functionality is now handled natively in the PostDisplay component
     // We just need to provide this callback for compatibility
-    console.log(`Share interaction on post ${postId}`);
+    
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {

@@ -124,7 +124,7 @@ export default function PostDisplay({
         resonances: wasResonated ? Math.max(0, prev.resonances - 1) : prev.resonances + 1
       }));
     } catch (error) {
-      console.error('Error handling resonance:', error);
+      
     } finally {
       setIsInteracting(false);
     }
@@ -144,7 +144,7 @@ export default function PostDisplay({
         amplifications: wasAmplified ? Math.max(0, prev.amplifications - 1) : prev.amplifications + 1
       }));
     } catch (error) {
-      console.error('Error handling amplification:', error);
+      
     } finally {
       setIsInteracting(false);
     }
@@ -176,7 +176,7 @@ export default function PostDisplay({
         }));
       }
     } catch (error) {
-      console.error('Error sharing post:', error);
+      
     }
   };
 
@@ -196,8 +196,6 @@ export default function PostDisplay({
     // The parent component will manage this and pass down the `isSubmittingBranch` prop.
     // The parent is also responsible for timeouts.
     
-    console.log('[PostDisplay] Handing off branch creation to parent...', { postId: post.id });
-    
     try {
       // The onBranch promise is now expected to handle the full flow,
       // including refresh and state management in the parent component.
@@ -211,7 +209,7 @@ export default function PostDisplay({
     } catch (error) {
       // If the parent handler throws an error, we can display it locally.
       const errorMessage = error instanceof Error ? error.message : 'Failed to create branch. Please try again.';
-      console.error('[PostDisplay] Branch creation failed:', errorMessage);
+      
       setBranchError(errorMessage);
     }
   };
