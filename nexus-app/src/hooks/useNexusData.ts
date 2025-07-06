@@ -328,29 +328,59 @@ export const useNexusData = (): NexusData => {
   // Create branch
   const createBranch = useCallback(async (parentId: string, content: string) => {
     try {
+      // Step 1: Create the branch (critical operation)
       await dataService.createBranch(parentId, content);
       
-      // Determine if parent is logbook or dream entry to refresh correctly
-      const parentEntry = await dataService.getEntryById(parentId);
-      if (parentEntry) {
-        const isDreamEntry = parentEntry.type.toLowerCase().includes('dream') || 
-                             parentEntry.resonance !== undefined;
-        
-        if (isDreamEntry) {
-          await refreshDreamData();
-        } else {
-          await refreshLogbookData();
+      // Step 2: Non-blocking refresh operations (don't let these block the UI)
+      // Run these in background without awaiting to prevent UI blocking
+      setTimeout(async () => {
+        try {
+          // Add timeout wrapper for refresh operations
+          const refreshWithTimeout = async (operation: () => Promise<void>, timeoutMs: number = 10000) => {
+            return Promise.race([
+              operation(),
+              new Promise<void>((_, reject) => {
+                setTimeout(() => reject(new Error('Refresh operation timed out')), timeoutMs);
+              })
+            ]);
+          };
+          
+          // Determine if parent is logbook or dream entry to refresh correctly
+          const parentEntry = await Promise.race([
+            dataService.getEntryById(parentId),
+            new Promise<any>((_, reject) => {
+              setTimeout(() => reject(new Error('getEntryById timed out')), 5000);
+            })
+          ]);
+          
+          if (parentEntry) {
+            const isDreamEntry = parentEntry.type.toLowerCase().includes('dream') || 
+                                 parentEntry.resonance !== undefined;
+            
+            if (isDreamEntry) {
+              await refreshWithTimeout(refreshDreamData, 10000);
+            } else {
+              await refreshWithTimeout(refreshLogbookData, 10000);
+            }
+          } else {
+            // Fallback: refresh both if we can't determine
+            await refreshWithTimeout(refreshData, 15000);
+          }
+          
+          // Update auth state to reflect new stats
+          setAuthState(authService.getAuthState());
+        } catch (refreshError) {
+          console.warn('Background refresh after branch creation failed (non-critical):', refreshError);
+          // Don't throw - this is a background operation
         }
-      } else {
-        // Fallback: refresh both if we can't determine
-        await refreshData();
-      }
+      }, 100); // Run refresh operations 100ms later in background
       
-      // Update auth state to reflect new stats
-      setAuthState(authService.getAuthState());
+      // Return immediately after branch creation succeeds
+      // UI will update via the background refresh
+      
     } catch (error) {
       console.error('Failed to create branch:', error);
-      throw error;
+      throw error; // This will be caught by the UI error handling
     }
   }, [refreshData, refreshLogbookData, refreshDreamData]);
   

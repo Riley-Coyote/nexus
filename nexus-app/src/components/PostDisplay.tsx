@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Post } from '@/lib/types';
 import { shareContent, createPostShareData } from '@/lib/utils/shareUtils';
+import UserAvatar from './UserAvatar';
 
 export interface PostDisplayProps {
   post: Post;
@@ -54,7 +55,24 @@ export default function PostDisplay({
   const [isMobileCollapsed, setIsMobileCollapsed] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
   
+  // Enhanced branch state management
+  const [isSubmittingBranch, setIsSubmittingBranch] = useState(false);
+  const [branchError, setBranchError] = useState<string | null>(null);
+  const [branchSuccess, setBranchSuccess] = useState(false);
+  
   const interactionContainerRef = useRef<HTMLDivElement>(null);
+  const branchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (branchTimeoutRef.current) {
+        clearTimeout(branchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Derive display properties from context and post
   const isDream = context === 'dream' || post.resonance !== undefined;
@@ -170,22 +188,90 @@ export default function PostDisplay({
   };
 
   const submitBranch = async () => {
-    if (!onBranch || !branchContent.trim() || isInteracting) return;
+    // Prevent multiple simultaneous submissions
+    if (!onBranch || !branchContent.trim() || isInteracting || isSubmittingBranch) return;
     
     setIsInteracting(true);
+    setIsSubmittingBranch(true);
+    setBranchError(null);
+    setBranchSuccess(false);
+    
     try {
-      await onBranch(post.id, branchContent);
-      setBranchContent('');
-      setShowBranchComposer(false);
-      setLocalInteractions(prev => ({
-        ...prev,
-        branches: prev.branches + 1
-      }));
+      // Add timeout wrapper to prevent stuck states
+      const timeoutPromise = new Promise((_, reject) => {
+        branchTimeoutRef.current = setTimeout(() => {
+          reject(new Error('Branch creation timed out. Please try again.'));
+        }, 30000); // 30 second timeout
+      });
+      
+      const branchPromise = onBranch(post.id, branchContent);
+      
+      // Race between the actual operation and timeout
+      await Promise.race([branchPromise, timeoutPromise]);
+      
+      // Clear timeout if we got here successfully
+      if (branchTimeoutRef.current) {
+        clearTimeout(branchTimeoutRef.current);
+        branchTimeoutRef.current = null;
+      }
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setBranchContent('');
+        setShowBranchComposer(false);
+        setLocalInteractions(prev => ({
+          ...prev,
+          branches: prev.branches + 1
+        }));
+        setBranchSuccess(true);
+        
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setBranchSuccess(false);
+          }
+        }, 3000);
+      }
     } catch (error) {
       console.error('Error creating branch:', error);
+      
+      // Clear timeout on error
+      if (branchTimeoutRef.current) {
+        clearTimeout(branchTimeoutRef.current);
+        branchTimeoutRef.current = null;
+      }
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'An error occurred while creating the branch. Please try again.';
+        setBranchError(errorMessage);
+      }
     } finally {
-      setIsInteracting(false);
+      // Always reset states if component is still mounted
+      if (isMountedRef.current) {
+        setIsInteracting(false);
+        setIsSubmittingBranch(false);
+      }
     }
+  };
+
+  // Clear error when user starts typing
+  const handleBranchContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setBranchContent(e.target.value);
+    if (branchError) {
+      setBranchError(null);
+    }
+    if (branchSuccess) {
+      setBranchSuccess(false);
+    }
+  };
+
+  // Retry branch submission
+  const retryBranch = () => {
+    setBranchError(null);
+    submitBranch();
   };
 
   // Click handlers
@@ -464,26 +550,75 @@ export default function PostDisplay({
           <div className="flex items-center gap-3 mb-4">
             <span className="text-xs text-text-quaternary">Branching from this post</span>
             <button 
-              onClick={() => setShowBranchComposer(false)}
+              onClick={() => {
+                setShowBranchComposer(false);
+                setBranchError(null);
+                setBranchSuccess(false);
+                setBranchContent('');
+              }}
               className="ml-auto text-text-quaternary hover:text-text-primary"
+              disabled={isSubmittingBranch}
             >
               ✕
             </button>
           </div>
+          
           <textarea
             value={branchContent}
-            onChange={(e) => setBranchContent(e.target.value)}
+            onChange={handleBranchContentChange}
             placeholder="Add your interpretation, insight, or branching thought..."
-            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-text-primary placeholder-text-quaternary resize-none min-h-[100px] focus:outline-none focus:border-current-accent/50"
-            disabled={isInteracting}
+            className={`w-full p-3 bg-white/5 border rounded-lg text-text-primary placeholder-text-quaternary resize-none min-h-[100px] focus:outline-none transition-colors ${
+              branchError 
+                ? 'border-red-500/50 focus:border-red-500/70' 
+                : 'border-white/10 focus:border-current-accent/50'
+            }`}
+            disabled={isInteracting || isSubmittingBranch}
           />
-          <button 
-            onClick={submitBranch}
-            disabled={!branchContent.trim() || isInteracting}
-            className="mt-3 px-4 py-2 bg-current-accent/20 text-current-accent rounded-lg hover:bg-current-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isInteracting ? 'Creating...' : 'Commit Branch'}
-          </button>
+          
+          {/* Error Message */}
+          {branchError && (
+            <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-red-400 text-sm">{branchError}</span>
+                <button
+                  onClick={retryBranch}
+                  className="ml-auto text-xs text-red-400 hover:text-red-300 underline"
+                  disabled={isSubmittingBranch}
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Success Message */}
+          {branchSuccess && (
+            <div className="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <span className="text-green-400 text-sm">✓ Branch created successfully!</span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-3 mt-3">
+            <button 
+              onClick={submitBranch}
+              disabled={!branchContent.trim() || isInteracting || isSubmittingBranch}
+              className="px-4 py-2 bg-current-accent/20 text-current-accent rounded-lg hover:bg-current-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isSubmittingBranch ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current-accent/30 border-t-current-accent rounded-full animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                'Commit Branch'
+              )}
+            </button>
+            
+            {/* Character count */}
+            <span className="text-xs text-text-quaternary">
+              {branchContent.length}/1000
+            </span>
+          </div>
         </div>
       )}
     </div>

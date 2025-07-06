@@ -26,11 +26,29 @@ class AuthService {
   private loadUsers() {
     // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
-      const savedUsers = localStorage.getItem('nexus_users');
-      this.users = savedUsers ? JSON.parse(savedUsers) : {};
-      
-      // Create default demo users if none exist
-      if (Object.keys(this.users).length === 0) {
+      try {
+        const savedUsers = localStorage.getItem('nexus_users');
+        if (savedUsers) {
+          // Validate JSON format before parsing
+          if (savedUsers.startsWith('{') && savedUsers.endsWith('}')) {
+            this.users = JSON.parse(savedUsers);
+          } else {
+            console.warn('Corrupted users data in localStorage, resetting');
+            this.users = {};
+            localStorage.removeItem('nexus_users');
+          }
+        } else {
+          this.users = {};
+        }
+        
+        // Create default demo users if none exist
+        if (Object.keys(this.users).length === 0) {
+          this.createDemoUsers();
+        }
+      } catch (error) {
+        console.error('Failed to load users from localStorage:', error);
+        this.users = {};
+        localStorage.removeItem('nexus_users');
         this.createDemoUsers();
       }
     }
@@ -85,22 +103,62 @@ class AuthService {
   private saveUsers() {
     // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
-      localStorage.setItem('nexus_users', JSON.stringify(this.users));
+      try {
+        const serializedUsers = JSON.stringify(this.users);
+        localStorage.setItem('nexus_users', serializedUsers);
+      } catch (error) {
+        console.error('Failed to save users to localStorage:', error);
+        // Clear corrupted data to prevent further issues
+        localStorage.removeItem('nexus_users');
+      }
     }
   }
 
   private checkExistingSession() {
     // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
-      const savedToken = localStorage.getItem('nexus_session_token');
-      const savedUser = localStorage.getItem('nexus_user_data');
-      
-      if (savedToken && savedUser) {
-        this.authState.sessionToken = savedToken;
-        this.authState.currentUser = JSON.parse(savedUser);
-        this.authState.isAuthenticated = true;
+      try {
+        const savedToken = localStorage.getItem('nexus_session_token');
+        const savedUserData = localStorage.getItem('nexus_user_data');
+        
+        if (savedToken && savedUserData) {
+          // Validate that savedUserData is valid JSON before parsing
+          if (savedUserData.startsWith('{') && savedUserData.endsWith('}')) {
+            const parsedUser = JSON.parse(savedUserData);
+            // Validate the parsed user object has required properties
+            if (parsedUser && typeof parsedUser === 'object' && parsedUser.id && parsedUser.username) {
+              this.authState.sessionToken = savedToken;
+              this.authState.currentUser = parsedUser;
+              this.authState.isAuthenticated = true;
+            } else {
+              console.warn('Invalid user data structure in localStorage, clearing session');
+              this.clearCorruptedSession();
+            }
+          } else {
+            console.warn('Corrupted user data in localStorage (not valid JSON format), clearing session');
+            this.clearCorruptedSession();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse saved user data:', error);
+        this.clearCorruptedSession();
       }
     }
+  }
+
+  private clearCorruptedSession() {
+    // Clear all potentially corrupted auth data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nexus_session_token');
+      localStorage.removeItem('nexus_user_data');
+    }
+    
+    // Reset auth state
+    this.authState = {
+      isAuthenticated: false,
+      currentUser: null,
+      sessionToken: null
+    };
   }
 
   private generateToken(): string {
@@ -141,8 +199,35 @@ class AuthService {
 
     // Save to localStorage (client-side only)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('nexus_session_token', this.authState.sessionToken);
-      localStorage.setItem('nexus_user_data', JSON.stringify(this.authState.currentUser));
+      try {
+        // Ensure the user object is serializable
+        const userToStore = {
+          id: this.authState.currentUser.id,
+          username: this.authState.currentUser.username,
+          name: this.authState.currentUser.name,
+          email: this.authState.currentUser.email,
+          userType: this.authState.currentUser.userType,
+          role: this.authState.currentUser.role,
+          avatar: this.authState.currentUser.avatar,
+          profileImage: this.authState.currentUser.profileImage,
+          bannerImage: this.authState.currentUser.bannerImage,
+          bio: this.authState.currentUser.bio,
+          location: this.authState.currentUser.location,
+          stats: this.authState.currentUser.stats,
+          followerCount: this.authState.currentUser.followerCount,
+          followingCount: this.authState.currentUser.followingCount,
+          createdAt: this.authState.currentUser.createdAt
+        };
+        
+        localStorage.setItem('nexus_session_token', this.authState.sessionToken);
+        localStorage.setItem('nexus_user_data', JSON.stringify(userToStore));
+      } catch (error) {
+        console.error('Failed to save user session to localStorage:', error);
+        // Clear potentially corrupted data
+        localStorage.removeItem('nexus_session_token');
+        localStorage.removeItem('nexus_user_data');
+        throw new Error('Failed to save user session');
+      }
     }
 
     return { success: true };
@@ -227,7 +312,31 @@ class AuthService {
 
     // Update localStorage (client-side only)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('nexus_user_data', JSON.stringify(this.authState.currentUser));
+      try {
+        // Ensure the user object is serializable
+        const userToStore = {
+          id: this.authState.currentUser.id,
+          username: this.authState.currentUser.username,
+          name: this.authState.currentUser.name,
+          email: this.authState.currentUser.email,
+          userType: this.authState.currentUser.userType,
+          role: this.authState.currentUser.role,
+          avatar: this.authState.currentUser.avatar,
+          profileImage: this.authState.currentUser.profileImage,
+          bannerImage: this.authState.currentUser.bannerImage,
+          bio: this.authState.currentUser.bio,
+          location: this.authState.currentUser.location,
+          stats: this.authState.currentUser.stats,
+          followerCount: this.authState.currentUser.followerCount,
+          followingCount: this.authState.currentUser.followingCount,
+          createdAt: this.authState.currentUser.createdAt
+        };
+        
+        localStorage.setItem('nexus_user_data', JSON.stringify(userToStore));
+      } catch (error) {
+        console.error('Failed to save updated user stats to localStorage:', error);
+        // Don't throw here as stats update is not critical for app functionality
+      }
     }
   }
 }

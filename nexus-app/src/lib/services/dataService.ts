@@ -1211,15 +1211,35 @@ class DataService {
   async createBranch(parentId: string, childContent: string): Promise<StreamEntry> {
     await this.initializeData();
     
+    // Input validation
+    if (!parentId?.trim()) {
+      throw new Error('Parent post ID is required to create a branch');
+    }
+    
+    if (!childContent?.trim()) {
+      throw new Error('Branch content cannot be empty');
+    }
+    
+    if (childContent.trim().length > 1000) {
+      throw new Error('Branch content must be 1000 characters or less');
+    }
+    
     const currentUser = authService.getCurrentUser();
     if (!currentUser) {
-      throw new Error('User must be authenticated to create branches');
+      throw new Error('You must be signed in to create branches');
     }
     
     // Create the child entry first
-    const parentEntry = await this.getEntryById(parentId);
+    let parentEntry: StreamEntry | null;
+    try {
+      parentEntry = await this.getEntryById(parentId);
+    } catch (error) {
+      console.error('❌ Error fetching parent entry:', error);
+      throw new Error('Unable to access the parent post. Please try again.');
+    }
+    
     if (!parentEntry) {
-      throw new Error('Parent entry not found');
+      throw new Error('The parent post could not be found. It may have been deleted.');
     }
     
     const branchEntry: Omit<StreamEntry, 'id'> = {
@@ -1232,7 +1252,7 @@ class DataService {
       connections: 0,
       metrics: { c: 0.7, r: 0.7, x: 0.7 },
       timestamp: formatTimestamp(),
-      content: childContent,
+      content: childContent.trim(),
       actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
       privacy: parentEntry.privacy,
       entryType: (parentEntry.entryType as JournalMode) ?? (
@@ -1282,23 +1302,135 @@ class DataService {
       return newBranch;
     }
     
-    try {
-      // Create the branch entry in database
-      const newBranch = await this.database.createEntry(branchEntry);
-      
-      // Create the branch relationship
-      await this.database.createBranch(parentId, newBranch.id);
-      
-      // Clear cache to force refresh
-      this.lastCacheUpdate = 0;
-      this.interactionCountsCache.delete(parentId);
-      
-      authService.updateUserStats('entries');
-      return newBranch;
-    } catch (error) {
-      console.error('❌ Database error during branch creation:', error);
-      throw new Error(`Failed to create branch: ${error}`);
+    // Database implementation with enhanced error handling
+    let newBranch: StreamEntry;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // Create the branch entry in database
+        newBranch = await this.database.createEntry(branchEntry);
+        
+        // Create the branch relationship
+        await this.database.createBranch(parentId, newBranch.id);
+        
+        // Clear cache to force refresh
+        this.lastCacheUpdate = 0;
+        this.interactionCountsCache.delete(parentId);
+        
+        authService.updateUserStats('entries');
+        return newBranch;
+        
+      } catch (error: any) {
+        console.error(`❌ Database error during branch creation (attempt ${retryCount + 1}):`, error);
+        
+        // Classify errors and provide appropriate messages
+        const errorMessage = this.classifyBranchError(error, retryCount, maxRetries);
+        
+        // Don't retry on certain types of errors
+        if (this.shouldNotRetryBranchError(error)) {
+          throw new Error(errorMessage);
+        }
+        
+        retryCount++;
+        
+        // If we've reached max retries, throw the error
+        if (retryCount > maxRetries) {
+          throw new Error(errorMessage);
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
     }
+    
+    // This should never be reached, but TypeScript requires it
+    throw new Error('Unexpected error creating branch');
+  }
+
+  private classifyBranchError(error: any, retryCount: number, maxRetries: number): string {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    
+    // Network/connection errors
+    if (errorMessage.includes('fetch') || 
+        errorMessage.includes('network') || 
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('timeout')) {
+      if (retryCount >= maxRetries) {
+        return 'Network connection failed. Please check your internet connection and try again.';
+      }
+      return 'Network connection issue. Retrying...';
+    }
+    
+    // Authentication errors
+    if (errorMessage.includes('auth') || 
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('permission')) {
+      return 'Authentication failed. Please sign in again and try creating the branch.';
+    }
+    
+    // Database constraint errors
+    if (errorMessage.includes('duplicate') || 
+        errorMessage.includes('constraint') ||
+        errorMessage.includes('unique')) {
+      return 'This branch already exists. Please refresh the page and try again.';
+    }
+    
+    // Rate limiting
+    if (errorMessage.includes('rate limit') || 
+        errorMessage.includes('too many requests')) {
+      return 'You\'re creating branches too quickly. Please wait a moment and try again.';
+    }
+    
+    // Content validation errors
+    if (errorMessage.includes('content') || 
+        errorMessage.includes('validation')) {
+      return 'Invalid branch content. Please check your text and try again.';
+    }
+    
+    // Server errors
+    if (errorMessage.includes('500') || 
+        errorMessage.includes('internal server') ||
+        errorMessage.includes('database')) {
+      if (retryCount >= maxRetries) {
+        return 'Server is experiencing issues. Please try again in a few minutes.';
+      }
+      return 'Server issue detected. Retrying...';
+    }
+    
+    // Generic fallback
+    if (retryCount >= maxRetries) {
+      return 'Failed to create branch. Please try again later.';
+    }
+    
+    return 'Creating branch failed. Retrying...';
+  }
+
+  private shouldNotRetryBranchError(error: any): boolean {
+    const errorMessage = error?.message || error?.toString() || '';
+    
+    // Don't retry on authentication errors
+    if (errorMessage.includes('auth') || 
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('permission')) {
+      return true;
+    }
+    
+    // Don't retry on validation errors
+    if (errorMessage.includes('validation') || 
+        errorMessage.includes('invalid') ||
+        errorMessage.includes('content')) {
+      return true;
+    }
+    
+    // Don't retry on duplicate/constraint errors
+    if (errorMessage.includes('duplicate') || 
+        errorMessage.includes('constraint')) {
+      return true;
+    }
+    
+    return false;
   }
 
   // ========== USER INTERACTION STATE METHODS ==========
