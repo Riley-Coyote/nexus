@@ -7,6 +7,7 @@ import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/p
 // @ts-ignore
 import FollowsModal from './FollowsModal';
 import NotificationBanner from './NotificationBanner';
+import ImageUpload from './ImageUpload';
 
 interface ProfileViewProps {
   user: User;
@@ -79,6 +80,7 @@ export default function ProfileView({
 
   // Validation error state
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showProfileImageUpload, setShowProfileImageUpload] = useState(false);
 
   // Character limits similar to X (Twitter)
   const NAME_MAX_LENGTH = 50;
@@ -111,8 +113,6 @@ export default function ProfileView({
     const name = editedName.trim();
     const bio = editedBio.trim();
     const location = editedLocation.trim();
-    const profileImage = editedProfileImage.trim();
-    const bannerImage = editedBannerImage.trim();
 
     // Basic validations
     if (name.length === 0) {
@@ -132,33 +132,13 @@ export default function ProfileView({
       return;
     }
 
-    // URL validation for images
-    const isValidUrl = (url: string) => {
-      if (!url) return true; // Empty URLs are valid (will use defaults)
-      try {
-        new URL(url);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    if (!isValidUrl(profileImage)) {
-      setValidationError('Profile image must be a valid URL.');
-      return;
-    }
-    if (!isValidUrl(bannerImage)) {
-      setValidationError('Banner image must be a valid URL.');
-      return;
-    }
-
     try {
       await onUpdateProfile({ 
         name, 
         bio, 
         location,
-        profileImage: profileImage || undefined,
-        bannerImage: bannerImage || undefined
+        profileImage: editedProfileImage,
+        bannerImage: editedBannerImage
       });
       setIsEditing(false);
       setValidationError(null);
@@ -177,6 +157,7 @@ export default function ProfileView({
     setEditedBannerImage(user.bannerImage || '');
     setIsEditing(false);
     setValidationError(null);
+    setShowProfileImageUpload(false);
   };
 
   useEffect(() => {
@@ -335,15 +316,18 @@ export default function ProfileView({
             
             {/* Banner Edit Overlay */}
             {isEditing && isOwnProfile && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-white text-sm mb-2">Banner Image URL</div>
-                  <input
-                    type="url"
-                    value={editedBannerImage}
-                    onChange={(e) => setEditedBannerImage(e.target.value)}
-                    placeholder="Enter banner image URL"
-                    className="w-64 px-3 py-2 bg-black/70 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:border-emerald-400"
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-2xl w-full shadow-2xl">
+                  <div className="text-center mb-4">
+                    <h4 className="text-lg font-semibold text-gray-100">Update Banner Image</h4>
+                    <p className="text-sm text-gray-400 mt-1">Upload a new banner photo</p>
+                  </div>
+                  <ImageUpload
+                    currentImageUrl={editedBannerImage}
+                    onUpload={(url) => setEditedBannerImage(url)}
+                    onError={(error) => setValidationError(error)}
+                    type="banner"
+                    userId={user.id}
                   />
                 </div>
               </div>
@@ -361,14 +345,11 @@ export default function ProfileView({
               {isEditing && isOwnProfile && (
                 <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
                   <button
-                    onClick={() => {
-                      const url = prompt('Enter profile image URL:', editedProfileImage);
-                      if (url !== null) setEditedProfileImage(url);
-                    }}
+                    onClick={() => setShowProfileImageUpload(true)}
                     className="text-white text-xs hover:text-emerald-400 transition-colors"
                     title="Edit profile image"
                   >
-                    ✏️
+                    📷
                   </button>
                 </div>
               )}
@@ -495,6 +476,39 @@ export default function ProfileView({
           onUserClick={onUserClick}
         />
       </div>
+
+      {/* Profile Image Upload Modal */}
+      {showProfileImageUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-md border border-white/20 rounded-3xl p-8 max-w-lg w-full shadow-2xl shadow-black/50">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-100">Update Profile Image</h3>
+                <p className="text-sm text-gray-400 mt-1">Upload a new profile photo</p>
+              </div>
+              <button
+                onClick={() => setShowProfileImageUpload(false)}
+                className="p-2 text-gray-400 hover:text-gray-300 rounded-xl hover:bg-white/10 transition-all duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <ImageUpload
+              currentImageUrl={editedProfileImage}
+              onUpload={(url) => {
+                setEditedProfileImage(url);
+                setShowProfileImageUpload(false);
+              }}
+              onError={(error) => setValidationError(error)}
+              type="profile"
+              userId={user.id}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
