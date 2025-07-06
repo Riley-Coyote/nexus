@@ -136,7 +136,7 @@ export class SupabaseProvider implements DatabaseProvider {
       .from('stream_entries')
       .select(`
         *,
-        interaction_counts(
+        entry_interaction_counts(
           resonance_count,
           amplification_count, 
           branch_count,
@@ -167,12 +167,12 @@ export class SupabaseProvider implements DatabaseProvider {
       const entry = this.supabaseToStreamEntry(row);
       
       // Merge interaction counts from JOIN (if available)
-      if (row.interaction_counts) {
+      if (row.entry_interaction_counts) {
         entry.interactions = {
-          resonances: row.interaction_counts.resonance_count || 0,
-          branches: row.interaction_counts.branch_count || 0,
-          amplifications: row.interaction_counts.amplification_count || 0,
-          shares: row.interaction_counts.share_count || 0
+          resonances: row.entry_interaction_counts.resonance_count || 0,
+          branches: row.entry_interaction_counts.branch_count || 0,
+          amplifications: row.entry_interaction_counts.amplification_count || 0,
+          shares: row.entry_interaction_counts.share_count || 0
         };
       }
       
@@ -243,7 +243,7 @@ export class SupabaseProvider implements DatabaseProvider {
       .from('stream_entries')
       .select(`
         *,
-        interaction_counts(
+        entry_interaction_counts(
           resonance_count,
           amplification_count,
           branch_count,
@@ -266,12 +266,12 @@ export class SupabaseProvider implements DatabaseProvider {
     const entry = this.supabaseToStreamEntry(data);
     
     // Merge interaction counts from JOIN (if available)
-    if (data.interaction_counts) {
+    if (data.entry_interaction_counts) {
       entry.interactions = {
-        resonances: data.interaction_counts.resonance_count || 0,
-        branches: data.interaction_counts.branch_count || 0,
-        amplifications: data.interaction_counts.amplification_count || 0,
-        shares: data.interaction_counts.share_count || 0
+        resonances: data.entry_interaction_counts.resonance_count || 0,
+        branches: data.entry_interaction_counts.branch_count || 0,
+        amplifications: data.entry_interaction_counts.amplification_count || 0,
+        shares: data.entry_interaction_counts.share_count || 0
       };
     }
 
@@ -459,9 +459,16 @@ export class SupabaseProvider implements DatabaseProvider {
   async getInteractionCounts(entryIds: string[]): Promise<Map<string, InteractionCounts>> {
     const countsMap = new Map<string, InteractionCounts>();
 
-    // Call the RPC function that accepts an array of entry IDs
+    if (entryIds.length === 0) {
+      return countsMap;
+    }
+
+    // Call the existing RPC function that accepts an array of entry IDs
+    // Convert string IDs to integers for the database function
+    const entryIdInts = entryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    
     const { data, error } = await this.client
-      .rpc('get_interaction_counts_for_entries', { entry_ids: entryIds });
+      .rpc('get_interaction_counts', { entry_ids: entryIdInts });
 
     if (error) {
       console.error('Error fetching interaction counts:', error);
@@ -471,7 +478,7 @@ export class SupabaseProvider implements DatabaseProvider {
     // Process the results
     if (data) {
       data.forEach((row: any) => {
-        countsMap.set(row.entry_id, {
+        countsMap.set(String(row.entry_id), {
           resonanceCount: row.resonance_count,
           branchCount: row.branch_count,
           amplificationCount: row.amplification_count,
@@ -1153,5 +1160,60 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async getStreamEntry(id: string): Promise<StreamEntry | null> {
     return this.getEntryById(id);
+  }
+
+  async getEntriesByIds(entryIds: string[]): Promise<StreamEntry[]> {
+    if (entryIds.length === 0) return [];
+
+    // Convert string IDs to integers and filter out invalid ones
+    const entryIdInts = entryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    
+    if (entryIdInts.length === 0) return [];
+
+    try {
+      // OPTIMIZED: Single query with JOIN to get multiple entries AND their interaction counts
+      const { data, error } = await this.client
+        .from('stream_entries')
+        .select(`
+          *,
+          entry_interaction_counts(
+            resonance_count,
+            amplification_count,
+            branch_count,
+            share_count
+          )
+        `)
+        .in('id', entryIdInts);
+
+      if (error) {
+        console.error('❌ Error batch fetching entries:', error);
+        throw new Error(`Failed to batch fetch entries: ${error.message}`);
+      }
+
+      if (!data) return [];
+
+      // Convert and merge interaction data
+      const entries = data.map(row => {
+        const entry = this.supabaseToStreamEntry(row);
+        
+        // Merge interaction counts from JOIN (if available)
+        if (row.entry_interaction_counts) {
+          entry.interactions = {
+            resonances: row.entry_interaction_counts.resonance_count || 0,
+            branches: row.entry_interaction_counts.branch_count || 0,
+            amplifications: row.entry_interaction_counts.amplification_count || 0,
+            shares: row.entry_interaction_counts.share_count || 0
+          };
+        }
+        
+        return entry;
+      });
+
+      console.log(`✅ Batch fetched ${entries.length} entries with interactions in single query`);
+      return entries;
+    } catch (error) {
+      console.error('❌ Error in getEntriesByIds:', error);
+      return [];
+    }
   }
 }

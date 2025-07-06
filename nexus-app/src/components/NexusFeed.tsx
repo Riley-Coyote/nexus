@@ -63,32 +63,34 @@ export default function NexusFeed({
   const [lastDataHash, setLastDataHash] = useState<string>('');
   const initialLoadRef = useRef(true);
 
-  // Load and convert entries to Post format
+  // OPTIMIZATION: Use pre-loaded data instead of making separate API calls
   const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const entries = await getPosts({
-        mode: 'feed',
-        page: requestedPage,
-        limit: PAGE_SIZE,
-        threaded: false // Feed should be flat
-      });
-      const convertedPosts = entries.map(entry => streamEntryDataToPost(entry));
-
-      const sortedPosts = convertedPosts.sort((a, b) =>
+      // Combine and sort pre-loaded entries instead of making new API calls
+      const combinedEntries = [...logbookEntries, ...dreamEntries];
+      const sortedEntries = combinedEntries.sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
+      
+      // Apply pagination
+      const startIndex = (requestedPage - 1) * PAGE_SIZE;
+      const endIndex = startIndex + PAGE_SIZE;
+      const paginatedEntries = sortedEntries.slice(startIndex, endIndex);
+      
+      // Convert to Post format
+      const convertedPosts = paginatedEntries.map(entry => streamEntryDataToPost(entry));
 
       if (append) {
-        setFlattenedEntries(prev => [...prev, ...sortedPosts]);
+        setFlattenedEntries(prev => [...prev, ...convertedPosts]);
       } else {
-        setFlattenedEntries(sortedPosts);
+        setFlattenedEntries(convertedPosts);
       }
 
-      // If returned less than page size, we've reached the end
-      setHasMore(sortedPosts.length === PAGE_SIZE);
+      // Check if there are more entries to load
+      setHasMore(endIndex < sortedEntries.length);
     } catch (error) {
-      console.error('Error loading flattened entries:', error);
+      console.error('Error processing entries:', error);
     } finally {
       setIsLoading(false);
     }

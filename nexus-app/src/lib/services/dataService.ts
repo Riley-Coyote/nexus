@@ -391,10 +391,14 @@ class DataService {
     });
   }
 
-  // NEW: Batch fetch entries by IDs
+  // NEW: Batch fetch entries by IDs - TRULY OPTIMIZED
   private async batchFetchEntries(entryIds: string[]): Promise<StreamEntry[]> {
     if (!this.database) {
       throw new Error('Database not initialized');
+    }
+
+    if (entryIds.length === 0) {
+      return [];
     }
 
     // Check cache first
@@ -410,17 +414,13 @@ class DataService {
       }
     });
 
-    // Fetch missing entries
+    // Fetch missing entries in a SINGLE batch query
     let fetchedEntries: StreamEntry[] = [];
     if (missing.length > 0) {
       try {
-        // Parallel individual fetches (much better than sequential)
-        const promises = missing.map(id => this.database!.getEntryById(id));
-        const results = await Promise.allSettled(promises);
-        fetchedEntries = results
-          .filter((result): result is PromiseFulfilledResult<StreamEntry | null> => 
-            result.status === 'fulfilled' && result.value !== null)
-          .map(result => result.value!);
+        console.log(`⚡ BATCH FETCHING ${missing.length} entries in single query`);
+        // Use new batch method instead of individual calls
+        fetchedEntries = await this.database.getEntriesByIds(missing);
 
         // Cache the fetched entries
         const now = Date.now();
@@ -428,6 +428,7 @@ class DataService {
           this.entryCache.set(entry.id, { entry, timestamp: now });
         });
 
+        console.log(`✅ Successfully batch fetched ${fetchedEntries.length} entries`);
       } catch (error) {
         console.error('❌ Error in batch fetch entries:', error);
       }
@@ -461,10 +462,6 @@ class DataService {
   }
 
   private async enrichEntriesWithInteractions(entries: StreamEntry[], userId?: string): Promise<StreamEntry[]> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
     // OPTIMIZATION: Database entries now come with interaction counts pre-loaded via JOIN
     // Skip the enrichment step for better performance
     console.log(`⚡ Skipping interaction enrichment - entries already include interaction counts from JOIN`);
@@ -611,28 +608,16 @@ class DataService {
     return data;
   }
 
+  // DEPRECATED: Use getPosts({mode: 'dream'}) instead for better performance
   async getSharedDreams(page: number = 1, limit: number = 10): Promise<StreamEntry[]> {
-    await this.initializeData();
-    
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-    
-    try {
-      console.log(`⚡ Fetching dream entries with optimized JOIN query`);
-      const entries = await this.database.getEntries('dream', {
-        page,
-        limit,
-        sortBy: 'timestamp',
-        sortOrder: 'desc'
-      });
-      
-      // OPTIMIZATION: No need to enrich with interactions - already included via JOIN!
-      return this.buildThreadedEntries(entries);
-    } catch (error) {
-      console.error('❌ Database error fetching dream entries:', error);
-      throw error;
-    }
+    console.warn('⚠️ getSharedDreams is deprecated. Use getPosts({mode: "dream"}) instead.');
+    // Delegate to the optimized getPosts method
+    return this.getPosts({
+      mode: 'dream',
+      page,
+      limit,
+      threaded: true // Dreams are typically threaded
+    });
   }
 
   // Get all stream entries (for ResonanceField) - combines logbook and dreams
@@ -986,69 +971,29 @@ class DataService {
   // ========== FEED-SPECIFIC METHODS ==========
 
   // Get all entries as individual posts (flattened, like Twitter/X)
+  // DEPRECATED: Use getPosts({mode: 'feed'}) instead for better performance
   async getFlattenedStreamEntries(page: number = 1, limit: number = 20): Promise<StreamEntry[]> {
-    await this.initializeData();
-
-    // Basic bounds-check so callers don't accidentally request 0 or negative limits
-    if (limit <= 0) limit = 20;
-    if (page <= 0) page = 1;
-
-    const offset = (page - 1) * limit;
-
-    if (!this.database) {
-      return [];
-    }
-
-    try {
-      // Get entries from both types and combine
-      const [logbookEntries, dreamEntries] = await Promise.all([
-        this.database.getEntries('logbook', { page, limit, sortBy: 'timestamp', sortOrder: 'desc' }),
-        this.database.getEntries('dream', {   page, limit, sortBy: 'timestamp', sortOrder: 'desc' })
-      ]);
-
-      // Combine and sort by timestamp
-      const allEntries = [...logbookEntries, ...dreamEntries];
-      const sortedEntries = allEntries.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-
-      // Paginate slice to respect requested limit
-      const pagedEntries = sortedEntries.slice(offset, offset + limit);
-
-      // Enrich with interaction data but DON'T build threading
-      const currentUser = authService.getCurrentUser();
-      const enriched = await this.enrichEntriesWithInteractions(pagedEntries, currentUser?.id);
-      return await this.enrichEntriesWithUserContext(enriched, currentUser?.id);
-    } catch (error) {
-      console.error('❌ Database error, falling back to empty array:', error);
-      return [];
-    }
+    console.warn('⚠️ getFlattenedStreamEntries is deprecated. Use getPosts({mode: "feed"}) instead.');
+    // Delegate to the optimized getPosts method
+    return this.getPosts({
+      mode: 'feed',
+      page,
+      limit,
+      threaded: false
+    });
   }
 
   // Get flattened logbook entries (individual posts, no threading)
+  // DEPRECATED: Use getPosts({mode: 'logbook'}) instead for better performance
   async getFlattenedLogbookEntries(page: number = 1, limit: number = 100): Promise<StreamEntry[]> {
-    await this.initializeData();
-    
-    if (!this.database) {
-      return [];
-    }
-    
-    try {
-      const entries = await this.database.getEntries('logbook', {
-        page,
-        limit,
-        sortBy: 'timestamp',
-        sortOrder: 'desc'
-      });
-      
-      // Enrich with interaction data but DON'T build threading
-      const currentUser = authService.getCurrentUser();
-      const enriched = await this.enrichEntriesWithInteractions(entries, currentUser?.id);
-      return await this.enrichEntriesWithUserContext(enriched, currentUser?.id);
-    } catch (error) {
-      console.error('❌ Database error, falling back to empty array:', error);
-      return [];
-    }
+    console.warn('⚠️ getFlattenedLogbookEntries is deprecated. Use getPosts({mode: "logbook"}) instead.');
+    // Delegate to the optimized getPosts method
+    return this.getPosts({
+      mode: 'logbook',
+      page,
+      limit,
+      threaded: false
+    });
   }
 
   // Get direct children of a specific post
@@ -1066,9 +1011,8 @@ class DataService {
       let children: StreamEntry[] = [];
 
       if (childIds.length > 0) {
-        // Fetch the full entries in parallel
-        const fetched = await Promise.all(childIds.map(id => this.database!.getEntryById(id)));
-        children = fetched.filter((e): e is StreamEntry => e !== null);
+        // OPTIMIZATION: Batch fetch all children using new method instead of individual calls
+        children = await this.batchFetchEntries(childIds);
       }
 
       // 2) Fallback: legacy check using parentId column for data created before entry_branches existed
@@ -1474,12 +1418,35 @@ class DataService {
       switch (mode) {
         case 'feed':
         case 'all':
+          // FIXED: For feed mode, we need to fetch more entries to ensure we have enough
+          // after combining and sorting, then limit to the requested amount
+          const fetchLimit = Math.min(safeLimit * 2, 100); // Fetch up to 2x limit to ensure enough variety
           const [logbookEntries, dreamEntries] = await Promise.all([
-            this.database!.getEntries('logbook', { page: safePage, limit: safeLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' }),
-            this.database!.getEntries('dream', { page: safePage, limit: safeLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' })
+            this.database!.getEntries('logbook', { page: safePage, limit: fetchLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' }),
+            this.database!.getEntries('dream', { page: safePage, limit: fetchLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' })
           ]);
-          entries = [...logbookEntries, ...dreamEntries];
-          console.log(`✅ Fetched ${logbookEntries.length} logbook + ${dreamEntries.length} dream entries with interactions`);
+          
+          // Combine entries from both types
+          const combinedEntries = [...logbookEntries, ...dreamEntries];
+          
+          // Sort by timestamp to get the most recent entries across both types
+          combinedEntries.sort((a, b) => {
+            if (sortBy === 'timestamp') {
+              const comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+              return sortOrder === 'desc' ? -comparison : comparison;
+            } else {
+              const aTotal = a.interactions.resonances + a.interactions.amplifications;
+              const bTotal = b.interactions.resonances + b.interactions.amplifications;
+              const comparison = aTotal - bTotal;
+              return sortOrder === 'desc' ? -comparison : comparison;
+            }
+          });
+          
+          // Apply pagination AFTER combining and sorting
+          const startIndex = (safePage - 1) * safeLimit;
+          entries = combinedEntries.slice(startIndex, startIndex + safeLimit);
+          
+          console.log(`✅ Feed: Combined ${logbookEntries.length} logbook + ${dreamEntries.length} dream entries, returning ${entries.length} after pagination`);
           break;
         case 'logbook':
           entries = await this.database!.getEntries('logbook', { page: safePage, limit: safeLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' });

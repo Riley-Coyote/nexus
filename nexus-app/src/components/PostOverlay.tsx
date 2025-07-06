@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType, StreamEntryData } from '../lib/types';
 import { dataService } from '../lib/services/dataService';
@@ -33,6 +33,9 @@ export default function PostOverlay({
   const [isLoadingParent, setIsLoadingParent] = useState(false);
   const [isLoadingChildren, setIsLoadingChildren] = useState(false);
   
+  // OPTIMIZATION: Use branch_count instead of network calls to determine if post has children
+  const hasChildren = (post?.interactions?.branches || 0) > 0;
+  
   // Interaction state
   const [isInteracting, setIsInteracting] = useState(false);
   const [userHasResonated, setUserHasResonated] = useState(false);
@@ -52,6 +55,9 @@ export default function PostOverlay({
   const [isSubmittingBranch, setIsSubmittingBranch] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null);
   const [branchSuccess, setBranchSuccess] = useState(false);
+  
+  // Children loading state (only when actually expanding)
+  const [childrenExpanded, setChildrenExpanded] = useState(false);
   
   const branchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
@@ -89,9 +95,12 @@ export default function PostOverlay({
         const currentUser = authService.getCurrentUser();
         if (!currentUser) return; // safety: user not authenticated
 
-        const state = await dataService.getUserInteractionState(currentUser.id, post.id);
-        setUserHasResonated(state.hasResonated);
-        setUserHasAmplified(state.hasAmplified);
+        // Use existing methods instead of non-existent getUserInteractionState
+        const hasResonated = dataService.hasUserResonated(currentUser.id, post.id);
+        const hasAmplified = dataService.hasUserAmplified(currentUser.id, post.id);
+        
+        setUserHasResonated(hasResonated);
+        setUserHasAmplified(hasAmplified);
       } catch (error) {
         console.error('Error loading user interaction state:', error);
       }
@@ -126,25 +135,34 @@ export default function PostOverlay({
       }
     };
 
-    // Load children
-    const loadChildren = async () => {
-      if (!getDirectChildren) return;
-      
-      setIsLoadingChildren(true);
-      try {
-        const directChildren = await getDirectChildren(post.id);
-        setChildren(directChildren);
-      } catch (error) {
-        console.error('Error loading children:', error);
-        setChildren([]);
-      } finally {
-        setIsLoadingChildren(false);
-      }
+    // OPTIMIZATION: Don't load children by default - only when expanding
+    // This eliminates network calls for every post in the feed
+    const resetChildrenState = () => {
+      setChildren([]);
+      setChildrenExpanded(false);
+      setIsLoadingChildren(false);
     };
 
     loadParent();
-    loadChildren();
-  }, [post?.id, getDirectChildren, getParentPost]);
+    resetChildrenState();
+  }, [post?.id, getParentPost]); // Removed getDirectChildren dependency
+
+  // Load children only when requested (lazy loading)
+  const loadChildrenWhenNeeded = useCallback(async () => {
+    if (!post || !getDirectChildren || childrenExpanded || isLoadingChildren) return;
+    
+    setIsLoadingChildren(true);
+    try {
+      const directChildren = await getDirectChildren(post.id);
+      setChildren(directChildren);
+      setChildrenExpanded(true);
+    } catch (error) {
+      console.error('Error loading children:', error);
+      setChildren([]);
+    } finally {
+      setIsLoadingChildren(false);
+    }
+  }, [post?.id, getDirectChildren, childrenExpanded, isLoadingChildren]);
 
   if (!post) return null;
 
@@ -312,8 +330,8 @@ export default function PostOverlay({
         setShowBranchComposer(false);
         setBranchSuccess(true);
         
-        // Refresh children to show new branch - but don't await it
-        if (getDirectChildren) {
+        // OPTIMIZATION: If children are expanded, refresh them to show new branch
+        if (childrenExpanded && getDirectChildren) {
           getDirectChildren(post.id).then(directChildren => {
             if (isMountedRef.current) {
               setChildren(directChildren);
@@ -502,8 +520,29 @@ export default function PostOverlay({
           )}
 
           {/* Children with threading structure */}
-          {(children.length > 0 || isLoadingChildren) && (
+          {/* OPTIMIZED: Children section with lazy loading */}
+          {hasChildren && (
             <div className="children-threads mt-6">
+              {!childrenExpanded && !isLoadingChildren && (
+                <div className="thread-level child-level">
+                  <div className="thread-connector">
+                    <div className="thread-line child-line"></div>
+                    <div className="thread-node child-node">⤷</div>
+                  </div>
+                  <div className="thread-content">
+                    <button 
+                      onClick={loadChildrenWhenNeeded}
+                      className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors w-full text-left"
+                    >
+                      <div className="text-sm text-text-secondary flex items-center gap-2">
+                        <span>View {localInteractions.branches} {localInteractions.branches === 1 ? 'reply' : 'replies'}</span>
+                        <span className="text-xs text-text-quaternary">→</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {children.map((child, index) => (
                 <div key={child.id} className="thread-level child-level">
                   <div className="thread-connector">

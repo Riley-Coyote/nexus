@@ -65,6 +65,10 @@ export interface NexusData {
   resonateWithEntry: (entryId: string) => Promise<void>;
   amplifyEntry: (entryId: string) => Promise<void>;
   
+  // Manual loading methods for specific pages
+  ensureResonatedEntriesLoaded: () => Promise<void>;
+  ensureAmplifiedEntriesLoaded: () => Promise<void>;
+  
   // Auth actions
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, options?: { name?: string }) => Promise<void>;
@@ -241,7 +245,8 @@ export const useNexusData = (): NexusData => {
         dataService.getNetworkStatus(),
         dataService.getSystemVitals(),
         dataService.getActiveAgents(),
-        dataService.getFlattenedLogbookEntries()
+        // Use optimized getPosts method instead of getFlattenedLogbookEntries
+        dataService.getPosts({ mode: 'logbook', page: 1, limit: 100, threaded: false })
       ]);
       
       setLogbookState(state);
@@ -269,7 +274,8 @@ export const useNexusData = (): NexusData => {
       const [metrics, dreamers, dreams, analytics] = await Promise.all([
         dataService.getDreamStateMetrics(),
         dataService.getActiveDreamers(),
-        dataService.getSharedDreams(),
+        // Use optimized getPosts method instead of getSharedDreams
+        dataService.getPosts({ mode: 'dream', page: 1, limit: 100, threaded: false }),
         dataService.getDreamAnalytics()
       ]);
       
@@ -500,55 +506,24 @@ export const useNexusData = (): NexusData => {
     setAuthState(currentAuthState);
   }, []);
 
-  // User interaction checks
+  // User interaction checks - now using only cache-based lookups
   const hasUserResonated = useCallback((entryId: string): boolean => {
     if (!authState.currentUser) return false;
-    // Fast check: is the entry in the resonatedEntries list we already fetched?
+    // Primary check: is the entry in the resonatedEntries list we already fetched?
     if (resonatedEntries.some(e => e.id === entryId)) return true;
-    // Fallback to dataService utility (cached per-entry on first call)
+    // Secondary check: use dataService cache (avoids database calls)
     return dataService.hasUserResonated(authState.currentUser.id, entryId);
   }, [authState.currentUser, resonatedEntries]);
 
   const hasUserAmplified = useCallback((entryId: string): boolean => {
     if (!authState.currentUser) return false;
-    // Fast check: is the entry in the amplifiedEntries list we already fetched?
+    // Primary check: is the entry in the amplifiedEntries list we already fetched?
     if (amplifiedEntries.some(e => e.id === entryId)) return true;
-    // Fallback to dataService utility (cached per-entry on first call)
+    // Secondary check: use dataService cache (avoids database calls)
     return dataService.hasUserAmplified(authState.currentUser.id, entryId);
   }, [authState.currentUser, amplifiedEntries]);
   
-  // Initialize and subscribe to auth changes
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
-      setAuthState({ ...newAuthState, isAuthLoading: false });
-      
-      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        if (process.env.NODE_ENV !== 'production') {
-          
-        }
-        // Load real data after authentication
-        refreshData();
-        // Auto-load resonated/amplified entries for authenticated users
-        loadResonatedEntries();
-        loadAmplifiedEntries();
-      } else {
-        // Clear profile user if not authenticated
-        setProfileUser(null);
-        setProfileUserPosts([]);
-        setResonatedEntries([]);
-        setAmplifiedEntries([]);
-      }
-      
-      // Stop global loading indicator after auth state is resolved
-      setIsLoading(false);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  // Hydration effect - check for corrupted storage data
+  // CONSOLIDATED: Single auth state management with optimized data loading
   useEffect(() => {
     setIsLoading(false);
     
@@ -572,9 +547,33 @@ export const useNexusData = (): NexusData => {
       }
     }
     
-    // Set up auth state listener
+    // Single auth state listener with all logic consolidated
     const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
-      setAuthState(newAuthState);
+      setAuthState({ ...newAuthState, isAuthLoading: false });
+      
+      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
+        // Load real data after authentication (single call, no duplicates)
+        refreshData();
+        
+        // OPTIMIZATION: Only load resonance data when needed
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+        const shouldLoadResonanceData = currentPath.includes('/resonance-field') || 
+                                       currentPath.includes('/profile');
+        
+        if (shouldLoadResonanceData) {
+          loadResonatedEntries();
+          loadAmplifiedEntries();
+        }
+      } else {
+        // Clear profile user if not authenticated
+        setProfileUser(null);
+        setProfileUserPosts([]);
+        setResonatedEntries([]);
+        setAmplifiedEntries([]);
+      }
+      
+      // Stop global loading indicator after auth state is resolved
+      setIsLoading(false);
     });
     
     // Get initial auth state
@@ -583,22 +582,8 @@ export const useNexusData = (): NexusData => {
     
     return unsubscribe;
   }, []);
-
-  // Load initial data only if authenticated
-  useEffect(() => {
-    if (authState.isAuthenticated && authState.currentUser) {
-      // Load real data after authentication
-      refreshData();
-    }
-  }, [authState.isAuthenticated, refreshData]);
   
-  // Load resonated and amplified entries when user changes or on mount
-  useEffect(() => {
-    if (authState.isAuthenticated && authState.currentUser) {
-      loadResonatedEntries();
-      loadAmplifiedEntries();
-    }
-  }, [authState.currentUser?.id]); // Only depend on user ID, not the functions
+  // NOTE: Resonated/amplified entry loading is now handled in the main auth state listener above
   
   // Expose dataService globally for testing in development
   useEffect(() => {
@@ -606,9 +591,8 @@ export const useNexusData = (): NexusData => {
       (window as any).nexusDataService = dataService;
       // Expose additional debug methods
       (window as any).debugResonance = {
-        addResonance: (userId: string, entryId: string) => dataService.debugAddResonance(userId, entryId),
-        getUserResonances: (userId: string) => dataService.debugGetUserResonances(userId),
-        refreshResonatedEntries: () => loadResonatedEntries()
+        refreshResonatedEntries: () => loadResonatedEntries(),
+        refreshAmplifiedEntries: () => loadAmplifiedEntries()
       };
       // console.log('🔧 Development Mode: Access debugging via window.nexusDataService and window.debugResonance');
     }
@@ -659,6 +643,18 @@ export const useNexusData = (): NexusData => {
     createBranch,
     resonateWithEntry,
     amplifyEntry,
+    
+    // Manual loading methods for specific pages
+    ensureResonatedEntriesLoaded: useCallback(async () => {
+      if (authState.currentUser) {
+        await loadResonatedEntries();
+      }
+    }, [authState.currentUser]),
+    ensureAmplifiedEntriesLoaded: useCallback(async () => {
+      if (authState.currentUser) {
+        await loadAmplifiedEntries();
+      }
+    }, [authState.currentUser]),
     
     // Auth actions
     login,

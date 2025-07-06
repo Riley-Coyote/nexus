@@ -10,6 +10,7 @@ export interface DatabaseProvider {
   createEntry(entry: Omit<StreamEntry, 'id'>): Promise<StreamEntry>;
   getEntries(type: 'logbook' | 'dream', options?: QueryOptions): Promise<StreamEntry[]>;
   getEntryById(id: string): Promise<StreamEntry | null>;
+  getEntriesByIds(entryIds: string[]): Promise<StreamEntry[]>;
   updateEntry(id: string, updates: Partial<StreamEntry>): Promise<StreamEntry>;
   deleteEntry(id: string): Promise<boolean>;
   
