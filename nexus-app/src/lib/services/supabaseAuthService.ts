@@ -558,37 +558,30 @@ class SupabaseAuthService {
 
   async checkEmailAvailability(email: string): Promise<{ available: boolean; error?: string }> {
     try {
-      console.log('🔍 SupabaseAuthService: Checking email availability for:', email);
-      
       // Don't check if email is invalid format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        console.log('❌ Invalid email format:', email);
         return { available: false, error: 'Invalid email format' };
       }
 
       // Check if email is already registered in Supabase auth
-      console.log('📡 Calling check_email_exists function...');
       const { data, error } = await supabase.rpc('check_email_exists', { email_to_check: email });
       
       if (error) {
         // If the function doesn't exist, fall back to a signup attempt (will be cancelled)
-        console.warn('⚠️ check_email_exists function not found, using fallback method. Error:', error);
+        console.warn('check_email_exists function not found, using fallback method. Error:', error);
         return await this.checkEmailFallback(email);
       }
 
-      console.log('✅ check_email_exists response - data:', data, 'available:', !data);
       return { available: !data };
     } catch (error) {
-      console.error('❌ Email availability check error:', error);
+      console.error('Email availability check error:', error);
       return { available: true }; // Default to available on error to not block signup
     }
   }
 
   private async checkEmailFallback(email: string): Promise<{ available: boolean; error?: string }> {
     try {
-      console.log('🔄 Using fallback method for email check:', email);
-      
       // Try to sign up with a dummy password to check if email exists
       const { error } = await supabase.auth.signUp({
         email,
@@ -596,22 +589,18 @@ class SupabaseAuthService {
       });
 
       if (error) {
-        console.log('🔍 Fallback signup error:', error.message);
         if (error.message.includes('already registered')) {
-          console.log('❌ Email already registered via fallback');
           return { available: false };
         }
         // Other errors don't indicate email unavailability
-        console.log('✅ Email available (other error in fallback)');
         return { available: true };
       }
 
       // If no error, email is available, but we need to clean up the partial signup
       // The user will need to verify their email anyway, so this is handled gracefully
-      console.log('✅ Email available via fallback (no error)');
       return { available: true };
     } catch (error) {
-      console.error('❌ Email fallback check error:', error);
+      console.error('Email fallback check error:', error);
       return { available: true }; // Default to available on error
     }
   }
