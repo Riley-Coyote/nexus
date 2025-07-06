@@ -44,8 +44,6 @@ export interface NexusData {
   emergingSymbols: string[];
   
   // Computed data
-  logbookEntriesData: StreamEntryData[];
-  dreamEntriesData: StreamEntryData[];
   resonatedEntries: StreamEntryData[];
   amplifiedEntries: StreamEntryData[];
   
@@ -180,17 +178,6 @@ export const useNexusData = (): NexusData => {
   const dreamPatterns = useMemo(() => dataService.getDreamPatterns(), []);
   const logbookField = useMemo(() => dataService.getLogbookField(), []);
   const emergingSymbols = useMemo(() => dataService.getEmergingSymbols(), []);
-  
-  // Computed data (memoized)
-  const logbookEntriesData = useMemo(() => 
-    logbookEntries.map(convertToStreamEntryData), 
-    [logbookEntries]
-  );
-  
-  const dreamEntriesData = useMemo(() => 
-    sharedDreams.map(convertToStreamEntryData), 
-    [sharedDreams]
-  );
   
   // Resonated entries state
   const [resonatedEntries, setResonatedEntries] = useState<StreamEntryData[]>([]);
@@ -524,13 +511,27 @@ export const useNexusData = (): NexusData => {
 
   // User interaction checks - following social media playbook pattern
   const hasUserResonated = useCallback((entryId: string): boolean => {
-    if (!authState.currentUser || !isUserStatesLoaded) return false;
-    return userInteractionStates.get(entryId)?.hasResonated || false;
+    if (!authState.currentUser || !isUserStatesLoaded) {
+      console.log(`🔍 hasUserResonated(${entryId}) = false (user: ${!!authState.currentUser}, loaded: ${isUserStatesLoaded})`);
+      return false;
+    }
+    const result = userInteractionStates.get(entryId)?.hasResonated || false;
+    if (result) {
+      console.log(`✨ hasUserResonated(${entryId}) = true`);
+    }
+    return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
 
   const hasUserAmplified = useCallback((entryId: string): boolean => {
-    if (!authState.currentUser || !isUserStatesLoaded) return false;
-    return userInteractionStates.get(entryId)?.hasAmplified || false;
+    if (!authState.currentUser || !isUserStatesLoaded) {
+      console.log(`🔍 hasUserAmplified(${entryId}) = false (user: ${!!authState.currentUser}, loaded: ${isUserStatesLoaded})`);
+      return false;
+    }
+    const result = userInteractionStates.get(entryId)?.hasAmplified || false;
+    if (result) {
+      console.log(`🔥 hasUserAmplified(${entryId}) = true`);
+    }
+    return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
   
   // CONSOLIDATED: Single auth state management with social media playbook loading
@@ -611,6 +612,7 @@ export const useNexusData = (): NexusData => {
     const loadUserInteractionStates = async () => {
       // Only load if user is authenticated and we have posts
       if (!authState.isAuthenticated || !authState.currentUser) {
+        console.log(`⏭️ Skipping user interaction states load - not authenticated`);
         return;
       }
 
@@ -618,7 +620,7 @@ export const useNexusData = (): NexusData => {
       setCurrentPostIds(allPostIds);
       
       if (allPostIds.length > 0) {
-        console.log(`🔄 Batch loading user interaction states for ${allPostIds.length} posts`);
+        console.log(`🔄 Batch loading user interaction states for ${allPostIds.length} posts:`, allPostIds.slice(0, 3));
         try {
           const states = await userInteractionService.batchLoadUserStates(
             authState.currentUser.id,
@@ -627,12 +629,14 @@ export const useNexusData = (): NexusData => {
           
           setUserInteractionStates(states);
           setIsUserStatesLoaded(true);
-          console.log(`✅ User interaction states loaded for ${states.size} posts`);
+          console.log(`✅ User interaction states loaded for ${states.size} posts, sample:`, 
+            Array.from(states.entries()).slice(0, 3));
         } catch (error) {
           console.error('❌ Failed to load user interaction states:', error);
           setIsUserStatesLoaded(true); // Still allow rendering
         }
       } else {
+        console.log(`📭 No posts to load user interaction states for`);
         setIsUserStatesLoaded(true); // No posts = no states needed
       }
     };
@@ -698,8 +702,6 @@ export const useNexusData = (): NexusData => {
     emergingSymbols,
     
     // Computed data
-    logbookEntriesData,
-    dreamEntriesData,
     resonatedEntries,
     amplifiedEntries,
     
@@ -789,8 +791,8 @@ export const useNexusData = (): NexusData => {
         dateRange?: { start: Date; end: Date };
       };
     }) => {
-      const entries = await dataService.getPosts(options);
-      return entries.map(convertToStreamEntryData);
+      // OPTIMIZED: Direct Post[] return - no conversions needed!
+      return await dataService.getPostsForUI(options);
     }, [authState.currentUser]),
     
     // Feed-specific methods (DEPRECATED - use getPosts instead)

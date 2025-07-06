@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import PostList from './PostList';
-import { Post } from '@/lib/types';
-import { streamEntryDataToPost } from '@/lib/utils/postUtils';
+import { Post, StreamEntry } from '@/lib/types';
+import { streamEntryToPost } from '@/lib/utils/postUtils';
 import { makeBranchHandler } from '@/lib/utils/interactionHandlers';
 
 interface NexusFeedProps {
-  logbookEntries: any[]; // Legacy StreamEntryData format
-  dreamEntries: any[]; // Legacy StreamEntryData format
+  logbookEntries: StreamEntry[]; // UPDATED: Now expects StreamEntry[] directly
+  dreamEntries: StreamEntry[];   // UPDATED: Now expects StreamEntry[] directly
   onPostClick?: (post: Post) => void;
   onUserClick?: (username: string) => void;
   getPosts: (options: {
@@ -95,7 +95,7 @@ export default function NexusFeed({
       const paginatedEntries = sortedEntries.slice(startIndex, endIndex);
       
       // Convert to Post format
-      const convertedPosts = paginatedEntries.map(entry => streamEntryDataToPost(entry));
+      const convertedPosts = paginatedEntries.map(entry => streamEntryToPost(entry));
 
       if (append) {
         setFlattenedEntries(prev => [...prev, ...convertedPosts]);

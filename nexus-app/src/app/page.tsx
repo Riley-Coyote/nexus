@@ -237,8 +237,8 @@ export default function Home() {
           {/* Feed View */}
           {viewMode === 'feed' && (
             <NexusFeed 
-              logbookEntries={nexusData.logbookEntriesData}
-              dreamEntries={nexusData.dreamEntriesData}
+              logbookEntries={nexusData.logbookEntries}
+              dreamEntries={nexusData.sharedDreams}
               onPostClick={handleOpenPost}
               onUserClick={handleUserClick}
               getPosts={nexusData.getPosts}

@@ -72,41 +72,49 @@ class UserInteractionService {
     console.log(`🔄 Batch loading user interaction states for ${postIds.length} posts`);
     
     try {
-      // Single SQL query following playbook pattern - FIXED table names
-      const { data, error } = await supabase
-        .from('stream_entries')
-        .select(`
-          id,
-          user_resonances!left(user_id),
-          user_amplifications!left(user_id)
-        `)
-        .in('id', postIds)
-        .eq('user_resonances.user_id', userId)
-        .eq('user_amplifications.user_id', userId);
+      // Use separate queries for better reliability and clearer logic
+      const [resonanceData, amplificationData] = await Promise.all([
+        supabase
+          .from('user_resonances')
+          .select('entry_id')
+          .eq('user_id', userId)
+          .in('entry_id', postIds),
+        supabase
+          .from('user_amplifications')
+          .select('entry_id')
+          .eq('user_id', userId)
+          .in('entry_id', postIds)
+      ]);
 
-      if (error) {
-        console.error('❌ Error batch loading user states:', error);
-        return new Map();
+      if (resonanceData.error) {
+        console.error('❌ Error loading user resonances:', resonanceData.error);
       }
+      if (amplificationData.error) {
+        console.error('❌ Error loading user amplifications:', amplificationData.error);
+      }
+
+      // Build sets for O(1) lookup
+      const resonatedPostIds = new Set(
+        resonanceData.data?.map(item => item.entry_id) || []
+      );
+      const amplifiedPostIds = new Set(
+        amplificationData.data?.map(item => item.entry_id) || []
+      );
 
       // Process results into efficient Map structure
       const statesMap = new Map<string, UserInteractionState>();
       
       postIds.forEach(postId => {
-        const postData = data?.find(item => item.id === postId);
-        const hasResonated = postData?.user_resonances && Array.isArray(postData.user_resonances) && postData.user_resonances.length > 0;
-        const hasAmplified = postData?.user_amplifications && Array.isArray(postData.user_amplifications) && postData.user_amplifications.length > 0;
-        
         statesMap.set(postId, {
-          hasResonated: hasResonated || false,
-          hasAmplified: hasAmplified || false
+          hasResonated: resonatedPostIds.has(postId),
+          hasAmplified: amplifiedPostIds.has(postId)
         });
       });
 
       // Update cache
       this.updateCache(userId, statesMap);
       
-      console.log(`✅ Batch loaded user states for ${statesMap.size} posts`);
+      console.log(`✅ Batch loaded user states for ${statesMap.size} posts (${resonatedPostIds.size} resonated, ${amplifiedPostIds.size} amplified)`);
       return statesMap;
       
     } catch (error) {

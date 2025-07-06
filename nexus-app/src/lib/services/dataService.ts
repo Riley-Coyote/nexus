@@ -1,5 +1,6 @@
 import { 
   StreamEntry, 
+  Post,
   LogbookState, 
   NetworkStatus, 
   SystemVital, 
@@ -13,6 +14,7 @@ import {
   JournalMode
 } from '../types';
 import { authService } from './supabaseAuthService';
+import { userInteractionService } from './userInteractionService';
 import { supabase } from '../supabase';
 import { StreamEntryData } from '../types';
 import { DatabaseFactory } from '../database/factory';
@@ -893,12 +895,15 @@ class DataService {
 
       const newState = await this.database.toggleUserResonance(currentUser.id, entryId);
       
-      // OPTIMIZATION: Update caches immediately without full refresh
+      // OPTIMIZATION: Update both caches immediately without full refresh
       const delta = newState ? 1 : -1;
       this.updateInteractionCountInCache(entryId, 'resonance', delta);
       this.updateUserInteractionStateInCache(currentUser.id, entryId, 'resonance', newState);
       
-      console.log(`✅ Resonance ${newState ? 'added' : 'removed'} for entry ${entryId} - cache updated`);
+      // SYNC: Also update userInteractionService cache
+      userInteractionService.updateUserInteractionState(currentUser.id, entryId, 'resonance', newState);
+      
+      console.log(`✅ Resonance ${newState ? 'added' : 'removed'} for entry ${entryId} - both caches updated`);
       return newState;
     } catch (error) {
       console.error('❌ Error resonating with entry:', error);
@@ -920,12 +925,15 @@ class DataService {
 
       const newState = await this.database.toggleUserAmplification(currentUser.id, entryId);
       
-      // OPTIMIZATION: Update caches immediately without full refresh
+      // OPTIMIZATION: Update both caches immediately without full refresh
       const delta = newState ? 1 : -1;
       this.updateInteractionCountInCache(entryId, 'amplification', delta);
       this.updateUserInteractionStateInCache(currentUser.id, entryId, 'amplification', newState);
       
-      console.log(`✅ Amplification ${newState ? 'added' : 'removed'} for entry ${entryId} - cache updated`);
+      // SYNC: Also update userInteractionService cache
+      userInteractionService.updateUserInteractionState(currentUser.id, entryId, 'amplification', newState);
+      
+      console.log(`✅ Amplification ${newState ? 'added' : 'removed'} for entry ${entryId} - both caches updated`);
       return newState;
     } catch (error) {
       console.error('❌ Error amplifying entry:', error);
@@ -1402,7 +1410,7 @@ class DataService {
 
   /**
    * Unified method to get posts with consistent pagination across all contexts
-   * Replaces: getFlattenedStreamEntries, getLogbookEntries, getSharedDreams, getStreamEntries
+   * Returns Post[] directly for UI consumption
    */
   async getPosts(options: {
     mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
@@ -1537,20 +1545,63 @@ class DataService {
       // Return threaded or flat based on mode
       const finalEntries = threaded ? this.buildThreadedEntries(entries) : entries;
       
-      // OPTIMIZATION: Always enrich with user context to prevent flicker
-      const enrichedEntries = await this.enrichEntriesWithUserContext(finalEntries, currentUser?.id);
+      // OPTIMIZATION: Use map-based approach instead of embedding user states
+      console.log(`✅ Returning ${finalEntries.length} entries without embedded user states (using map-based lookup)`);
       
-      // FLICKER FIX: Log cache population status for debugging
-      if (currentUser && finalEntries.length > 0) {
-        const cacheStatus = this.userInteractionStatesCache.has(currentUser.id) ? 'populated' : 'empty';
-        console.log(`💾 User interaction cache ${cacheStatus} for ${finalEntries.length} entries`);
-      }
-      
-      return enrichedEntries;
+      return finalEntries;
     } catch (error) {
       console.error('❌ Database error in getPosts, returning empty array:', error);
       return [];
     }
+  }
+
+  /**
+   * NEW: Get posts directly as Post[] for UI consumption - eliminates unnecessary conversions
+   */
+  async getPostsForUI(options: {
+    mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
+    page?: number;
+    limit?: number;
+    userId?: string;
+    threaded?: boolean;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      type?: string;
+      privacy?: 'public' | 'private';
+      dateRange?: { start: Date; end: Date };
+    };
+  }): Promise<Post[]> {
+    // Get StreamEntry[] using existing logic
+    const streamEntries = await this.getPosts(options);
+    
+    // Convert directly to Post[] format - remove unnecessary threading fields
+    const posts: Post[] = streamEntries.map(entry => ({
+      id: entry.id,
+      parentId: entry.parentId,
+      depth: entry.depth,
+      type: entry.type,
+      username: entry.username,
+      agent: entry.agent,
+      connections: entry.connections,
+      metrics: entry.metrics,
+      timestamp: entry.timestamp,
+      content: entry.content,
+      interactions: entry.interactions,
+      isAmplified: entry.isAmplified,
+      privacy: entry.privacy,
+      title: entry.title,
+      resonance: entry.resonance,
+      coherence: entry.coherence,
+      tags: entry.tags,
+      response: entry.response,
+      entryType: entry.entryType,
+      userId: entry.userId,
+      // Note: Deliberately omitting children, actions, threads as they're not needed for UI
+    }));
+    
+    console.log(`🎯 Converted ${streamEntries.length} StreamEntries to ${posts.length} Posts for UI`);
+    return posts;
   }
 
   hasUserResonated(userId: string, entryId: string): boolean {
