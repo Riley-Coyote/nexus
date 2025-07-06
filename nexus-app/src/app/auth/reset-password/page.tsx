@@ -125,9 +125,12 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Password update successful - sign out and redirect for security
-        await supabase.auth.signOut();
-        router.replace('/?tab=signin&message=password_updated');
+        // Password update successful - reset loading and redirect immediately
+        setIsLoading(false);
+        // Sign out in background and redirect immediately
+        supabase.auth.signOut().catch(console.error);
+        // Use window.location for guaranteed redirect
+        window.location.href = '/?tab=signin&message=password_updated';
         return;
       } else {
         // Traditional flow - verify old password first
@@ -149,9 +152,12 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Password update successful - sign out and redirect for security
-        await authService.signOut();
-        router.replace('/?tab=signin&message=password_updated');
+        // Password update successful - reset loading and redirect immediately
+        setIsLoading(false);
+        // Sign out in background and redirect immediately
+        authService.signOut();
+        // Use window.location for guaranteed redirect
+        window.location.href = '/?tab=signin&message=password_updated';
         return;
       }
 
