@@ -132,6 +132,7 @@ export const useNexusData = (): NexusData => {
   // Core state
   const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
+    isAuthLoading: true,
     isAuthenticated: false,
     currentUser: null,
     sessionToken: null
@@ -512,6 +513,37 @@ export const useNexusData = (): NexusData => {
     return dataService.hasUserAmplified(authState.currentUser.id, entryId);
   }, [authState.currentUser, amplifiedEntries]);
   
+  // Initialize and subscribe to auth changes
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
+      setAuthState({ ...newAuthState, isAuthLoading: false });
+      
+      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('🔑 User authenticated:', newAuthState.currentUser);
+        }
+        // Load real data after authentication
+        refreshData();
+        // Auto-load resonated/amplified entries for authenticated users
+        loadResonatedEntries();
+        loadAmplifiedEntries();
+      } else {
+        // Clear profile user if not authenticated
+        setProfileUser(null);
+        setProfileUserPosts([]);
+        setResonatedEntries([]);
+        setAmplifiedEntries([]);
+      }
+      
+      // Stop global loading indicator after auth state is resolved
+      setIsLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // Hydration effect - check for corrupted storage data
   useEffect(() => {
     setIsLoading(false);

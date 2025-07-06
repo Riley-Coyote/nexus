@@ -142,6 +142,7 @@ export interface User {
 }
 
 export interface AuthState {
+  isAuthLoading: boolean;
   isAuthenticated: boolean;
   currentUser: User | null;
   sessionToken: string | null;

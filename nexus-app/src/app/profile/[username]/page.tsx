@@ -139,6 +139,17 @@ export default function UserProfilePage() {
     router.push(`/${mode}`);
   };
 
+  // Show a loading screen while auth state is being determined
+  if (nexusData.authState.isAuthLoading) {
+    return (
+      <div className="liminal-logbook loading-state">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-text-secondary">Authenticating...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Show authentication panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return (
