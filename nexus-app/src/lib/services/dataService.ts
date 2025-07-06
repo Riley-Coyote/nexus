@@ -673,13 +673,15 @@ class DataService {
     return data;
   }
 
-  async getSharedDreams(page: number = 1, limit: number = 10): Promise<StreamEntry[]> {
+  async getSharedDreams(page: number = 1, limit: number = 100): Promise<StreamEntry[]> {
     await this.initializeData();
     
     if (USE_MOCK_DATA || !this.database) {
       await simulateApiDelay();
-      // Sort by timestamp desc (newest first) and build threaded structure
-      const sortedEntries = [...this.sharedDreams].sort((a, b) => 
+      // Show all public dreams from all users, plus current user's private dreams
+      const currentUser = authService.getCurrentUser();
+      const filteredEntries = this.filterEntriesByPrivacy(this.sharedDreams, currentUser?.id);
+      const sortedEntries = filteredEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
       return this.buildThreadedEntries(sortedEntries);
@@ -693,14 +695,17 @@ class DataService {
         sortOrder: 'desc'
       });
       
-      // Enrich with interaction data and build threaded structure
+      // Show all public dreams from all users, plus current user's private dreams
       const currentUser = authService.getCurrentUser();
-      const enrichedEntries = await this.enrichEntriesWithInteractions(entries, currentUser?.id);
+      const filteredEntries = this.filterEntriesByPrivacy(entries, currentUser?.id);
+      const enrichedEntries = await this.enrichEntriesWithInteractions(filteredEntries, currentUser?.id);
       return this.buildThreadedEntries(enrichedEntries);
     } catch (error) {
       console.error('❌ Database error, falling back to mock data:', error);
-      // Sort fallback data too
-      const sortedEntries = [...this.sharedDreams].sort((a, b) => 
+      // Show all public dreams from all users, plus current user's private dreams
+      const currentUser = authService.getCurrentUser();
+      const filteredEntries = this.filterEntriesByPrivacy(this.sharedDreams, currentUser?.id);
+      const sortedEntries = filteredEntries.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
       return this.buildThreadedEntries(sortedEntries);
