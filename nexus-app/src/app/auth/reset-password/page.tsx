@@ -69,6 +69,16 @@ export default function ResetPasswordPage() {
     };
   };
 
+  // Add timeout wrapper similar to AuthPanel to avoid hanging API calls
+  async function withTimeout<T>(promise: Promise<T>, timeoutMs = 30000): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Operation timed out. Please check your connection and try again.')), timeoutMs);
+      })
+    ]);
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -115,9 +125,10 @@ export default function ResetPasswordPage() {
 
       if (isMagicLinkFlow) {
         // Magic link flow - user is already authenticated via magic link
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: formData.newPassword
-        });
+        const { error: updateError } = await withTimeout(
+          supabase.auth.updateUser({ password: formData.newPassword }),
+          30000
+        );
 
         if (updateError) {
           setError(updateError.message || 'Failed to update password');
@@ -298,8 +309,6 @@ export default function ResetPasswordPage() {
                 <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
-
-
 
             {/* Submit Button */}
             <button
