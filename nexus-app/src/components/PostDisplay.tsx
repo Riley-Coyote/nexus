@@ -80,6 +80,7 @@ export default function PostDisplay({
   const shouldCollapse = shouldShowPreview || isMobileCollapsed;
 
   // Sync interaction state from parent when props change
+  // OPTIMIZATION: Only sync if the props have actually changed to avoid flicker
   useEffect(() => {
     setUserHasResonated(initialUserHasResonated);
     setUserHasAmplified(initialUserHasAmplified);

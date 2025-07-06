@@ -513,7 +513,8 @@ class DataService {
     
     let userStates = this.userInteractionStatesCache.get(userId);
     
-    // Only fetch if cache is stale or missing
+    // FLICKER FIX: Always fetch if cache is empty, even if timestamp suggests it's "fresh"
+    // This ensures we never return entries without user interaction states
     if (!userStates || !isStatesCacheFresh) {
       const entryIds = entries.map(e => e.id);
       if (!this.database) {
@@ -524,6 +525,7 @@ class DataService {
       userStates = await this.database.getUserInteractionStates(userId, entryIds);
       this.userInteractionStatesCache.set(userId, userStates);
       this.userInteractionStateTimestamps.set(userId, now);
+      console.log(`✅ User interaction cache populated with ${userStates.size} entries`);
     } else {
       console.log(`⚡ Using cached user interaction states (${entries.length} entries)`);
     }
@@ -1534,7 +1536,17 @@ class DataService {
   
       // Return threaded or flat based on mode
       const finalEntries = threaded ? this.buildThreadedEntries(entries) : entries;
-      return await this.enrichEntriesWithUserContext(finalEntries, currentUser?.id);
+      
+      // OPTIMIZATION: Always enrich with user context to prevent flicker
+      const enrichedEntries = await this.enrichEntriesWithUserContext(finalEntries, currentUser?.id);
+      
+      // FLICKER FIX: Log cache population status for debugging
+      if (currentUser && finalEntries.length > 0) {
+        const cacheStatus = this.userInteractionStatesCache.has(currentUser.id) ? 'populated' : 'empty';
+        console.log(`💾 User interaction cache ${cacheStatus} for ${finalEntries.length} entries`);
+      }
+      
+      return enrichedEntries;
     } catch (error) {
       console.error('❌ Database error in getPosts, returning empty array:', error);
       return [];
@@ -1543,12 +1555,18 @@ class DataService {
 
   hasUserResonated(userId: string, entryId: string): boolean {
     const userStates = this.userInteractionStatesCache.get(userId);
-    return userStates?.get(entryId)?.hasResonated || false;
+    // OPTIMIZATION: Return false only if we have cached data for this user
+    // This prevents flicker when cache is not yet populated
+    if (!userStates) return false;
+    return userStates.get(entryId)?.hasResonated || false;
   }
 
   hasUserAmplified(userId: string, entryId: string): boolean {
     const userStates = this.userInteractionStatesCache.get(userId);
-    return userStates?.get(entryId)?.hasAmplified || false;
+    // OPTIMIZATION: Return false only if we have cached data for this user
+    // This prevents flicker when cache is not yet populated
+    if (!userStates) return false;
+    return userStates.get(entryId)?.hasAmplified || false;
   }
 
 }

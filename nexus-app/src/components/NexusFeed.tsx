@@ -177,18 +177,12 @@ export default function NexusFeed({
     await loadFlattenedEntries(1, false);
   };
 
-  // Smart refresh logic extracted for makeBranchHandler
+  // Simplified branch refresh - parent handles data refresh, props update triggers UI refresh
   const feedBranchRefresh = async () => {
-    if (!createBranch) return;
-    // FIXED: Use the parent's refresh mechanism to ensure data consistency
-    try {
-      // The parent's createBranch method now handles the refresh properly
-      // We just need to reload the flattened entries to show the new branch
-      await loadFlattenedEntries();
-      console.log('✅ Feed refreshed after branch creation');
-    } catch (err) {
-      console.warn('Background feed data refresh failed:', err);
-    }
+    // No-op: The parent's createBranch method handles data refresh
+    // When logbookEntries/dreamEntries props update, the effect below will 
+    // automatically call loadFlattenedEntries() to show the new branch
+    console.log('✅ Branch created - feed will update when props refresh');
   };
 
   const handleBranch = React.useMemo(() => {

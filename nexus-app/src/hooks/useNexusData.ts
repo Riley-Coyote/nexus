@@ -247,7 +247,7 @@ export const useNexusData = (): NexusData => {
         dataService.getSystemVitals(),
         dataService.getActiveAgents(),
         // Use optimized getPosts method instead of getFlattenedLogbookEntries
-        dataService.getPosts({ mode: 'logbook', page: 1, limit: 100, threaded: false })
+        dataService.getPosts({ mode: 'logbook', page: 1, limit: 30, threaded: false })
       ]);
       
       setLogbookState(state);
@@ -276,7 +276,7 @@ export const useNexusData = (): NexusData => {
         dataService.getDreamStateMetrics(),
         dataService.getActiveDreamers(),
         // Use optimized getPosts method instead of getSharedDreams
-        dataService.getPosts({ mode: 'dream', page: 1, limit: 100, threaded: false }),
+        dataService.getPosts({ mode: 'dream', page: 1, limit: 30, threaded: false }),
         dataService.getDreamAnalytics()
       ]);
       
@@ -403,44 +403,45 @@ export const useNexusData = (): NexusData => {
     }
   }, [refreshData]);
   
-  // Resonate with entry - OPTIMIZED and SIMPLIFIED
+  // Resonate with entry - TRULY OPTIMIZED (no full refresh)
   const resonateWithEntry = useCallback(async (entryId: string) => {
     try {
-      
-      // Call dataService and get the result (true = resonated, false = unresonated)
+      // Call dataService - it handles cache updates for the specific post
       const isNowResonated = await dataService.resonateWithEntry(entryId);
       
-      
-      // Only refresh resonated entries - single refresh call
-      await refreshResonatedEntries();
-      
-      // Update auth state to reflect new stats
+      // OPTIMIZATION: No full refresh needed!
+      // - dataService updates the interaction count cache for this specific post
+      // - PostDisplay components handle local state updates optimistically
+      // - Only update auth state for user stats
       setAuthState(authService.getAuthState());
+      
+      console.log(`✅ Resonance ${isNowResonated ? 'added' : 'removed'} for ${entryId} - no full refresh needed`);
       
     } catch (error) {
       console.error('❌ Failed to resonate with entry:', error);
       throw error;
     }
-  }, [refreshResonatedEntries]);
+  }, []);
 
-  // Amplify entry - OPTIMIZED  
+  // Amplify entry - TRULY OPTIMIZED (no full refresh)
   const amplifyEntry = useCallback(async (entryId: string) => {
     try {
-      await dataService.amplifyEntry(entryId);
+      // Call dataService - it handles cache updates for the specific post
+      const isNowAmplified = await dataService.amplifyEntry(entryId);
       
-      // Refresh amplified entries to get updated state
-      loadAmplifiedEntries();
-      
-      // Update auth state to reflect new stats
+      // OPTIMIZATION: No full refresh needed!
+      // - dataService updates the interaction count cache for this specific post
+      // - PostDisplay components handle local state updates optimistically
+      // - Only update auth state for user stats
       setAuthState(authService.getAuthState());
       
-      // Note: We don't refresh all data here for performance
-      // The interaction counts will be updated on next natural refresh
+      console.log(`✅ Amplification ${isNowAmplified ? 'added' : 'removed'} for ${entryId} - no full refresh needed`);
+      
     } catch (error) {
       console.error('Failed to amplify entry:', error);
       throw error;
     }
-  }, [loadAmplifiedEntries]);
+  }, []);
 
   // Auth actions
   const login = useCallback(async (email: string, password: string) => {
@@ -490,12 +491,14 @@ export const useNexusData = (): NexusData => {
     setAuthState(currentAuthState);
   }, []);
 
-  // User interaction checks - now using only cache-based lookups
+  // User interaction checks - optimized cache-based lookups with flicker prevention
+  // These work with the optimized interaction methods above
   const hasUserResonated = useCallback((entryId: string): boolean => {
     if (!authState.currentUser) return false;
     // Primary check: is the entry in the resonatedEntries list we already fetched?
     if (resonatedEntries.some(e => e.id === entryId)) return true;
-    // Secondary check: use dataService cache (avoids database calls)
+    // Secondary check: use dataService cache (updated by resonateWithEntry)
+    // OPTIMIZATION: Cache-based check only returns true if we have positive confirmation
     return dataService.hasUserResonated(authState.currentUser.id, entryId);
   }, [authState.currentUser, resonatedEntries]);
 
@@ -503,7 +506,8 @@ export const useNexusData = (): NexusData => {
     if (!authState.currentUser) return false;
     // Primary check: is the entry in the amplifiedEntries list we already fetched?
     if (amplifiedEntries.some(e => e.id === entryId)) return true;
-    // Secondary check: use dataService cache (avoids database calls)
+    // Secondary check: use dataService cache (updated by amplifyEntry)
+    // OPTIMIZATION: Cache-based check only returns true if we have positive confirmation
     return dataService.hasUserAmplified(authState.currentUser.id, entryId);
   }, [authState.currentUser, amplifiedEntries]);
   

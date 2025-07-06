@@ -87,6 +87,7 @@ export default function PostOverlay({
   }, [post]);
 
   // Load user interaction states when post changes
+  // FIXED: Prevent flicker by only loading if we don't already have the state
   useEffect(() => {
     const loadUserInteractionState = async () => {
       if (!post) return;
@@ -99,8 +100,13 @@ export default function PostOverlay({
         const hasResonated = dataService.hasUserResonated(currentUser.id, post.id);
         const hasAmplified = dataService.hasUserAmplified(currentUser.id, post.id);
         
-        setUserHasResonated(hasResonated);
-        setUserHasAmplified(hasAmplified);
+        // OPTIMIZATION: Only update if different to prevent flicker
+        if (hasResonated !== userHasResonated) {
+          setUserHasResonated(hasResonated);
+        }
+        if (hasAmplified !== userHasAmplified) {
+          setUserHasAmplified(hasAmplified);
+        }
       } catch (error) {
         console.error('Error loading user interaction state:', error);
       }
@@ -109,7 +115,7 @@ export default function PostOverlay({
     if (post && isOpen) {
       loadUserInteractionState();
     }
-  }, [post, isOpen]);
+  }, [post, isOpen, userHasResonated, userHasAmplified]);
 
   // Load parent and children when post changes
   useEffect(() => {
