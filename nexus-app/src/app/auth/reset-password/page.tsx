@@ -137,10 +137,28 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Clear the session and redirect to sign-in page
-        await supabase.auth.signOut();
-        
+        // Immediately set success message and redirect without waiting for auth state changes
         setSuccessMessage('Password set successfully! You will be redirected to sign in with your new password.');
+        
+        // Clear form
+        setFormData({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+
+        // Reset loading state immediately
+        setIsLoading(false);
+
+        // Sign out and redirect immediately without waiting
+        setTimeout(async () => {
+          if (isMountedRef.current) {
+            await supabase.auth.signOut();
+            router.push('/?tab=signin&message=password_updated');
+          }
+        }, 1000);
+        
+        return; // Exit early to avoid the common cleanup code
       } else {
         // Traditional flow - verify old password first
         const currentUser = authService.getCurrentUser();
@@ -159,28 +177,29 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Sign out the user after successful password change
-        await authService.signOut();
-        
+        // Immediately set success message and redirect without waiting for auth state changes
         setSuccessMessage('Password updated successfully! You will be redirected to sign in with your new password.');
+        
+        // Clear form
+        setFormData({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+
+        // Reset loading state immediately
+        setIsLoading(false);
+
+        // Sign out and redirect immediately without waiting
+        setTimeout(async () => {
+          if (isMountedRef.current) {
+            await authService.signOut();
+            router.push('/?tab=signin&message=password_updated');
+          }
+        }, 1000);
+        
+        return; // Exit early to avoid any further processing
       }
-      
-      // Clear form
-      setFormData({
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-
-      // Reset loading state immediately after success
-      setIsLoading(false);
-
-      // Redirect to sign-in page after a short delay
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          router.push('/?tab=signin&message=password_updated');
-        }
-      }, 2000);
 
     } catch (err) {
       console.error('Password update error:', err);

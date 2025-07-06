@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { authService, AuthResult } from '../lib/services/supabaseAuthService';
 
 interface AuthPanelProps {
@@ -10,6 +11,7 @@ interface AuthPanelProps {
 }
 
 export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPanelProps) {
+  const searchParams = useSearchParams();
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]= useState<string | null>(null);
@@ -41,6 +43,26 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       }
     };
   }, []);
+
+  // Handle URL parameters for auth mode and success messages
+  React.useEffect(() => {
+    const tab = searchParams.get('tab');
+    const message = searchParams.get('message');
+    
+    if (tab === 'signin') {
+      setAuthMode('login');
+      
+      if (message === 'password_updated') {
+        setSuccessMessage('Password updated successfully! Please sign in with your new password.');
+        
+        // Clean up URL parameters after showing the message
+        const url = new URL(window.location.href);
+        url.searchParams.delete('tab');
+        url.searchParams.delete('message');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams]);
 
   const safeSetState = (stateSetter: () => void) => {
     if (isMountedRef.current) {
