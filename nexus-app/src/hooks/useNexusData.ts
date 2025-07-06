@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { dataService, convertToStreamEntryData } from '../lib/services/dataService';
 import { authService } from '../lib/services/supabaseAuthService';
 import { userInteractionService, UserInteractionState } from '../lib/services/userInteractionService';
@@ -147,6 +147,10 @@ export const useNexusData = (): NexusData => {
   const [userInteractionStates, setUserInteractionStates] = useState<Map<string, UserInteractionState>>(new Map());
   const [isUserStatesLoaded, setIsUserStatesLoaded] = useState(false);
   const [currentPostIds, setCurrentPostIds] = useState<string[]>([]);
+  
+  // Track function calls to reduce excessive logging
+  const resonatedCallsRef = useRef<Set<string>>(new Set());
+  const amplifiedCallsRef = useRef<Set<string>>(new Set());
   
   // Profile viewing state
   const [profileViewState, setProfileViewState] = useState<ProfileViewState>({
@@ -397,23 +401,37 @@ export const useNexusData = (): NexusData => {
     }
   }, [refreshData]);
   
-  // Resonate with entry - Following social media playbook pattern
+  // User interaction actions - following social media playbook pattern
   const resonateWithEntry = useCallback(async (entryId: string) => {
     if (!authState.currentUser) {
-      throw new Error('User not authenticated');
+      console.log(`⏭️ Cannot resonate - user not authenticated`);
+      return;
     }
+
+    console.log(`🔄 INTERACTION: Resonating with entry ${entryId}`);
+    console.log(`🔍 - Current user: ${authState.currentUser.id}`);
+    console.log(`🔍 - Before interaction state:`, userInteractionStates.get(entryId));
+
+    // Get current state
+    const currentState = userInteractionStates.get(entryId) || { hasResonated: false, hasAmplified: false };
+    const isCurrentlyResonated = currentState.hasResonated;
+    const newResonatedState = !isCurrentlyResonated;
+    
+    console.log(`🔍 - Toggling resonance: ${isCurrentlyResonated} → ${newResonatedState}`);
+
+    // Optimistically update UI state
+    const newState = { ...currentState, hasResonated: newResonatedState };
+    setUserInteractionStates(prev => {
+      const newMap = new Map(prev);
+      newMap.set(entryId, newState);
+      console.log(`🔍 - Updated local state for ${entryId}:`, newState);
+      return newMap;
+    });
 
     try {
       // Call dataService - it handles database update and cache updates
       const isNowResonated = await dataService.resonateWithEntry(entryId);
-      
-      // Update local React state immediately for instant UI feedback
-      setUserInteractionStates(prev => {
-        const newStates = new Map(prev);
-        const currentState = newStates.get(entryId) || { hasResonated: false, hasAmplified: false };
-        newStates.set(entryId, { ...currentState, hasResonated: isNowResonated });
-        return newStates;
-      });
+      console.log(`✅ Successfully updated resonance for entry ${entryId} - result: ${isNowResonated}`);
       
       // Update user interaction service cache
       userInteractionService.updateUserInteractionState(authState.currentUser.id, entryId, 'resonance', isNowResonated);
@@ -421,31 +439,52 @@ export const useNexusData = (): NexusData => {
       // Update auth state for user stats
       setAuthState(authService.getAuthState());
       
-      console.log(`✅ Resonance ${isNowResonated ? 'added' : 'removed'} for ${entryId} - instant UI update`);
+      // Verify the state was updated correctly
+      const verifyState = userInteractionStates.get(entryId);
+      console.log(`🔍 - Post-interaction state verification:`, verifyState);
       
     } catch (error) {
       console.error('❌ Failed to resonate with entry:', error);
-      throw error;
+      // Revert optimistic update
+      setUserInteractionStates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(entryId, currentState);
+        console.log(`🔄 Reverted state for ${entryId}:`, currentState);
+        return newMap;
+      });
     }
-  }, [authState.currentUser]);
+  }, [authState.currentUser, userInteractionStates]);
 
-  // Amplify entry - Following social media playbook pattern
   const amplifyEntry = useCallback(async (entryId: string) => {
     if (!authState.currentUser) {
-      throw new Error('User not authenticated');
+      console.log(`⏭️ Cannot amplify - user not authenticated`);
+      return;
     }
+
+    console.log(`🔄 INTERACTION: Amplifying entry ${entryId}`);
+    console.log(`🔍 - Current user: ${authState.currentUser.id}`);
+    console.log(`🔍 - Before interaction state:`, userInteractionStates.get(entryId));
+
+    // Get current state
+    const currentState = userInteractionStates.get(entryId) || { hasResonated: false, hasAmplified: false };
+    const isCurrentlyAmplified = currentState.hasAmplified;
+    const newAmplifiedState = !isCurrentlyAmplified;
+    
+    console.log(`🔍 - Toggling amplification: ${isCurrentlyAmplified} → ${newAmplifiedState}`);
+
+    // Optimistically update UI state
+    const newState = { ...currentState, hasAmplified: newAmplifiedState };
+    setUserInteractionStates(prev => {
+      const newMap = new Map(prev);
+      newMap.set(entryId, newState);
+      console.log(`🔍 - Updated local state for ${entryId}:`, newState);
+      return newMap;
+    });
 
     try {
       // Call dataService - it handles database update and cache updates
       const isNowAmplified = await dataService.amplifyEntry(entryId);
-      
-      // Update local React state immediately for instant UI feedback
-      setUserInteractionStates(prev => {
-        const newStates = new Map(prev);
-        const currentState = newStates.get(entryId) || { hasResonated: false, hasAmplified: false };
-        newStates.set(entryId, { ...currentState, hasAmplified: isNowAmplified });
-        return newStates;
-      });
+      console.log(`✅ Successfully updated amplification for entry ${entryId} - result: ${isNowAmplified}`);
       
       // Update user interaction service cache
       userInteractionService.updateUserInteractionState(authState.currentUser.id, entryId, 'amplification', isNowAmplified);
@@ -453,13 +492,21 @@ export const useNexusData = (): NexusData => {
       // Update auth state for user stats
       setAuthState(authService.getAuthState());
       
-      console.log(`✅ Amplification ${isNowAmplified ? 'added' : 'removed'} for ${entryId} - instant UI update`);
+      // Verify the state was updated correctly
+      const verifyState = userInteractionStates.get(entryId);
+      console.log(`🔍 - Post-interaction state verification:`, verifyState);
       
     } catch (error) {
-      console.error('Failed to amplify entry:', error);
-      throw error;
+      console.error('❌ Failed to amplify entry:', error);
+      // Revert optimistic update
+      setUserInteractionStates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(entryId, currentState);
+        console.log(`🔄 Reverted state for ${entryId}:`, currentState);
+        return newMap;
+      });
     }
-  }, [authState.currentUser]);
+  }, [authState.currentUser, userInteractionStates]);
 
   // Auth actions
   const login = useCallback(async (email: string, password: string) => {
@@ -511,26 +558,38 @@ export const useNexusData = (): NexusData => {
 
   // User interaction checks - following social media playbook pattern
   const hasUserResonated = useCallback((entryId: string): boolean => {
+    // Only log issues, not every call
     if (!authState.currentUser || !isUserStatesLoaded) {
-      console.log(`🔍 hasUserResonated(${entryId}) = false (user: ${!!authState.currentUser}, loaded: ${isUserStatesLoaded})`);
       return false;
     }
-    const result = userInteractionStates.get(entryId)?.hasResonated || false;
-    if (result) {
-      console.log(`✨ hasUserResonated(${entryId}) = true`);
+    
+    const state = userInteractionStates.get(entryId);
+    const result = state?.hasResonated || false;
+    
+    // Only log if we have a problem finding the state
+    if (!state && !resonatedCallsRef.current.has(entryId)) {
+      console.log(`⚠️ No state found for post ${entryId} when checking resonance`);
+      resonatedCallsRef.current.add(entryId);
     }
+    
     return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
 
   const hasUserAmplified = useCallback((entryId: string): boolean => {
+    // Only log issues, not every call
     if (!authState.currentUser || !isUserStatesLoaded) {
-      console.log(`🔍 hasUserAmplified(${entryId}) = false (user: ${!!authState.currentUser}, loaded: ${isUserStatesLoaded})`);
       return false;
     }
-    const result = userInteractionStates.get(entryId)?.hasAmplified || false;
-    if (result) {
-      console.log(`🔥 hasUserAmplified(${entryId}) = true`);
+    
+    const state = userInteractionStates.get(entryId);
+    const result = state?.hasAmplified || false;
+    
+    // Only log if we have a problem finding the state
+    if (!state && !amplifiedCallsRef.current.has(entryId)) {
+      console.log(`⚠️ No state found for post ${entryId} when checking amplification`);
+      amplifiedCallsRef.current.add(entryId);
     }
+    
     return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
   
@@ -613,24 +672,40 @@ export const useNexusData = (): NexusData => {
       // Only load if user is authenticated and we have posts
       if (!authState.isAuthenticated || !authState.currentUser) {
         console.log(`⏭️ Skipping user interaction states load - not authenticated`);
+        setIsUserStatesLoaded(false);
         return;
       }
 
-      const allPostIds = [...logbookEntries, ...sharedDreams].map(e => e.id);
+      // Load all posts (removed testing limit)
+      const allPosts = [...logbookEntries, ...sharedDreams];
+      const allPostIds = allPosts.map(e => e.id);
       setCurrentPostIds(allPostIds);
       
+      console.log(`🔄 Loading user interaction states for ${allPostIds.length} posts`);
+      console.log(`🔍 USER ID: ${authState.currentUser.id}`);
+      console.log(`🔍 POST IDS: [${allPostIds.slice(0, 10).join(', ')}${allPostIds.length > 10 ? '...' : ''}]`);
+      
       if (allPostIds.length > 0) {
-        console.log(`🔄 Batch loading user interaction states for ${allPostIds.length} posts:`, allPostIds.slice(0, 3));
         try {
           const states = await userInteractionService.batchLoadUserStates(
             authState.currentUser.id,
             allPostIds
           );
           
+          const interactedCount = Array.from(states.values()).filter(s => s.hasResonated || s.hasAmplified).length;
+          
+          console.log(`🔍 FINAL STATES MAP: ${states.size} posts loaded, ${interactedCount} with interactions`);
+          
           setUserInteractionStates(states);
           setIsUserStatesLoaded(true);
-          console.log(`✅ User interaction states loaded for ${states.size} posts, sample:`, 
-            Array.from(states.entries()).slice(0, 3));
+          console.log(`✅ User interaction states loaded: ${states.size} total, ${interactedCount} with interactions`);
+          
+          // Show summary of interactions found
+          if (interactedCount > 0) {
+            const resonatedCount = Array.from(states.values()).filter(s => s.hasResonated).length;
+            const amplifiedCount = Array.from(states.values()).filter(s => s.hasAmplified).length;
+            console.log(`📊 Interaction summary: ${resonatedCount} resonated, ${amplifiedCount} amplified`);
+          }
         } catch (error) {
           console.error('❌ Failed to load user interaction states:', error);
           setIsUserStatesLoaded(true); // Still allow rendering

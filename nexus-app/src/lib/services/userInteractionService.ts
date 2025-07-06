@@ -70,9 +70,38 @@ class UserInteractionService {
    */
   private async executeBatchLoad(userId: string, postIds: string[]): Promise<Map<string, UserInteractionState>> {
     console.log(`🔄 Batch loading user interaction states for ${postIds.length} posts`);
+    console.log(`🔍 User ID: ${userId}`);
+    console.log(`🔍 Post IDs: [${postIds.slice(0, 10).join(', ')}${postIds.length > 10 ? '...' : ''}]`);
     
     try {
-      // Use separate queries for better reliability and clearer logic
+      // Check if user has ANY resonances/amplifications in the database
+      const [allUserResonances, allUserAmplifications] = await Promise.all([
+        supabase
+          .from('user_resonances')
+          .select('*')
+          .eq('user_id', userId)
+          .limit(10),
+        supabase
+          .from('user_amplifications')
+          .select('*')
+          .eq('user_id', userId)
+          .limit(10)
+      ]);
+      
+      console.log(`🔍 USER'S RESONANCES: ${allUserResonances.data?.length || 0} found`);
+      console.log(`🔍 USER'S AMPLIFICATIONS: ${allUserAmplifications.data?.length || 0} found`);
+      
+      if (allUserResonances.error) {
+        console.error('❌ Error querying user_resonances table:', allUserResonances.error);
+        console.log('🔍 This might mean the table doesn\'t exist or has permission issues');
+      }
+      if (allUserAmplifications.error) {
+        console.error('❌ Error querying user_amplifications table:', allUserAmplifications.error);
+        console.log('🔍 This might mean the table doesn\'t exist or has permission issues');
+      }
+      
+      // Now do the actual queries for our specific posts
+      console.log(`🔄 Querying for specific posts...`);
       const [resonanceData, amplificationData] = await Promise.all([
         supabase
           .from('user_resonances')
@@ -86,39 +115,57 @@ class UserInteractionService {
           .in('entry_id', postIds)
       ]);
 
+      console.log(`🔍 RESONANCE MATCHES: ${resonanceData.data?.length || 0} found`);
+      console.log(`🔍 AMPLIFICATION MATCHES: ${amplificationData.data?.length || 0} found`);
+
       if (resonanceData.error) {
-        console.error('❌ Error loading user resonances:', resonanceData.error);
+        console.error('❌ Error loading user resonances for posts:', resonanceData.error);
       }
       if (amplificationData.error) {
-        console.error('❌ Error loading user amplifications:', amplificationData.error);
+        console.error('❌ Error loading user amplifications for posts:', amplificationData.error);
       }
 
-      // Build sets for O(1) lookup
+      // Build sets for O(1) lookup - ENSURE STRING CONSISTENCY
       const resonatedPostIds = new Set(
-        resonanceData.data?.map(item => item.entry_id) || []
+        resonanceData.data?.map(item => String(item.entry_id)) || []
       );
       const amplifiedPostIds = new Set(
-        amplificationData.data?.map(item => item.entry_id) || []
+        amplificationData.data?.map(item => String(item.entry_id)) || []
       );
+
+      console.log(`🔍 PROCESSED RESONATED IDS: [${Array.from(resonatedPostIds).join(', ')}]`);
+      console.log(`🔍 PROCESSED AMPLIFIED IDS: [${Array.from(amplifiedPostIds).join(', ')}]`);
+      console.log(`✅ Found ${resonatedPostIds.size} resonated, ${amplifiedPostIds.size} amplified posts`);
 
       // Process results into efficient Map structure
       const statesMap = new Map<string, UserInteractionState>();
       
+      let interactedCount = 0;
       postIds.forEach(postId => {
-        statesMap.set(postId, {
-          hasResonated: resonatedPostIds.has(postId),
-          hasAmplified: amplifiedPostIds.has(postId)
-        });
+        // ENSURE STRING COMPARISON
+        const postIdStr = String(postId);
+        const state = {
+          hasResonated: resonatedPostIds.has(postIdStr),
+          hasAmplified: amplifiedPostIds.has(postIdStr)
+        };
+        statesMap.set(postId, state);
+        
+        // Only log interactions found
+        if (state.hasResonated || state.hasAmplified) {
+          console.log(`✨ Post ${postId} - resonated: ${state.hasResonated}, amplified: ${state.hasAmplified}`);
+          interactedCount++;
+        }
       });
 
       // Update cache
       this.updateCache(userId, statesMap);
       
-      console.log(`✅ Batch loaded user states for ${statesMap.size} posts (${resonatedPostIds.size} resonated, ${amplifiedPostIds.size} amplified)`);
+      console.log(`✅ Batch loaded user states for ${statesMap.size} posts (${interactedCount} with interactions)`);
       return statesMap;
       
     } catch (error) {
       console.error('❌ Failed to batch load user interaction states:', error);
+      console.log('🔍 Error details:', error);
       return new Map();
     }
   }
