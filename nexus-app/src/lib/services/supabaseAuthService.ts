@@ -155,7 +155,19 @@ class SupabaseAuthService {
         } else if (event === 'TOKEN_REFRESHED' && session) {
           await this.handleAuthStateChange(session);
         } else if (event === 'USER_UPDATED' && session) {
-          await this.handleAuthStateChange(session);
+          // Skip the profile fetch for simple USER_UPDATED events that don't change metadata we care about
+          if (this.authState.currentUser?.id === session.user.id) {
+            // Just update the session token, keep existing profile
+            console.log('USER_UPDATED: profile already cached, skipping DB fetch');
+            this.authState = {
+              ...this.authState,
+              sessionToken: session.access_token
+            };
+            this.notifyAuthListeners();
+          } else {
+            // Different user or no cached profile - fetch it
+            await this.handleAuthStateChange(session);
+          }
         }
       });
 
@@ -215,39 +227,74 @@ class SupabaseAuthService {
     } catch (error) {
       console.error('Error handling auth state change:', error);
       
-      // Enhanced cleanup for various error scenarios
+      // Handle database timeout differently from auth/session errors
+      if (error instanceof Error && error.message.includes('timeout')) {
+        // Keep session valid; mark profile as stale and retry in background
+        console.warn('Profile fetch timed out; keeping session valid and will retry later');
+        this.authState = {
+          isAuthenticated: true,
+          currentUser: this.authState.currentUser, // Keep existing profile if available
+          sessionToken: session.access_token
+        };
+        this.notifyAuthListeners();
+        
+        // Schedule background retry
+        setTimeout(() => {
+          this.retryProfileFetch(session.user);
+        }, 5000); // Retry after 5 seconds
+        
+        return;
+      }
+      
+      // Real auth/session problem → fall back to cleanupInvalidSession()
       await this.cleanupInvalidSession();
     }
   }
 
   private async createOrGetUserProfile(supabaseUser: SupabaseUser): Promise<User> {
-    try {
-      // First, try to get existing user with timeout
-      const fetchPromise = supabase
-        .from('users')
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .single();
+    return this.fetchUserWithRetry(supabaseUser.id, supabaseUser);
+  }
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 10000);
-      });
+  private async fetchUserWithRetry(userId: string, supabaseUser: SupabaseUser, attempts = 3): Promise<User> {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        // First, try to get existing user with extended timeout
+        const fetchPromise = supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      const { data: existingUser, error: fetchError } = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]);
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Database query timeout')), 30000); // Increased to 30 seconds
+        });
 
-      if (existingUser && !fetchError) {
-        return this.mapSupabaseUserToAppUser(existingUser);
+        const { data: existingUser, error: fetchError } = await Promise.race([
+          fetchPromise,
+          timeoutPromise
+        ]);
+
+        if (existingUser && !fetchError) {
+          return this.mapSupabaseUserToAppUser(existingUser);
+        }
+
+        // If user doesn't exist, create new profile
+        return await this.createNewUserProfile(supabaseUser);
+      } catch (error) {
+        console.warn(`User fetch attempt ${i + 1} failed:`, error);
+        
+        if (i === attempts - 1) {
+          // Last attempt failed
+          throw new Error(`Failed to create or retrieve user profile after ${attempts} attempts`);
+        }
+        
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = 1000 * Math.pow(2, i);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      // If user doesn't exist, create new profile
-      return await this.createNewUserProfile(supabaseUser);
-    } catch (error) {
-      console.error('Error in createOrGetUserProfile:', error);
-      throw new Error('Failed to create or retrieve user profile');
     }
+
+    throw new Error('Failed to create or retrieve user profile');
   }
 
   private async createNewUserProfile(supabaseUser: SupabaseUser): Promise<User> {
@@ -640,6 +687,38 @@ class SupabaseAuthService {
         .eq('id', currentUser.id);
     } catch (error) {
       console.error('Failed to update user stats:', error);
+    }
+  }
+
+  private async retryProfileFetch(supabaseUser: SupabaseUser, attempt = 1) {
+    const maxAttempts = 3;
+    const baseDelay = 1000; // 1 second
+    
+    try {
+      console.log(`Retrying profile fetch (attempt ${attempt}/${maxAttempts})`);
+      const user = await this.createOrGetUserProfile(supabaseUser);
+      
+      // Update the current user profile if we got it
+      if (this.authState.isAuthenticated) {
+        this.authState = {
+          ...this.authState,
+          currentUser: user
+        };
+        this.notifyAuthListeners();
+        console.log('Profile fetch retry successful');
+      }
+    } catch (error) {
+      console.warn(`Profile fetch retry ${attempt} failed:`, error);
+      
+      // Exponential backoff retry
+      if (attempt < maxAttempts) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+        setTimeout(() => {
+          this.retryProfileFetch(supabaseUser, attempt + 1);
+        }, delay);
+      } else {
+        console.error('All profile fetch retries failed');
+      }
     }
   }
 }
