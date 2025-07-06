@@ -131,6 +131,67 @@ export class SupabaseProvider implements DatabaseProvider {
       sortOrder = 'desc'
     } = options;
 
+    // OPTIMIZED: Single query with JOIN to get entries AND interaction counts
+    let query = this.client
+      .from('stream_entries')
+      .select(`
+        *,
+        interaction_counts(
+          resonance_count,
+          amplification_count, 
+          branch_count,
+          share_count
+        )
+      `)
+      .eq('entry_type', type);
+
+    // Apply sorting and pagination
+    query = query
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range((page - 1) * limit, page * limit - 1);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ Error fetching entries with interactions:', error);
+      
+      // Fallback: Use the old two-query method if JOIN fails
+      console.warn('⚠️ JOIN query failed, falling back to separate queries...');
+      return this.getEntriesWithSeparateQueries(type, options);
+    }
+
+    if (!data) return [];
+
+    // Convert and merge interaction data in single pass
+    const entries = data.map(row => {
+      const entry = this.supabaseToStreamEntry(row);
+      
+      // Merge interaction counts from JOIN (if available)
+      if (row.interaction_counts) {
+        entry.interactions = {
+          resonances: row.interaction_counts.resonance_count || 0,
+          branches: row.interaction_counts.branch_count || 0,
+          amplifications: row.interaction_counts.amplification_count || 0,
+          shares: row.interaction_counts.share_count || 0
+        };
+      }
+      
+      return entry;
+    });
+
+    console.log(`✅ Fetched ${entries.length} entries with interactions in single query`);
+    return entries;
+  }
+
+  // Fallback method for when JOIN fails
+  private async getEntriesWithSeparateQueries(type: 'logbook' | 'dream', options: QueryOptions = {}): Promise<StreamEntry[]> {
+    const {
+      page = 1,
+      limit = 50,
+      sortBy = 'timestamp',
+      sortOrder = 'desc'
+    } = options;
+
     let query = this.client
       .from('stream_entries')
       .select('*')
@@ -144,13 +205,13 @@ export class SupabaseProvider implements DatabaseProvider {
     const { data, error } = await query;
 
     if (error) {
-      console.error('❌ Error fetching entries:', error);
+      console.error('❌ Error fetching entries (fallback):', error);
       throw new Error(`Failed to fetch entries: ${error.message}`);
     }
 
     const entries = (data || []).map(this.supabaseToStreamEntry);
     
-    // Batch fetch interaction counts and update entries
+    // Batch fetch interaction counts and update entries (old method)
     const entryIds = entries.map(e => e.id);
     if (entryIds.length > 0) {
       const interactionCounts = await this.getInteractionCounts(entryIds);
@@ -169,13 +230,58 @@ export class SupabaseProvider implements DatabaseProvider {
       });
     }
 
+    console.log(`⚠️ Used fallback method for ${entries.length} entries`);
     return entries;
   }
 
   async getEntryById(id: string): Promise<StreamEntry | null> {
     const entryId = parseInt(id as any, 10);
+    const idStr = String(id);
 
-    // Normalised string version for subsequent look-ups
+    // OPTIMIZED: Single query with JOIN to get entry AND interaction counts
+    const { data, error } = await this.client
+      .from('stream_entries')
+      .select(`
+        *,
+        interaction_counts(
+          resonance_count,
+          amplification_count,
+          branch_count,
+          share_count
+        )
+      `)
+      .eq('id', entryId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      
+      // Fallback: Use the old two-query method if JOIN fails
+      console.warn('⚠️ JOIN query failed for getEntryById, falling back...');
+      return this.getEntryByIdWithSeparateQueries(id);
+    }
+
+    if (!data) return null;
+
+    const entry = this.supabaseToStreamEntry(data);
+    
+    // Merge interaction counts from JOIN (if available)
+    if (data.interaction_counts) {
+      entry.interactions = {
+        resonances: data.interaction_counts.resonance_count || 0,
+        branches: data.interaction_counts.branch_count || 0,
+        amplifications: data.interaction_counts.amplification_count || 0,
+        shares: data.interaction_counts.share_count || 0
+      };
+    }
+
+    console.log(`✅ Fetched entry ${id} with interactions in single query`);
+    return entry;
+  }
+
+  // Fallback method for when JOIN fails
+  private async getEntryByIdWithSeparateQueries(id: string): Promise<StreamEntry | null> {
+    const entryId = parseInt(id as any, 10);
     const idStr = String(id);
 
     const { data, error } = await this.client
@@ -186,7 +292,7 @@ export class SupabaseProvider implements DatabaseProvider {
 
     if (error) {
       if (error.code === 'PGRST116') return null; // Not found
-      console.error('❌ Error fetching entry:', error);
+      console.error('❌ Error fetching entry (fallback):', error);
       throw new Error(`Failed to fetch entry: ${error.message}`);
     }
 
@@ -194,7 +300,7 @@ export class SupabaseProvider implements DatabaseProvider {
 
     const entry = this.supabaseToStreamEntry(data);
     
-    // Update with latest interaction counts
+    // Update with latest interaction counts (old method)
     const interactionCounts = await this.getInteractionCounts([idStr]);
     const counts = interactionCounts.get(idStr);
     if (counts) {
@@ -206,6 +312,7 @@ export class SupabaseProvider implements DatabaseProvider {
       };
     }
 
+    console.log(`⚠️ Used fallback method for entry ${id}`);
     return entry;
   }
 
@@ -350,62 +457,50 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   async getInteractionCounts(entryIds: string[]): Promise<Map<string, InteractionCounts>> {
-    try {
-      // Convert string IDs to numbers for the database function
-      const numericIds = entryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-      
-      const { data, error } = await this.client.rpc('get_interaction_counts', {
-        entry_ids: numericIds
-      });
+    const countsMap = new Map<string, InteractionCounts>();
 
-      if (error) {
-        console.error('❌ Error fetching interaction counts:', error);
-        console.error('❌ Entry IDs passed:', entryIds);
-        console.error('❌ Numeric IDs passed:', numericIds);
-        throw new Error(`Failed to fetch interaction counts: ${error.message}`);
-      }
+    // Call the RPC function that accepts an array of entry IDs
+    const { data, error } = await this.client
+      .rpc('get_interaction_counts_for_entries', { entry_ids: entryIds });
 
-      const countsMap = new Map<string, InteractionCounts>();
-      
-      if (data) {
-        data.forEach((row: any) => {
-          // Convert back to string for the map key
-          countsMap.set(String(row.entry_id), {
-            resonanceCount: row.resonance_count || 0,
-            branchCount: row.branch_count || 0,
-            amplificationCount: row.amplification_count || 0,
-            shareCount: row.share_count || 0
-          });
-        });
-      }
-
-      return countsMap;
-    } catch (error) {
-      console.error('❌ Error in getInteractionCounts:', error);
-      return new Map(); // Return empty map on error
+    if (error) {
+      console.error('Error fetching interaction counts:', error);
+      throw error;
     }
+
+    // Process the results
+    if (data) {
+      data.forEach((row: any) => {
+        countsMap.set(row.entry_id, {
+          resonanceCount: row.resonance_count,
+          branchCount: row.branch_count,
+          amplificationCount: row.amplification_count,
+          shareCount: row.share_count
+        });
+      });
+    }
+
+    return countsMap;
   }
 
   async getUserInteractionStates(userId: string, entryIds: string[]): Promise<Map<string, UserInteractionState>> {
+    const interactionStateMap = new Map<string, UserInteractionState>();
+
     try {
-      // Convert string IDs to numbers for the database function
-      const numericIds = entryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-      
       // Preferred path: call the RPC (requires the database function to exist)
       const { data, error } = await this.client.rpc('get_user_interaction_states', {
         target_user_id: userId,
-        entry_ids: numericIds
+        entry_ids: entryIds
       });
 
       if (!error && data) {
-        const statesMap = new Map<string, UserInteractionState>();
         data.forEach((row: any) => {
-          statesMap.set(String(row.entry_id), {
+          interactionStateMap.set(String(row.entry_id), {
             hasResonated: row.has_resonated || false,
             hasAmplified: row.has_amplified || false
           });
         });
-        return statesMap;
+        return interactionStateMap;
       }
 
       // ────────────────────────────────────────────────────────────
@@ -420,12 +515,12 @@ export class SupabaseProvider implements DatabaseProvider {
           .from('user_resonances')
           .select('entry_id')
           .eq('user_id', userId)
-          .in('entry_id', numericIds),
+          .in('entry_id', entryIds),
         this.client
           .from('user_amplifications')
           .select('entry_id')
           .eq('user_id', userId)
-          .in('entry_id', numericIds)
+          .in('entry_id', entryIds)
       ]);
 
       if (resonancesResp.error) {
@@ -438,15 +533,14 @@ export class SupabaseProvider implements DatabaseProvider {
       const resonatedIds = new Set<string>((resonancesResp.data || []).map(r => String(r.entry_id)));
       const amplifiedIds = new Set<string>((amplificationsResp.data || []).map(r => String(r.entry_id)));
 
-      const statesMap = new Map<string, UserInteractionState>();
       entryIds.forEach(id => {
-        statesMap.set(String(id), {
+        interactionStateMap.set(String(id), {
           hasResonated: resonatedIds.has(String(id)),
           hasAmplified: amplifiedIds.has(String(id))
         });
       });
 
-      return statesMap;
+      return interactionStateMap;
     } catch (error) {
       console.error('❌ Error in getUserInteractionStates:', error);
       return new Map(); // Return empty map on error

@@ -40,15 +40,17 @@ export default function ResonanceField({
     return resonatedEntries.map(entry => streamEntryDataToPost(entry));
   }, [resonatedEntries]);
 
+  // OPTIMIZED: Granular interaction handlers that don't trigger full refreshes
   const handleResonate = async (entryId: string) => {
     if (!onResonate) return;
     
     try {
+      console.log(`⚡ Processing resonance for post ${entryId} (no full refresh)`);
       await onResonate(entryId);
-      // Refresh the resonated entries after successful resonance action
-      if (refreshResonatedEntries) {
-        await refreshResonatedEntries();
-      }
+      
+      // OPTIMIZATION: NO full refresh - PostDisplay handles local state updates
+      // The PostDisplay component will show immediate UI changes via optimistic updates
+      console.log(`✅ Resonance processed for post ${entryId} - UI updated locally`);
     } catch (error) {
       console.error('Error handling resonance in ResonanceField:', error);
       // CRITICAL: Re-throw the error so PostDisplay component gets the error signal
@@ -60,11 +62,12 @@ export default function ResonanceField({
     if (!onAmplify) return;
     
     try {
+      console.log(`⚡ Processing amplification for post ${entryId} (no full refresh)`);
       await onAmplify(entryId);
-      // Refresh the amplified entries after successful amplify action
-      if (refreshAmplifiedEntries) {
-        await refreshAmplifiedEntries();
-      }
+      
+      // OPTIMIZATION: NO full refresh - PostDisplay handles local state updates  
+      // The PostDisplay component will show immediate UI changes via optimistic updates
+      console.log(`✅ Amplification processed for post ${entryId} - UI updated locally`);
     } catch (error) {
       console.error('Error handling amplify in ResonanceField:', error);
       // CRITICAL: Re-throw the error so PostDisplay component gets the error signal

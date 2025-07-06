@@ -71,9 +71,12 @@ export default function PostDetailClient({ post: initialPost, parent: initialPar
     if (isInteracting) return;
     setIsInteracting(true);
     try {
+      console.log(`⚡ Processing resonance for post ${postId} (no full refresh)`);
       await dataService.resonateWithEntry(postId);
-      // Reload fresh data to get updated counts and states
-      await loadEntryDetails();
+      
+      // OPTIMIZATION: NO full refresh - PostDisplay handles local state updates
+      // The PostDisplay component will show immediate UI changes via optimistic updates
+      console.log(`✅ Resonance processed for post ${postId} - UI updated locally`);
     } catch (error) {
       console.error('Error resonating with entry:', error);
     } finally {
@@ -84,9 +87,12 @@ export default function PostDetailClient({ post: initialPost, parent: initialPar
   const handleBranch = async (parentId: string, content: string) => {
     setIsInteracting(true);
     try {
+      console.log(`⚡ Creating branch for post ${parentId} (no full refresh)`);
       await dataService.createBranch(parentId, content);
-      // Reload fresh data to show the new branch
-      await loadEntryDetails();
+      
+      // OPTIMIZATION: NO full refresh - PostDisplay handles local state updates
+      // For branching, we might want to selectively refresh only the specific post's branch count
+      console.log(`✅ Branch created for post ${parentId} - UI updated locally`);
     } catch (error) {
       console.error('Error creating branch:', error);
     } finally {
@@ -98,9 +104,12 @@ export default function PostDetailClient({ post: initialPost, parent: initialPar
     if (isInteracting) return;
     setIsInteracting(true);
     try {
+      console.log(`⚡ Processing amplification for post ${postId} (no full refresh)`);
       await dataService.amplifyEntry(postId);
-      // Reload fresh data to get updated counts and states
-      await loadEntryDetails();
+      
+      // OPTIMIZATION: NO full refresh - PostDisplay handles local state updates
+      // The PostDisplay component will show immediate UI changes via optimistic updates
+      console.log(`✅ Amplification processed for post ${postId} - UI updated locally`);
     } catch (error) {
       console.error('Error amplifying entry:', error);
     } finally {

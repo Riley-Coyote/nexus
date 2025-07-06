@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PostList from './PostList';
 import { Post } from '@/lib/types';
 import { streamEntryDataToPost } from '@/lib/utils/postUtils';
@@ -57,6 +57,11 @@ export default function NexusFeed({
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const [hasMore, setHasMore] = useState(true);
+  
+  // Track if we're at the top of the feed for smart refreshing
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [lastDataHash, setLastDataHash] = useState<string>('');
+  const initialLoadRef = useRef(true);
 
   // Load and convert entries to Post format
   const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
@@ -89,17 +94,70 @@ export default function NexusFeed({
     }
   };
 
+  // Smart refresh: Only reset pagination if user is at top OR it's initial load
   useEffect(() => {
-    // Reset pagination whenever underlying data changed (e.g., new post created)
-    setPage(1);
-    loadFlattenedEntries(1, false);
-  }, [logbookEntries, dreamEntries]);
+    // Create a simple hash of the data to detect actual changes
+    const dataHash = `${logbookEntries.length}-${dreamEntries.length}-${
+      logbookEntries[0]?.id || ''
+    }-${dreamEntries[0]?.id || ''}`;
+    
+    // Initial load - always load
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      setLastDataHash(dataHash);
+      setPage(1);
+      loadFlattenedEntries(1, false);
+      return;
+    }
+    
+    // Skip if data hasn't actually changed
+    if (dataHash === lastDataHash) {
+      return;
+    }
+    
+    setLastDataHash(dataHash);
+    
+    // Smart refresh: Only reset if at top of feed
+    if (isAtTop) {
+      console.log('🔄 Smart refresh: Resetting pagination (user at top)');
+      setPage(1);
+      loadFlattenedEntries(1, false);
+    } else {
+      console.log('📍 Smart refresh: Preserving pagination (user scrolled down)');
+      // Optional: Show a "New posts available" banner instead
+    }
+  }, [logbookEntries, dreamEntries, isAtTop]);
+
+  // Track scroll position to determine if user is at top
+  const handleScroll = React.useCallback((e: Event) => {
+    const target = e.target as HTMLElement;
+    const scrollTop = target.scrollTop;
+    setIsAtTop(scrollTop < 100); // Consider "top" if within 100px of top
+  }, []);
+
+  // Attach scroll listener to detect position
+  useEffect(() => {
+    const scrollContainer = document.querySelector('.parallax-layer-3');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll);
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   const handleLoadMore = async () => {
     if (isLoading || !hasMore) return;
     const nextPage = page + 1;
     await loadFlattenedEntries(nextPage, true);
     setPage(nextPage);
+    setIsAtTop(false); // User is definitely not at top after loading more
+  };
+
+  // Manual refresh function for explicit user action
+  const handleManualRefresh = async () => {
+    console.log('🔄 Manual refresh requested');
+    setPage(1);
+    setIsAtTop(true);
+    await loadFlattenedEntries(1, false);
   };
 
   // Smart refresh logic extracted for makeBranchHandler
@@ -141,6 +199,15 @@ export default function NexusFeed({
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
             <span>{flattenedEntries.length} entries</span>
             {isLoading && <span className="ml-2">↻ Updating...</span>}
+            {!isAtTop && (
+              <button
+                onClick={handleManualRefresh}
+                className="ml-2 text-emerald-400 hover:text-emerald-300 transition-colors"
+                title="Refresh to see new posts"
+              >
+                ↻ New posts available
+              </button>
+            )}
           </div>
         </div>
 

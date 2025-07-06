@@ -190,23 +190,25 @@ export default function PostOverlay({
     }
   };
 
-  // Proper async interaction handlers like StreamEntry
+  // OPTIMIZED: Granular interaction handlers that don't trigger unnecessary refreshes
   const handleResonate = async () => {
     if (isInteracting) return;
     
     setIsInteracting(true);
     try {
+      console.log(`⚡ Processing resonance for post ${post.id} in overlay (no unnecessary refresh)`);
       const newState = await dataService.resonateWithEntry(post.id);
       
-      // Update local state
+      // Update local state immediately for responsive UI
       setUserHasResonated(newState);
       setLocalInteractions(prev => ({
         ...prev,
         resonances: newState ? prev.resonances + 1 : Math.max(0, prev.resonances - 1)
       }));
       
-      // Call parent callback
+      // OPTIMIZATION: Only call parent callback for logging/analytics, no data refresh
       onInteraction?.('resonate', post.id);
+      console.log(`✅ Resonance processed for post ${post.id} - UI updated locally`);
     } catch (error) {
       console.error('Error toggling resonance:', error);
     } finally {
@@ -223,17 +225,19 @@ export default function PostOverlay({
     
     setIsInteracting(true);
     try {
+      console.log(`⚡ Processing amplification for post ${post.id} in overlay (no unnecessary refresh)`);
       const newState = await dataService.amplifyEntry(post.id);
       
-      // Update local state
+      // Update local state immediately for responsive UI
       setUserHasAmplified(newState);
       setLocalInteractions(prev => ({
         ...prev,
         amplifications: newState ? prev.amplifications + 1 : Math.max(0, prev.amplifications - 1)
       }));
       
-      // Call parent callback
+      // OPTIMIZATION: Only call parent callback for logging/analytics, no data refresh
       onInteraction?.('amplify', post.id);
+      console.log(`✅ Amplification processed for post ${post.id} - UI updated locally`);
     } catch (error) {
       console.error('Error toggling amplification:', error);
     } finally {
