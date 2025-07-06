@@ -78,11 +78,13 @@ class DataService {
   // Database provider for persistent storage
   private database: DatabaseProvider | null = null;
   private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null; // NEW: Prevent race conditions
 
   // Cache for efficient batch operations
   private interactionCountsCache: Map<string, InteractionCounts> = new Map();
   private userInteractionStatesCache: Map<string, Map<string, UserInteractionState>> = new Map();
   private entryCache: Map<string, { entry: StreamEntry; timestamp: number }> = new Map(); // NEW: Entry cache
+  private userInteractionStateTimestamps: Map<string, number> = new Map(); // NEW: Track when user states were last fetched
   private cacheExpiry = 30000; // 30 seconds
   private entryCacheExpiry = 60000; // 1 minute for entries
   private lastCacheUpdate = 0;
@@ -91,9 +93,21 @@ class DataService {
     // Initialize data will be called lazily when first method is accessed
   }
 
-  private async initializeData() {
+  private async initializeData(): Promise<void> {
+    // FIXED: Prevent race conditions with concurrent calls
     if (this.isInitialized) return;
     
+    // If initialization is already in progress, wait for it
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+    
+    // Start initialization
+    this.initializationPromise = this.performInitialization();
+    return this.initializationPromise;
+  }
+
+  private async performInitialization(): Promise<void> {
     try {
       // Initialize database connection
       this.database = DatabaseFactory.getInstance();
@@ -105,6 +119,7 @@ class DataService {
       this.isInitialized = true;
     } catch (error) {
       console.error('❌ Failed to initialize data service:', error);
+      this.initializationPromise = null; // Reset on failure to allow retry
       throw error; // Don't fall back to mock mode - fail fast
     }
   }
@@ -383,10 +398,12 @@ class DataService {
       this.interactionCountsCache.clear();
     }
     
-    // Clean up user interaction states cache
+    // Clean up user interaction states cache and timestamps
     this.userInteractionStatesCache.forEach((userStates, userId) => {
-      if (userStates.size === 0) {
+      const lastFetch = this.userInteractionStateTimestamps.get(userId);
+      if (userStates.size === 0 || (lastFetch && now - lastFetch > this.cacheExpiry)) {
         this.userInteractionStatesCache.delete(userId);
+        this.userInteractionStateTimestamps.delete(userId);
       }
     });
   }
@@ -489,13 +506,27 @@ class DataService {
       }
     });
   
-    // Now, fetch only the user-specific interaction states, which are not already loaded.
-    const entryIds = entries.map(e => e.id);
-    if (!this.database) {
+    // OPTIMIZATION: Check if user interaction states are already cached and fresh
+    const now = Date.now();
+    const lastFetch = this.userInteractionStateTimestamps.get(userId);
+    const isStatesCacheFresh = lastFetch && (now - lastFetch) < this.cacheExpiry;
+    
+    let userStates = this.userInteractionStatesCache.get(userId);
+    
+    // Only fetch if cache is stale or missing
+    if (!userStates || !isStatesCacheFresh) {
+      const entryIds = entries.map(e => e.id);
+      if (!this.database) {
         throw new Error("Database not initialized");
+      }
+      
+      console.log(`🔄 Fetching user interaction states for ${entryIds.length} entries`);
+      userStates = await this.database.getUserInteractionStates(userId, entryIds);
+      this.userInteractionStatesCache.set(userId, userStates);
+      this.userInteractionStateTimestamps.set(userId, now);
+    } else {
+      console.log(`⚡ Using cached user interaction states (${entries.length} entries)`);
     }
-    const userStates = await this.database.getUserInteractionStates(userId, entryIds);
-    this.userInteractionStatesCache.set(userId, userStates);
   
     return entries.map(entry => ({
       ...entry,

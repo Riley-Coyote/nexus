@@ -28,6 +28,7 @@ interface NexusFeedProps {
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
   refreshDreamData?: () => Promise<void>;
+  ensureFeedDataLoaded?: () => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
   onShare?: (entryId: string) => void;
@@ -45,6 +46,7 @@ export default function NexusFeed({
   createBranch,
   refreshLogbookData,
   refreshDreamData,
+  ensureFeedDataLoaded,
   onResonate,
   onAmplify,
   onShare,
@@ -62,6 +64,19 @@ export default function NexusFeed({
   const [isAtTop, setIsAtTop] = useState(true);
   const [lastDataHash, setLastDataHash] = useState<string>('');
   const initialLoadRef = useRef(true);
+  
+  // NEW: Auto-refresh feed data when component first loads with empty data
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      if (logbookEntries.length === 0 && dreamEntries.length === 0) {
+        console.log('📡 Feed mounted with empty data - triggering refresh...');
+        // Use the dedicated feed data loader
+        ensureFeedDataLoaded?.();
+      }
+    }
+  }, [logbookEntries.length, dreamEntries.length, ensureFeedDataLoaded]);
 
   // OPTIMIZATION: Use pre-loaded data instead of making separate API calls
   const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
@@ -165,22 +180,15 @@ export default function NexusFeed({
   // Smart refresh logic extracted for makeBranchHandler
   const feedBranchRefresh = async () => {
     if (!createBranch) return;
-    // Determine if we should refresh dream or logbook data
-    if (flattenedEntries.length) {
-      const newestParent = flattenedEntries[0];
-      const isDreamEntry = newestParent.resonance !== undefined;
-      try {
-        if (isDreamEntry) {
-          await refreshDreamData?.();
-        } else {
-          await refreshLogbookData?.();
-        }
-      } catch (err) {
-        console.warn('Background feed data refresh failed:', err);
-      }
+    // FIXED: Use the parent's refresh mechanism to ensure data consistency
+    try {
+      // The parent's createBranch method now handles the refresh properly
+      // We just need to reload the flattened entries to show the new branch
+      await loadFlattenedEntries();
+      console.log('✅ Feed refreshed after branch creation');
+    } catch (err) {
+      console.warn('Background feed data refresh failed:', err);
     }
-    // Always reload the flattened list so the feed shows the new branch
-    await loadFlattenedEntries();
   };
 
   const handleBranch = React.useMemo(() => {

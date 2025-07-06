@@ -59,6 +59,8 @@ export default function Home() {
   useEffect(() => {
     if (pathname === '/' || pathname === '/feed') {
       setViewMode('feed');
+      // NEW: Ensure feed data is loaded when navigating to feed
+      nexusData.ensureFeedDataLoaded?.();
     } else if (pathname.startsWith('/dream')) {
       setJournalMode('dream');
       setViewMode('default');
@@ -66,7 +68,7 @@ export default function Home() {
       setJournalMode('logbook');
       setViewMode('default');
     }
-  }, [pathname]);
+  }, [pathname, nexusData.ensureFeedDataLoaded]);
 
   // Handle opening posts (unified handler for both Post and StreamEntry)
   const handleOpenPost = (post: Post | StreamEntry) => {
@@ -243,6 +245,7 @@ export default function Home() {
               createBranch={nexusData.createBranch}
               refreshLogbookData={nexusData.refreshLogbookData}
               refreshDreamData={nexusData.refreshDreamData}
+              ensureFeedDataLoaded={nexusData.ensureFeedDataLoaded}
               onResonate={nexusData.resonateWithEntry}
               onAmplify={nexusData.amplifyEntry}
               onShare={handleShare}

@@ -68,6 +68,7 @@ export interface NexusData {
   // Manual loading methods for specific pages
   ensureResonatedEntriesLoaded: () => Promise<void>;
   ensureAmplifiedEntriesLoaded: () => Promise<void>;
+  ensureFeedDataLoaded: () => Promise<void>;
   
   // Auth actions
   login: (email: string, password: string) => Promise<void>;
@@ -371,8 +372,8 @@ export const useNexusData = (): NexusData => {
       // Step 1: Create the branch (critical operation)
       await dataService.createBranch(parentId, content);
       
-      // Step 2: Synchronously determine parent type and refresh appropriate data
-      // This ensures the refresh completes before the UI updates
+      // Step 2: FIXED - Always refresh both logbook and dream data for feed consistency
+      // This ensures the feed shows the new branch regardless of parent type
       try {
         // Add timeout wrapper for refresh operations
         const refreshWithTimeout = async (operation: () => Promise<void>, timeoutMs: number = 10000) => {
@@ -384,27 +385,10 @@ export const useNexusData = (): NexusData => {
           ]);
         };
         
-        // Determine if parent is logbook or dream entry to refresh correctly
-        const parentEntry = await Promise.race([
-          dataService.getEntryById(parentId),
-          new Promise<any>((_, reject) => {
-            setTimeout(() => reject(new Error('getEntryById timed out')), 5000);
-          })
-        ]);
-        
-        if (parentEntry) {
-          const isDreamEntry = parentEntry.type.toLowerCase().includes('dream') || 
-                               parentEntry.resonance !== undefined;
-          
-          if (isDreamEntry) {
-            await refreshWithTimeout(refreshDreamData, 10000);
-          } else {
-            await refreshWithTimeout(refreshLogbookData, 10000);
-          }
-        } else {
-          // Fallback: refresh both if we can't determine
-          await refreshWithTimeout(refreshData, 15000);
-        }
+        // FIXED: Always refresh both logbook and dream data
+        // This ensures the feed (which combines both) shows the new branch
+        console.log('🔄 Refreshing both logbook and dream data after branch creation');
+        await refreshWithTimeout(refreshData, 15000);
         
         // Update auth state to reflect new stats
         setAuthState(authService.getAuthState());
@@ -417,7 +401,7 @@ export const useNexusData = (): NexusData => {
       console.error('Failed to create branch:', error);
       throw error; // This will be caught by the UI error handling
     }
-  }, [refreshData, refreshLogbookData, refreshDreamData]);
+  }, [refreshData]);
   
   // Resonate with entry - OPTIMIZED and SIMPLIFIED
   const resonateWithEntry = useCallback(async (entryId: string) => {
@@ -582,6 +566,25 @@ export const useNexusData = (): NexusData => {
     
     return unsubscribe;
   }, []);
+
+  // NEW: Auto-refresh data when user returns to feed
+  // This ensures data is always fresh when navigating back to feed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleVisibilityChange = () => {
+        if (!document.hidden && authState.isAuthenticated && authState.currentUser) {
+          // Only refresh if data is stale (empty arrays suggest stale data)
+          if (logbookEntries.length === 0 && sharedDreams.length === 0) {
+            console.log('🔄 Auto-refreshing stale data on page visibility change');
+            refreshData();
+          }
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
+  }, [authState.isAuthenticated, authState.currentUser, logbookEntries.length, sharedDreams.length, refreshData]);
   
   // NOTE: Resonated/amplified entry loading is now handled in the main auth state listener above
   
@@ -655,6 +658,15 @@ export const useNexusData = (): NexusData => {
         await loadAmplifiedEntries();
       }
     }, [authState.currentUser]),
+    ensureFeedDataLoaded: useCallback(async () => {
+      if (authState.currentUser) {
+        // Only refresh if data appears stale (empty arrays)
+        if (logbookEntries.length === 0 && sharedDreams.length === 0) {
+          console.log('🔄 Ensuring feed data is loaded...');
+          await refreshData();
+        }
+      }
+    }, [authState.currentUser, logbookEntries.length, sharedDreams.length, refreshData]),
     
     // Auth actions
     login,
