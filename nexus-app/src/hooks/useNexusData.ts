@@ -18,6 +18,7 @@ import {
   ProfileViewState
 } from '../lib/types';
 
+
 export interface NexusData {
   // Authentication
   authState: AuthState;
