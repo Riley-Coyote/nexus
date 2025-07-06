@@ -50,31 +50,24 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   // Debounced email availability check
   const checkEmailAvailability = React.useCallback(async (email: string) => {
-    // console.log('🚀 checkEmailAvailability called with:', email);
-    
     // Clear any existing timeout
     if (emailCheckTimeoutRef.current) {
-      // console.log('⏰ Clearing existing timeout');
       clearTimeout(emailCheckTimeoutRef.current);
     }
 
     // Don't check if email is empty or invalid format
     if (!email || !validateEmail(email)) {
-      // console.log('❌ Email empty or invalid, clearing status');
       safeSetState(() => setEmailStatus({ checking: false, available: null }));
       return;
     }
 
     // Set checking state immediately
-    // console.log('⏳ Setting checking state');
     safeSetState(() => setEmailStatus({ checking: true, available: null }));
 
     // Debounce the actual API call
     emailCheckTimeoutRef.current = setTimeout(async () => {
       try {
-        // console.log('🔍 Checking username availability for:', email);
         const result = await authService.checkEmailAvailability(email);
-        // console.log('✅ Username check result:', result);
         
         // Direct state update - React will handle if component is unmounted
         const newStatus = {
@@ -82,41 +75,28 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           available: result.available,
           error: result.error
         };
-        // console.log('🔄 Setting emailStatus to:', newStatus);
         setEmailStatus(newStatus);
-              } catch (error) {
-          // console.error('❌ Email check error:', error);
-          
-          setEmailStatus({
-            checking: false,
-            available: null,
-            error: 'Failed to check email availability'
-          });
+      } catch (error) {
+        console.error('Email check error:', error);
+        
+        setEmailStatus({
+          checking: false,
+          available: null,
+          error: 'Failed to check email availability'
+        });
       }
     }, 800); // 800ms debounce
   }, []);
 
-  // Debug: Log when checkEmailAvailability changes
-  React.useEffect(() => {
-    // console.log('🔧 checkEmailAvailability function changed/created');
-  }, [checkEmailAvailability]);
-
   // Clear username status when not in signup mode
   React.useEffect(() => {
     if (authMode !== 'signup') {
-      // console.log('🧹 Clearing username status - not in signup mode');
       setEmailStatus({ checking: false, available: null });
     }
   }, [authMode]);
 
-  // Debug: Log emailStatus changes
-  React.useEffect(() => {
-    // console.log('📊 emailStatus changed:', emailStatus);
-  }, [emailStatus]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // console.log('📝 Input changed:', name, value);
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Clear messages when user starts typing
@@ -137,11 +117,9 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // console.log('👁️ Input blur:', name, value);
     
     // Check email availability on blur for signup mode
     if (name === 'email' && authMode === 'signup' && value && validateEmail(value)) {
-      // console.log('🎯 Triggering email check on blur');
       checkEmailAvailability(value);
     }
   };
@@ -199,6 +177,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
     
     if (authMode === 'reset') {
       if (!formData.username) return true;
+      if (!validateEmail(formData.username)) return true;
       return false;
     }
 
@@ -232,15 +211,17 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   // Get the reason why submit is disabled
   const getSubmitDisabledReason = (): string => {
+    if (authMode === 'reset') {
+      if (!formData.username) return 'Please enter your email address';
+      if (!validateEmail(formData.username)) return 'Please enter a valid email address';
+      return 'Please enter your email address';
+    }
+    
     if (!formData.username) return 'Please enter your username';
     
     if (authMode === 'login') {
       if (!formData.password) return 'Please enter your password';
       return 'Please complete all fields';
-    }
-    
-    if (authMode === 'reset') {
-      return 'Please enter your username';
     }
     
     if (authMode === 'signup') {
@@ -279,21 +260,27 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       if (authMode === 'reset') {
         // Validation for reset
         if (!validateEmail(formData.username)) {
-          safeSetState(() => setError('Please enter a valid username'));
+          safeSetState(() => setError('Please enter a valid email address'));
           return;
         }
 
         const result = await withTimeout(authService.resetPassword(formData.username));
         
-        if (!isMountedRef.current) return;
-        
+        // Set success/error state immediately, synchronously
         if (result.success) {
-          safeSetState(() => {
-            setSuccessMessage('Password reset email sent! Please check your inbox.');
-            setAuthMode('login');
-          });
+          setSuccessMessage('If this email address is registered with NEXUS, you\'ll receive a password reset link shortly. Please check your inbox and spam folder.');
+          setAuthMode('login');
+          setError(null);
         } else {
-          safeSetState(() => setError(result.error || 'Failed to send password reset email'));
+          setError(result.error || 'Failed to send password reset email');
+          setSuccessMessage(null);
+        }
+        
+        // Brief delay to ensure UI updates are processed before potential unmounting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (!isMountedRef.current) {
+          return;
         }
         
       } else if (authMode === 'login') {
@@ -391,14 +378,14 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         }
       }
     } catch (err) {
-      // console.error('Auth error:', err);
+      console.error('Auth error:', err);
       if (!isMountedRef.current) return;
       
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       safeSetState(() => setError(errorMessage));
     } finally {
-      // Always reset loading state if component is still mounted
-      safeSetState(() => setIsLoading(false));
+      // Always reset loading state immediately - this is critical for UI responsiveness
+      setIsLoading(false);
     }
   };
 
@@ -448,7 +435,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         safeSetState(() => setError(result.error || 'Failed to resend verification email'));
       }
     } catch (err) {
-      // console.error('Resend verification error:', err);
+      console.error('Resend verification error:', err);
       if (!isMountedRef.current) return;
       
       const errorMessage = err instanceof Error ? err.message : 'Failed to resend verification email';
@@ -471,7 +458,7 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           </h2>
           <p className="text-sm text-gray-400 font-light">
             {authMode === 'reset' 
-              ? 'Enter your email to receive a password reset link'
+              ? 'Enter your email address and we\'ll send you a password reset link if your account exists'
               : authMode === 'signup'
               ? 'Create your account to join the collective intelligence'
               : 'Sign in to continue your journey'
@@ -537,16 +524,16 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           {/* Username */}
           <div className="space-y-2">
             <label htmlFor="username" className="block text-sm font-medium text-gray-300">
-              Username
+              {authMode === 'reset' ? 'Email Address' : 'Username'}
             </label>
             <input
-              type="text"
+              type={authMode === 'reset' ? 'email' : 'text'}
               id="username"
               name="username"
               value={formData.username}
               onChange={handleInputChange}
               className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
-              placeholder={authMode === 'signup' ? 'Choose a unique username' : 'Enter your username or email'}
+              placeholder={authMode === 'signup' ? 'Choose a unique username' : authMode === 'reset' ? 'Enter your email address' : 'Enter your username or email'}
               required
               disabled={isLoading}
               maxLength={25}
