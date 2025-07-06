@@ -3,6 +3,7 @@ import { User, AuthState } from '../types';
 class AuthService {
   private users: Record<string, User & { password: string }> = {};
   private authState: AuthState = {
+    isAuthLoading: false,
     isAuthenticated: false,
     currentUser: null,
     sessionToken: null
@@ -164,6 +165,7 @@ class AuthService {
     
     // Reset auth state
     this.authState = {
+      isAuthLoading: false,
       isAuthenticated: false,
       currentUser: null,
       sessionToken: null
@@ -280,6 +282,7 @@ class AuthService {
 
   logout(): void {
     this.authState = {
+      isAuthLoading: false,
       isAuthenticated: false,
       currentUser: null,
       sessionToken: null
@@ -375,6 +378,7 @@ class AuthService {
     
     // Reset auth state
     this.authState = {
+      isAuthLoading: false,
       isAuthenticated: false,
       currentUser: null,
       sessionToken: null

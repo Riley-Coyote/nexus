@@ -99,6 +99,7 @@ class MockAuthBridge {
 
 class SupabaseAuthService {
   private authState: AuthState = {
+    isAuthLoading: false,
     isAuthenticated: false,
     currentUser: null,
     sessionToken: null
@@ -218,6 +219,7 @@ class SupabaseAuthService {
       const user = await this.createOrGetUserProfile(session.user);
       
       this.authState = {
+        isAuthLoading: false,
         isAuthenticated: true,
         currentUser: user,
         sessionToken: session.access_token
@@ -232,6 +234,7 @@ class SupabaseAuthService {
         // Keep session valid; mark profile as stale and retry in background
         console.warn('Profile fetch timed out; keeping session valid and will retry later');
         this.authState = {
+          isAuthLoading: false,
           isAuthenticated: true,
           currentUser: this.authState.currentUser, // Keep existing profile if available
           sessionToken: session.access_token
@@ -377,6 +380,7 @@ class SupabaseAuthService {
 
   private clearAuthState() {
     this.authState = {
+      isAuthLoading: false,
       isAuthenticated: false,
       currentUser: null,
       sessionToken: null
