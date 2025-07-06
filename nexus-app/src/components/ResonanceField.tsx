@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import PostList from './PostList';
 import { Post } from '@/lib/types';
 import { streamEntryDataToPost } from '@/lib/utils/postUtils';
+import { makeBranchHandler } from '@/lib/utils/interactionHandlers';
 
 interface ResonanceFieldProps {
   resonatedEntries: any[]; // Legacy StreamEntryData format
@@ -30,12 +31,13 @@ export default function ResonanceField({
   onShare,
   onDeepDive
 }: ResonanceFieldProps) {
-  const [convertedEntries, setConvertedEntries] = useState<Post[]>([]);
+  const [branchingPostId, setBranchingPostId] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<{ postId: string, message: string } | null>(null);
 
-  // Convert legacy entries to Post format
-  useEffect(() => {
-    const posts = resonatedEntries.map(entry => streamEntryDataToPost(entry));
-    setConvertedEntries(posts);
+  // Convert legacy entries to Post format with stable memoization
+  // This prevents unnecessary re-renders that would unmount PostDisplay components
+  const convertedEntries = React.useMemo(() => {
+    return resonatedEntries.map(entry => streamEntryDataToPost(entry));
   }, [resonatedEntries]);
 
   const handleResonate = async (entryId: string) => {
@@ -70,16 +72,50 @@ export default function ResonanceField({
     }
   };
 
-  const handleBranch = async (parentId: string, content: string) => {
+  // Smart refresh logic for resonance field (like NexusFeed)
+  const resonanceFieldBranchRefresh = async () => {
     if (!onBranch) return;
+    
     try {
-      await onBranch(parentId, content);
-      // After creating a branch we don't necessarily need to refresh resonance data
-      // SUCCESS: Let the UI know the operation completed successfully
+      // Refresh the parent data source
+      if (refreshResonatedEntries) {
+        await refreshResonatedEntries();
+      }
+      
+      // Note: convertedEntries will automatically update via the useMemo 
+      // when resonatedEntries prop changes, causing the component to re-render
+      console.log('✅ ResonanceField branch refresh completed');
     } catch (error) {
-      console.error('Error handling branch in ResonanceField:', error);
-      // CRITICAL: Re-throw the error so PostDisplay component gets the error signal
+      console.warn('Background resonance field refresh failed:', error);
+    }
+  };
+
+  // The new branch handler that manages the loading/error state
+  const handleBranchSubmit = async (parentId: string, content: string) => {
+    // Ensure the main onBranch handler is provided
+    if (!onBranch) return;
+
+    // Set the loading state for the specific post
+    setBranchingPostId(parentId);
+    // Clear any previous errors
+    setBranchError(null);
+
+    try {
+      // The onBranch prop now should contain the full logic, including
+      // the API call and the data refresh. We no longer need makeBranchHandler here.
+      await onBranch(parentId, content);
+    } catch (error) {
+      console.error('ResonanceField: Branch operation failed', error);
+      // Set the error state for the specific post
+      setBranchError({
+        postId: parentId,
+        message: error instanceof Error ? error.message : 'Failed to create branch.'
+      });
+      // Re-throwing allows the child component to know about the error if needed
       throw error;
+    } finally {
+      // CRITICAL: Always reset the loading state to un-stick the UI
+      setBranchingPostId(null);
     }
   };
 
@@ -87,10 +123,12 @@ export default function ResonanceField({
     onDeepDive?.(post);
   };
 
-  // Sort entries by timestamp (newest first)
-  const sortedEntries = [...convertedEntries].sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  // Sort entries by timestamp (newest first) with memoization
+  const sortedEntries = React.useMemo(() => {
+    return [...convertedEntries].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [convertedEntries]);
 
   // Custom hasUserResonated function - always true in resonance field
   const hasUserResonated = (entryId: string) => true;
@@ -121,12 +159,14 @@ export default function ResonanceField({
           enablePagination={false}
           onPostClick={onPostClick}
           onResonate={handleResonate}
-          onBranch={handleBranch}
+          onBranch={handleBranchSubmit}
           onAmplify={handleAmplify}
           hasUserResonated={hasUserResonated}
           hasUserAmplified={hasUserAmplified}
           onShare={onShare}
           onDeepDive={handleDeepDive}
+          branchingPostId={branchingPostId}
+          branchError={branchError}
           emptyStateIcon="◇"
           emptyStateMessage="No resonated entries yet"
         />

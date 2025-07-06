@@ -13,7 +13,7 @@ interface EntryComposerData {
 
 interface EntryComposerProps {
   data: EntryComposerData;
-  onSubmit?: (content: string, type: string, isPublic: boolean) => void;
+  onSubmit?: (content: string, type: string, isPublic: boolean) => Promise<void>;
 }
 
 const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryComposerProps) {

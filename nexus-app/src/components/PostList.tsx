@@ -42,6 +42,10 @@ export interface PostListProps {
   hasUserResonated?: (postId: string) => boolean;
   hasUserAmplified?: (postId: string) => boolean;
   
+  // Branching state (lifted up from PostDisplay)
+  branchingPostId?: string | null;
+  branchError?: { postId: string, message: string } | null;
+  
   // UI customization
   emptyStateMessage?: string;
   emptyStateIcon?: string;
@@ -71,7 +75,9 @@ export default function PostList({
   hasUserAmplified,
   emptyStateMessage,
   emptyStateIcon,
-  className = ''
+  className = '',
+  branchingPostId,
+  branchError
 }: PostListProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -192,6 +198,8 @@ export default function PostList({
               onDeepDive={onDeepDive}
               userHasResonated={hasUserResonated?.(post.id) || false}
               userHasAmplified={hasUserAmplified?.(post.id) || false}
+              isSubmittingBranch={post.id === branchingPostId}
+              branchError={branchError && post.id === branchError.postId ? branchError.message : null}
               onClose={() => {
                 console.log(`Mobile close requested for post ${post.id}`);
               }}

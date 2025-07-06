@@ -9,9 +9,9 @@ import { streamEntryToPost } from '@/lib/utils/postUtils';
 interface MainContentProps {
   entryComposer: EntryComposerData;
   stream: StreamEntry[];
-  onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
+  onSubmitEntry?: (content: string, type: string, isPublic: boolean) => Promise<void>;
   onResonate?: (id: string) => Promise<void>;
-  onBranch?: (parentId: string, content: string) => void;
+  onBranch?: (parentId: string, content: string) => Promise<void>;
   onAmplify?: (id: string) => Promise<void>;
   onShare?: (id: string) => void;
   onDeepDive?: (username: string, postId: string) => void;
@@ -36,8 +36,8 @@ export default function MainContent({
   hasUserAmplified
 }: MainContentProps) {
 
-  const handleSubmitEntry = (content: string, type: string, isPublic: boolean) => {
-    onSubmitEntry?.(content, type, isPublic);
+  const handleSubmitEntry = async (content: string, type: string, isPublic: boolean) => {
+    await onSubmitEntry?.(content, type, isPublic);
   };
 
   const handleDeepDive = (post: Post) => {
@@ -50,10 +50,6 @@ export default function MainContent({
     if (originalEntry) {
       onPostClick?.(originalEntry);
     }
-  };
-
-  const handleBranch = async (parentId: string, content: string) => {
-    onBranch?.(parentId, content);
   };
 
   // Convert stream entries to Post format
@@ -77,7 +73,7 @@ export default function MainContent({
           showBranching={true}
           enablePagination={false}
           onResonate={onResonate}
-          onBranch={handleBranch}
+          onBranch={onBranch}
           onAmplify={onAmplify}
           onShare={onShare}
           onDeepDive={handleDeepDive}

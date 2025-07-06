@@ -190,11 +190,24 @@ export const useNexusData = (): NexusData => {
     if (!authState.currentUser) return;
     
     try {
-      const entries = await dataService.getResonatedEntries(authState.currentUser.id);
+      // Add timeout protection to prevent hanging
+      const entriesPromise = dataService.getResonatedEntries(authState.currentUser.id);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Loading resonated entries timed out')), 8000); // 8 second timeout
+      });
+      
+      const entries = await Promise.race([entriesPromise, timeoutPromise]);
       const entriesData = entries.map(convertToStreamEntryData);
       setResonatedEntries(entriesData);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Resonated entries loaded successfully:', entriesData.length);
+      }
     } catch (error) {
-      console.error('Error loading resonated entries:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('❌ Error loading resonated entries:', error);
+      }
+      // Don't throw - this is a background operation that shouldn't break the UI
     }
   }, [authState.currentUser]);
   
@@ -203,11 +216,24 @@ export const useNexusData = (): NexusData => {
     if (!authState.currentUser) return;
     
     try {
-      const entries = await dataService.getAmplifiedEntries(authState.currentUser.id);
+      // Add timeout protection to prevent hanging
+      const entriesPromise = dataService.getAmplifiedEntries(authState.currentUser.id);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Loading amplified entries timed out')), 8000); // 8 second timeout
+      });
+      
+      const entries = await Promise.race([entriesPromise, timeoutPromise]);
       const entriesData = entries.map(convertToStreamEntryData);
       setAmplifiedEntries(entriesData);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Amplified entries loaded successfully:', entriesData.length);
+      }
     } catch (error) {
-      console.error('Error loading amplified entries:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('❌ Error loading amplified entries:', error);
+      }
+      // Don't throw - this is a background operation that shouldn't break the UI
     }
   }, [authState.currentUser]);
   
@@ -331,52 +357,47 @@ export const useNexusData = (): NexusData => {
       // Step 1: Create the branch (critical operation)
       await dataService.createBranch(parentId, content);
       
-      // Step 2: Non-blocking refresh operations (don't let these block the UI)
-      // Run these in background without awaiting to prevent UI blocking
-      setTimeout(async () => {
-        try {
-          // Add timeout wrapper for refresh operations
-          const refreshWithTimeout = async (operation: () => Promise<void>, timeoutMs: number = 10000) => {
-            return Promise.race([
-              operation(),
-              new Promise<void>((_, reject) => {
-                setTimeout(() => reject(new Error('Refresh operation timed out')), timeoutMs);
-              })
-            ]);
-          };
-          
-          // Determine if parent is logbook or dream entry to refresh correctly
-          const parentEntry = await Promise.race([
-            dataService.getEntryById(parentId),
-            new Promise<any>((_, reject) => {
-              setTimeout(() => reject(new Error('getEntryById timed out')), 5000);
+      // Step 2: Synchronously determine parent type and refresh appropriate data
+      // This ensures the refresh completes before the UI updates
+      try {
+        // Add timeout wrapper for refresh operations
+        const refreshWithTimeout = async (operation: () => Promise<void>, timeoutMs: number = 10000) => {
+          return Promise.race([
+            operation(),
+            new Promise<void>((_, reject) => {
+              setTimeout(() => reject(new Error('Refresh operation timed out')), timeoutMs);
             })
           ]);
+        };
+        
+        // Determine if parent is logbook or dream entry to refresh correctly
+        const parentEntry = await Promise.race([
+          dataService.getEntryById(parentId),
+          new Promise<any>((_, reject) => {
+            setTimeout(() => reject(new Error('getEntryById timed out')), 5000);
+          })
+        ]);
+        
+        if (parentEntry) {
+          const isDreamEntry = parentEntry.type.toLowerCase().includes('dream') || 
+                               parentEntry.resonance !== undefined;
           
-          if (parentEntry) {
-            const isDreamEntry = parentEntry.type.toLowerCase().includes('dream') || 
-                                 parentEntry.resonance !== undefined;
-            
-            if (isDreamEntry) {
-              await refreshWithTimeout(refreshDreamData, 10000);
-            } else {
-              await refreshWithTimeout(refreshLogbookData, 10000);
-            }
+          if (isDreamEntry) {
+            await refreshWithTimeout(refreshDreamData, 10000);
           } else {
-            // Fallback: refresh both if we can't determine
-            await refreshWithTimeout(refreshData, 15000);
+            await refreshWithTimeout(refreshLogbookData, 10000);
           }
-          
-          // Update auth state to reflect new stats
-          setAuthState(authService.getAuthState());
-        } catch (refreshError) {
-          console.warn('Background refresh after branch creation failed (non-critical):', refreshError);
-          // Don't throw - this is a background operation
+        } else {
+          // Fallback: refresh both if we can't determine
+          await refreshWithTimeout(refreshData, 15000);
         }
-      }, 100); // Run refresh operations 100ms later in background
-      
-      // Return immediately after branch creation succeeds
-      // UI will update via the background refresh
+        
+        // Update auth state to reflect new stats
+        setAuthState(authService.getAuthState());
+      } catch (refreshError) {
+        console.warn('Refresh after branch creation failed (non-critical):', refreshError);
+        // Don't throw - this is a background operation
+      }
       
     } catch (error) {
       console.error('Failed to create branch:', error);

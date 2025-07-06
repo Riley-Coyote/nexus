@@ -283,15 +283,45 @@ export class SupabaseProvider implements DatabaseProvider {
 
   async createBranch(parentId: string, childId: string): Promise<void> {
     try {
-      // 1) Create the branch relationship row (also fires branch_count_trigger)
-      const { error } = await this.client.rpc('create_branch', {
-        parent_id: parseInt(parentId, 10),
-        child_id: parseInt(childId, 10)
-      });
+      // Add timeout wrapper to prevent hanging
+      const createBranchWithTimeout = async () => {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Branch creation timed out')), 10000); // 10 second timeout
+        });
+
+        const branchPromise = this.client.rpc('create_branch', {
+          parent_id: parseInt(parentId, 10),
+          child_id: parseInt(childId, 10)
+        });
+
+        return Promise.race([branchPromise, timeoutPromise]);
+      };
+
+      // 1) Create the branch relationship row with timeout protection
+      const { error } = await createBranchWithTimeout();
 
       if (error) {
         console.error('❌ Error creating branch:', error);
-        throw new Error(`Failed to create branch: ${error.message}`);
+        
+        // Try fallback: direct table insert if RPC fails
+        try {
+          console.warn('⚠️ RPC failed, trying direct table insert...');
+          const { error: insertError } = await this.client
+            .from('entry_branches')
+            .insert({
+              parent_entry_id: parseInt(parentId, 10),
+              child_entry_id: parseInt(childId, 10),
+              branch_order: 0 // Simple fallback, let DB handle ordering
+            });
+          
+          if (insertError) {
+            throw new Error(`Both RPC and direct insert failed: ${error.message}`);
+          }
+          
+          console.log('✅ Fallback insert succeeded');
+        } catch (fallbackError) {
+          throw new Error(`Failed to create branch: ${error.message}`);
+        }
       }
 
       // ────────────────────────────────────────────────────────────

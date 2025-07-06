@@ -11,7 +11,7 @@ interface DreamMainContentProps {
   sharedDreams: StreamEntry[];
   onPostClick?: (post: StreamEntry) => void;
   onUserClick?: (username: string) => void;
-  onSubmitEntry?: (content: string, type: string, isPublic: boolean) => void;
+  onSubmitEntry?: (content: string, type: string, isPublic: boolean) => Promise<void>;
   onBranch?: (parentId: string, content: string) => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
@@ -36,8 +36,8 @@ export default function DreamMainContent({
   hasUserAmplified
 }: DreamMainContentProps) {
 
-  const handleDreamSubmit = (content: string, type: string, isPublic: boolean) => {
-    onSubmitEntry?.(content, type, isPublic);
+  const handleDreamSubmit = async (content: string, type: string, isPublic: boolean) => {
+    await onSubmitEntry?.(content, type, isPublic);
   };
 
   const handleDeepDive = (post: Post) => {

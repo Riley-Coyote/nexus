@@ -8,6 +8,7 @@ import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/p
 import FollowsModal from './FollowsModal';
 import NotificationBanner from './NotificationBanner';
 import ImageUpload from './ImageUpload';
+import { makeBranchHandler } from '@/lib/utils/interactionHandlers';
 
 interface ProfileViewProps {
   user: User;
@@ -282,11 +283,9 @@ export default function ProfileView({
     }
   };
 
-  const handleBranch = async (parentId: string, content: string) => {
-    if (onBranch) {
-      await onBranch(parentId, content);
-    }
-  };
+  const handleBranch = React.useMemo(() => {
+    return onBranch ? makeBranchHandler(onBranch) : undefined;
+  }, [onBranch]);
 
   const handleDeepDive = (post: any) => {
     onDeepDive?.(post.username, post.id);

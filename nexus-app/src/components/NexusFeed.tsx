@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import PostList from './PostList';
 import { Post } from '@/lib/types';
 import { streamEntryDataToPost } from '@/lib/utils/postUtils';
+import { makeBranchHandler } from '@/lib/utils/interactionHandlers';
 
 interface NexusFeedProps {
   logbookEntries: any[]; // Legacy StreamEntryData format
@@ -101,31 +102,30 @@ export default function NexusFeed({
     setPage(nextPage);
   };
 
-  // Handle branch creation with smart refresh
-  const handleBranch = async (parentId: string, content: string) => {
+  // Smart refresh logic extracted for makeBranchHandler
+  const feedBranchRefresh = async () => {
     if (!createBranch) return;
-    
-    try {
-      await createBranch(parentId, content);
-      
-      // Smart refresh: Find the parent entry to determine type
-      const parentEntry = flattenedEntries.find(e => e.id === parentId);
-      if (parentEntry) {
-        const isDreamEntry = parentEntry.resonance !== undefined;
-        
-        if (isDreamEntry && refreshDreamData) {
-          await refreshDreamData();
-        } else if (!isDreamEntry && refreshLogbookData) {
-          await refreshLogbookData();
+    // Determine if we should refresh dream or logbook data
+    if (flattenedEntries.length) {
+      const newestParent = flattenedEntries[0];
+      const isDreamEntry = newestParent.resonance !== undefined;
+      try {
+        if (isDreamEntry) {
+          await refreshDreamData?.();
+        } else {
+          await refreshLogbookData?.();
         }
+      } catch (err) {
+        console.warn('Background feed data refresh failed:', err);
       }
-      
-      // Refresh the flattened entries to show the new branch
-      await loadFlattenedEntries();
-    } catch (error) {
-      console.error('Error creating branch in feed:', error);
     }
+    // Always reload the flattened list so the feed shows the new branch
+    await loadFlattenedEntries();
   };
+
+  const handleBranch = React.useMemo(() => {
+    return createBranch ? makeBranchHandler(createBranch, feedBranchRefresh) : undefined;
+  }, [createBranch, flattenedEntries]);
 
   const handleDeepDive = (post: Post) => {
     onDeepDive?.(post.username, post.id);

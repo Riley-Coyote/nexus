@@ -6,6 +6,7 @@ import { StreamEntry as StreamEntryType, StreamEntryData } from '../lib/types';
 import { dataService } from '../lib/services/dataService';
 import { authService } from '../lib/services/supabaseAuthService';
 import { createPostShareData, shareContent } from '../lib/utils/shareUtils';
+import { useNexusData } from '../hooks/useNexusData';
 
 interface PostOverlayProps {
   post: StreamEntryType | null;
@@ -54,6 +55,8 @@ export default function PostOverlay({
   
   const branchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+
+  const nexusData = useNexusData();
 
   // Cleanup on unmount
   useEffect(() => {
@@ -280,7 +283,9 @@ export default function PostOverlay({
         }, 30000); // 30 second timeout
       });
       
-      const branchPromise = dataService.createBranch(post.id, branchContent.trim());
+      const branchPromise = nexusData?.createBranch
+        ? nexusData.createBranch(post.id, branchContent.trim())
+        : dataService.createBranch(post.id, branchContent.trim());
       
       // Race between the actual operation and timeout
       await Promise.race([branchPromise, timeoutPromise]);
@@ -293,7 +298,7 @@ export default function PostOverlay({
       
       // Only update state if component is still mounted
       if (isMountedRef.current) {
-        // Update local state
+        // Update local state - simplified like PostDisplay
         setLocalInteractions(prev => ({
           ...prev,
           branches: prev.branches + 1
@@ -303,10 +308,15 @@ export default function PostOverlay({
         setShowBranchComposer(false);
         setBranchSuccess(true);
         
-        // Refresh children to show new branch
+        // Refresh children to show new branch - but don't await it
         if (getDirectChildren) {
-          const directChildren = await getDirectChildren(post.id);
-          setChildren(directChildren);
+          getDirectChildren(post.id).then(directChildren => {
+            if (isMountedRef.current) {
+              setChildren(directChildren);
+            }
+          }).catch(error => {
+            console.warn('Failed to refresh children after branch creation:', error);
+          });
         }
         
         // Call parent callback
