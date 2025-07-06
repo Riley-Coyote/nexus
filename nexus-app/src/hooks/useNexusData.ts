@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService, convertToStreamEntryData } from '../lib/services/dataService';
 import { authService } from '../lib/services/supabaseAuthService';
+import { userInteractionService, UserInteractionState } from '../lib/services/userInteractionService';
 import { StreamEntryData } from '../lib/types';
 import { 
   LogbookState, 
@@ -52,6 +53,7 @@ export interface NexusData {
   isLoading: boolean;
   isLoadingLogbook: boolean;
   isLoadingDreams: boolean;
+  isUserStatesLoaded: boolean;
   
   // Actions
   refreshData: () => Promise<void>;
@@ -142,6 +144,11 @@ export const useNexusData = (): NexusData => {
     currentUser: null,
     sessionToken: null
   });
+
+  // User interaction states - following social media playbook
+  const [userInteractionStates, setUserInteractionStates] = useState<Map<string, UserInteractionState>>(new Map());
+  const [isUserStatesLoaded, setIsUserStatesLoaded] = useState(false);
+  const [currentPostIds, setCurrentPostIds] = useState<string[]>([]);
   
   // Profile viewing state
   const [profileViewState, setProfileViewState] = useState<ProfileViewState>({
@@ -403,45 +410,69 @@ export const useNexusData = (): NexusData => {
     }
   }, [refreshData]);
   
-  // Resonate with entry - TRULY OPTIMIZED (no full refresh)
+  // Resonate with entry - Following social media playbook pattern
   const resonateWithEntry = useCallback(async (entryId: string) => {
+    if (!authState.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
     try {
-      // Call dataService - it handles cache updates for the specific post
+      // Call dataService - it handles database update and cache updates
       const isNowResonated = await dataService.resonateWithEntry(entryId);
       
-      // OPTIMIZATION: No full refresh needed!
-      // - dataService updates the interaction count cache for this specific post
-      // - PostDisplay components handle local state updates optimistically
-      // - Only update auth state for user stats
+      // Update local React state immediately for instant UI feedback
+      setUserInteractionStates(prev => {
+        const newStates = new Map(prev);
+        const currentState = newStates.get(entryId) || { hasResonated: false, hasAmplified: false };
+        newStates.set(entryId, { ...currentState, hasResonated: isNowResonated });
+        return newStates;
+      });
+      
+      // Update user interaction service cache
+      userInteractionService.updateUserInteractionState(authState.currentUser.id, entryId, 'resonance', isNowResonated);
+      
+      // Update auth state for user stats
       setAuthState(authService.getAuthState());
       
-      console.log(`✅ Resonance ${isNowResonated ? 'added' : 'removed'} for ${entryId} - no full refresh needed`);
+      console.log(`✅ Resonance ${isNowResonated ? 'added' : 'removed'} for ${entryId} - instant UI update`);
       
     } catch (error) {
       console.error('❌ Failed to resonate with entry:', error);
       throw error;
     }
-  }, []);
+  }, [authState.currentUser]);
 
-  // Amplify entry - TRULY OPTIMIZED (no full refresh)
+  // Amplify entry - Following social media playbook pattern
   const amplifyEntry = useCallback(async (entryId: string) => {
+    if (!authState.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
     try {
-      // Call dataService - it handles cache updates for the specific post
+      // Call dataService - it handles database update and cache updates
       const isNowAmplified = await dataService.amplifyEntry(entryId);
       
-      // OPTIMIZATION: No full refresh needed!
-      // - dataService updates the interaction count cache for this specific post
-      // - PostDisplay components handle local state updates optimistically
-      // - Only update auth state for user stats
+      // Update local React state immediately for instant UI feedback
+      setUserInteractionStates(prev => {
+        const newStates = new Map(prev);
+        const currentState = newStates.get(entryId) || { hasResonated: false, hasAmplified: false };
+        newStates.set(entryId, { ...currentState, hasAmplified: isNowAmplified });
+        return newStates;
+      });
+      
+      // Update user interaction service cache
+      userInteractionService.updateUserInteractionState(authState.currentUser.id, entryId, 'amplification', isNowAmplified);
+      
+      // Update auth state for user stats
       setAuthState(authService.getAuthState());
       
-      console.log(`✅ Amplification ${isNowAmplified ? 'added' : 'removed'} for ${entryId} - no full refresh needed`);
+      console.log(`✅ Amplification ${isNowAmplified ? 'added' : 'removed'} for ${entryId} - instant UI update`);
       
     } catch (error) {
       console.error('Failed to amplify entry:', error);
       throw error;
     }
-  }, []);
+  }, [authState.currentUser]);
 
   // Auth actions
   const login = useCallback(async (email: string, password: string) => {
@@ -491,27 +522,18 @@ export const useNexusData = (): NexusData => {
     setAuthState(currentAuthState);
   }, []);
 
-  // User interaction checks - optimized cache-based lookups with flicker prevention
-  // These work with the optimized interaction methods above
+  // User interaction checks - following social media playbook pattern
   const hasUserResonated = useCallback((entryId: string): boolean => {
-    if (!authState.currentUser) return false;
-    // Primary check: is the entry in the resonatedEntries list we already fetched?
-    if (resonatedEntries.some(e => e.id === entryId)) return true;
-    // Secondary check: use dataService cache (updated by resonateWithEntry)
-    // OPTIMIZATION: Cache-based check only returns true if we have positive confirmation
-    return dataService.hasUserResonated(authState.currentUser.id, entryId);
-  }, [authState.currentUser, resonatedEntries]);
+    if (!authState.currentUser || !isUserStatesLoaded) return false;
+    return userInteractionStates.get(entryId)?.hasResonated || false;
+  }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
 
   const hasUserAmplified = useCallback((entryId: string): boolean => {
-    if (!authState.currentUser) return false;
-    // Primary check: is the entry in the amplifiedEntries list we already fetched?
-    if (amplifiedEntries.some(e => e.id === entryId)) return true;
-    // Secondary check: use dataService cache (updated by amplifyEntry)
-    // OPTIMIZATION: Cache-based check only returns true if we have positive confirmation
-    return dataService.hasUserAmplified(authState.currentUser.id, entryId);
-  }, [authState.currentUser, amplifiedEntries]);
+    if (!authState.currentUser || !isUserStatesLoaded) return false;
+    return userInteractionStates.get(entryId)?.hasAmplified || false;
+  }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
   
-  // CONSOLIDATED: Single auth state management with optimized data loading
+  // CONSOLIDATED: Single auth state management with social media playbook loading
   useEffect(() => {
     setIsLoading(false);
     
@@ -536,14 +558,17 @@ export const useNexusData = (): NexusData => {
     }
     
     // Single auth state listener with all logic consolidated
-    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
+    const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
       setAuthState({ ...newAuthState, isAuthLoading: false });
       
       if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // Load real data after authentication (single call, no duplicates)
-        refreshData();
+        // Step 1: Load posts data first
+        await refreshData();
         
-        // OPTIMIZATION: Only load resonance data when needed
+        // NOTE: User interaction states are now loaded in a separate useEffect
+        // that watches for logbookEntries and sharedDreams changes
+        
+        // OPTIMIZATION: Only load resonance data when needed (legacy support)
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
         const shouldLoadResonanceData = currentPath.includes('/resonance-field') || 
                                        currentPath.includes('/profile');
@@ -553,11 +578,20 @@ export const useNexusData = (): NexusData => {
           loadAmplifiedEntries();
         }
       } else {
-        // Clear profile user if not authenticated
+        // Clear data on logout
         setProfileUser(null);
         setProfileUserPosts([]);
         setResonatedEntries([]);
         setAmplifiedEntries([]);
+        setUserInteractionStates(new Map());
+        setIsUserStatesLoaded(false);
+        setCurrentPostIds([]);
+        
+        // Clear user interaction service cache
+        const previousUser = authState.currentUser;
+        if (previousUser) {
+          userInteractionService.clearUserCache(previousUser.id);
+        }
       }
       
       // Stop global loading indicator after auth state is resolved
@@ -570,6 +604,41 @@ export const useNexusData = (): NexusData => {
     
     return unsubscribe;
   }, []);
+
+  // FIXED: Load user interaction states when posts are available
+  // This effect watches for logbookEntries and sharedDreams changes and loads user interaction states
+  useEffect(() => {
+    const loadUserInteractionStates = async () => {
+      // Only load if user is authenticated and we have posts
+      if (!authState.isAuthenticated || !authState.currentUser) {
+        return;
+      }
+
+      const allPostIds = [...logbookEntries, ...sharedDreams].map(e => e.id);
+      setCurrentPostIds(allPostIds);
+      
+      if (allPostIds.length > 0) {
+        console.log(`🔄 Batch loading user interaction states for ${allPostIds.length} posts`);
+        try {
+          const states = await userInteractionService.batchLoadUserStates(
+            authState.currentUser.id,
+            allPostIds
+          );
+          
+          setUserInteractionStates(states);
+          setIsUserStatesLoaded(true);
+          console.log(`✅ User interaction states loaded for ${states.size} posts`);
+        } catch (error) {
+          console.error('❌ Failed to load user interaction states:', error);
+          setIsUserStatesLoaded(true); // Still allow rendering
+        }
+      } else {
+        setIsUserStatesLoaded(true); // No posts = no states needed
+      }
+    };
+
+    loadUserInteractionStates();
+  }, [authState.isAuthenticated, authState.currentUser, logbookEntries, sharedDreams]);
 
   // NEW: Auto-refresh data when user returns to feed
   // This ensures data is always fresh when navigating back to feed
@@ -638,6 +707,7 @@ export const useNexusData = (): NexusData => {
     isLoading,
     isLoadingLogbook,
     isLoadingDreams,
+    isUserStatesLoaded,
     
     // Actions
     refreshData,

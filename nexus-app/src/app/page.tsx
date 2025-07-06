@@ -252,6 +252,7 @@ export default function Home() {
               onDeepDive={handleDeepDive}
               hasUserResonated={nexusData.hasUserResonated}
               hasUserAmplified={nexusData.hasUserAmplified}
+              isUserStatesLoaded={nexusData.isUserStatesLoaded}
             />
           )}
           

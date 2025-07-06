@@ -52,8 +52,9 @@ export default function NexusFeed({
   onShare,
   onDeepDive,
   hasUserResonated,
-  hasUserAmplified
-}: NexusFeedProps) {
+  hasUserAmplified,
+  isUserStatesLoaded
+}: NexusFeedProps & { isUserStatesLoaded?: boolean }) {
   const [flattenedEntries, setFlattenedEntries] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -192,6 +193,20 @@ export default function NexusFeed({
   const handleDeepDive = (post: Post) => {
     onDeepDive?.(post.username, post.id);
   };
+
+  // Following social media playbook - don't render posts until user interaction states are loaded
+  if (isUserStatesLoaded === false) {
+    return (
+      <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+        <div className="max-w-4xl mx-auto w-full flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto mb-4"></div>
+            <p className="text-text-tertiary text-sm">Loading interaction states...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 h-full mt-0 pt-4 sm:pt-8 pb-24 sm:pb-12 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
