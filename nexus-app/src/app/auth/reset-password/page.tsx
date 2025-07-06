@@ -16,22 +16,6 @@ export default function ResetPasswordPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const isMountedRef = useRef(true);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Safe state setter to prevent updates after unmount
-  const safeSetState = (stateSetter: () => void) => {
-    if (isMountedRef.current) {
-      stateSetter();
-    }
-  };
 
   // Check if user came from magic link (forgot password flow)
   useEffect(() => {
@@ -56,9 +40,8 @@ export default function ResetPasswordPage() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear messages when user starts typing
-    if (error) safeSetState(() => setError(null));
-    if (successMessage) safeSetState(() => setSuccessMessage(null));
+    // Clear error message when user starts typing
+    if (error) setError(null);
   };
 
   const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
@@ -92,8 +75,7 @@ export default function ResetPasswordPage() {
     if (isLoading) return;
     
     setIsLoading(true);
-    safeSetState(() => setError(null));
-    safeSetState(() => setSuccessMessage(null));
+    setError(null);
 
     try {
       // Validate new password
@@ -143,26 +125,9 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Password update successful - immediately stop loading and redirect
-        setIsLoading(false);
-        setSuccessMessage('Password set successfully! Redirecting...');
-        
-        // Clear form
-        setFormData({
-          oldPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-
-        // Use a more reliable redirect approach
-        setTimeout(() => {
-          if (isMountedRef.current) {
-            // Sign out in the background and redirect immediately
-            supabase.auth.signOut().catch(console.error);
-            router.replace('/?tab=signin&message=password_updated');
-          }
-        }, 500);
-        
+        // Password update successful - sign out and redirect for security
+        await supabase.auth.signOut();
+        router.replace('/?tab=signin&message=password_updated');
         return;
       } else {
         // Traditional flow - verify old password first
@@ -184,26 +149,9 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Password update successful - immediately stop loading and redirect
-        setIsLoading(false);
-        setSuccessMessage('Password updated successfully! Redirecting...');
-        
-        // Clear form
-        setFormData({
-          oldPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-
-        // Use a more reliable redirect approach
-        setTimeout(() => {
-          if (isMountedRef.current) {
-            // Sign out in the background and redirect immediately
-            authService.signOut();
-            router.replace('/?tab=signin&message=password_updated');
-          }
-        }, 500);
-        
+        // Password update successful - sign out and redirect for security
+        await authService.signOut();
+        router.replace('/?tab=signin&message=password_updated');
         return;
       }
 
@@ -345,12 +293,7 @@ export default function ResetPasswordPage() {
               </div>
             )}
 
-            {/* Success Message */}
-            {successMessage && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                <p className="text-sm text-emerald-400">{successMessage}</p>
-              </div>
-            )}
+
 
             {/* Submit Button */}
             <button

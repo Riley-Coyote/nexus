@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("NEXT_PUBLIC_SITE_URL") || "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -43,6 +43,28 @@ serve(async (req) => {
     
     if (!oldPassword || !newPassword) {
       return new Response(JSON.stringify({ error: "Old password and new password are required" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Server-side password validation (CRITICAL for security)
+    if (newPassword.length < 12 || newPassword.length > 25) {
+      return new Response(JSON.stringify({ error: "Password must be between 12 and 25 characters" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (!/(?=.*[0-9])/.test(newPassword)) {
+      return new Response(JSON.stringify({ error: "Password must contain at least one number" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(newPassword)) {
+      return new Response(JSON.stringify({ error: "Password must contain at least one special character" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
