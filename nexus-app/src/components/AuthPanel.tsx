@@ -12,7 +12,7 @@ interface AuthPanelProps {
 export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPanelProps) {
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]= useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [emailStatus, setEmailStatus] = useState<{

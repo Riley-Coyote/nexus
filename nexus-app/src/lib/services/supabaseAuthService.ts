@@ -315,6 +315,7 @@ class SupabaseAuthService {
       role: supabaseUser.role,
       avatar: supabaseUser.avatar,
       profileImage: supabaseUser.profile_image_url,
+      bannerImage: supabaseUser.banner_image_url,
       bio: supabaseUser.bio,
       location: supabaseUser.location,
       stats: {
@@ -515,7 +516,7 @@ class SupabaseAuthService {
   async resetPassword(email: string): Promise<AuthResult> {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?type=recovery`
       });
 
       if (error) {
@@ -529,6 +530,29 @@ class SupabaseAuthService {
     } catch (error) {
       console.error('Reset password error:', error);
       return { success: false, error: 'Failed to send password reset email.' };
+    }
+  }
+
+  async updatePasswordSecure(oldPassword: string, newPassword: string): Promise<AuthResult> {
+    try {
+      const { data, error } = await supabase.functions.invoke('secure_update_password', {
+        body: {
+          oldPassword,
+          newPassword
+        }
+      });
+
+      if (error) {
+        if (error.message.includes('Invalid old password')) {
+          return { success: false, error: 'Your current password is incorrect.' };
+        }
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Secure password update error:', error);
+      return { success: false, error: 'Failed to update password. Please try again.' };
     }
   }
 

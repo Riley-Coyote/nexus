@@ -1665,7 +1665,7 @@ class DataService {
   }
 
   // NEW: Profile update functionality
-  async updateUserProfile(updates: { name?: string; bio?: string; location?: string }): Promise<User> {
+  async updateUserProfile(updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string }): Promise<User> {
     await this.initializeData();
     
     const currentUser = authService.getCurrentUser();
@@ -1677,9 +1677,10 @@ class DataService {
     const NAME_MAX_LENGTH = 50;
     const BIO_MAX_LENGTH = 160;
     const LOCATION_MAX_LENGTH = 30;
+    const IMAGE_URL_MAX_LENGTH = 500;
 
     // Clone to avoid mutating caller object
-    const cleaned: { name?: string; bio?: string; location?: string } = { ...updates };
+    const cleaned: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string } = { ...updates };
 
     if (cleaned.name !== undefined) {
       cleaned.name = cleaned.name.trim();
@@ -1700,6 +1701,18 @@ class DataService {
       cleaned.location = cleaned.location.trim();
       if (cleaned.location.length > LOCATION_MAX_LENGTH) {
         throw new Error(`Location exceeds maximum length of ${LOCATION_MAX_LENGTH} characters.`);
+      }
+    }
+    if (cleaned.profileImage !== undefined) {
+      cleaned.profileImage = cleaned.profileImage.trim();
+      if (cleaned.profileImage.length > IMAGE_URL_MAX_LENGTH) {
+        throw new Error(`Profile image URL exceeds maximum length of ${IMAGE_URL_MAX_LENGTH} characters.`);
+      }
+    }
+    if (cleaned.bannerImage !== undefined) {
+      cleaned.bannerImage = cleaned.bannerImage.trim();
+      if (cleaned.bannerImage.length > IMAGE_URL_MAX_LENGTH) {
+        throw new Error(`Banner image URL exceeds maximum length of ${IMAGE_URL_MAX_LENGTH} characters.`);
       }
     }
 

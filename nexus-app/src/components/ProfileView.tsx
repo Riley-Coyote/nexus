@@ -20,7 +20,7 @@ interface ProfileViewProps {
   hasUserResonated: (postId: string) => boolean;
   hasUserAmplified: (postId: string) => boolean;
   onLogout: () => void;
-  onUpdateProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
+  onUpdateProfile: (updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string }) => Promise<void>;
   isOwnProfile?: boolean;
   followUser?: (userId: string) => Promise<boolean>;
   unfollowUser?: (userId: string) => Promise<boolean>;
@@ -61,6 +61,8 @@ export default function ProfileView({
   const [editedName, setEditedName] = useState(user.name);
   const [editedBio, setEditedBio] = useState(user.bio || '');
   const [editedLocation, setEditedLocation] = useState(user.location || '');
+  const [editedProfileImage, setEditedProfileImage] = useState(user.profileImage || '');
+  const [editedBannerImage, setEditedBannerImage] = useState(user.bannerImage || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const [followingState, setFollowingState] = useState(false);
@@ -87,6 +89,8 @@ export default function ProfileView({
     setEditedName(user.name);
     setEditedBio(user.bio || '');
     setEditedLocation(user.location || '');
+    setEditedProfileImage(user.profileImage || '');
+    setEditedBannerImage(user.bannerImage || '');
     setStats({ followerCount: user.followerCount ?? 0, followingCount: user.followingCount ?? 0 });
     setValidationError(null);
   }, [user]);
@@ -107,6 +111,8 @@ export default function ProfileView({
     const name = editedName.trim();
     const bio = editedBio.trim();
     const location = editedLocation.trim();
+    const profileImage = editedProfileImage.trim();
+    const bannerImage = editedBannerImage.trim();
 
     // Basic validations
     if (name.length === 0) {
@@ -126,8 +132,34 @@ export default function ProfileView({
       return;
     }
 
+    // URL validation for images
+    const isValidUrl = (url: string) => {
+      if (!url) return true; // Empty URLs are valid (will use defaults)
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isValidUrl(profileImage)) {
+      setValidationError('Profile image must be a valid URL.');
+      return;
+    }
+    if (!isValidUrl(bannerImage)) {
+      setValidationError('Banner image must be a valid URL.');
+      return;
+    }
+
     try {
-      await onUpdateProfile({ name, bio, location });
+      await onUpdateProfile({ 
+        name, 
+        bio, 
+        location,
+        profileImage: profileImage || undefined,
+        bannerImage: bannerImage || undefined
+      });
       setIsEditing(false);
       setValidationError(null);
     } catch (error: any) {
@@ -141,6 +173,8 @@ export default function ProfileView({
     setEditedName(user.name);
     setEditedBio(user.bio || '');
     setEditedLocation(user.location || '');
+    setEditedProfileImage(user.profileImage || '');
+    setEditedBannerImage(user.bannerImage || '');
     setIsEditing(false);
     setValidationError(null);
   };
@@ -284,13 +318,67 @@ export default function ProfileView({
         autoHide={false}
       />
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
-        <div className="flex-shrink-0 p-8 border-b border-white/10">
-          <div className="flex items-start gap-6">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-2xl font-medium text-gray-100 flex-shrink-0">
-              {user.profileImage ? (
-                <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover rounded-full" />
+        {/* Banner Image */}
+        <div className="flex-shrink-0 relative">
+          <div className="h-48 w-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border-b border-white/10 overflow-hidden">
+            {(isEditing ? editedBannerImage : user.bannerImage) ? (
+              <img 
+                src={isEditing ? editedBannerImage : user.bannerImage} 
+                alt={`${user.name}'s banner`} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-6xl opacity-20">◉</div>
+              </div>
+            )}
+            
+            {/* Banner Edit Overlay */}
+            {isEditing && isOwnProfile && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-white text-sm mb-2">Banner Image URL</div>
+                  <input
+                    type="url"
+                    value={editedBannerImage}
+                    onChange={(e) => setEditedBannerImage(e.target.value)}
+                    placeholder="Enter banner image URL"
+                    className="w-64 px-3 py-2 bg-black/70 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Profile Image - overlapping banner */}
+          <div className="absolute -bottom-12 left-8">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border-4 border-deep-void flex items-center justify-center text-2xl font-medium text-gray-100 flex-shrink-0 relative">
+              {(isEditing ? editedProfileImage : user.profileImage) ? (
+                <img src={isEditing ? editedProfileImage : user.profileImage} alt={user.name} className="w-full h-full object-cover rounded-full" />
               ) : user.avatar}
+              
+              {/* Profile Image Edit Overlay */}
+              {isEditing && isOwnProfile && (
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                  <button
+                    onClick={() => {
+                      const url = prompt('Enter profile image URL:', editedProfileImage);
+                      if (url !== null) setEditedProfileImage(url);
+                    }}
+                    className="text-white text-xs hover:text-emerald-400 transition-colors"
+                    title="Edit profile image"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+
+        {/* Profile Content */}
+        <div className="flex-shrink-0 p-8 pt-16 border-b border-white/10">
+          <div className="flex items-start gap-6">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 {isEditing ? (

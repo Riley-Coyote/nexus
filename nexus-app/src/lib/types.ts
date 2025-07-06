@@ -128,6 +128,7 @@ export interface User {
   role: string;
   avatar: string;
   profileImage?: string;
+  bannerImage?: string;
   bio?: string;
   location?: string;
   stats: {

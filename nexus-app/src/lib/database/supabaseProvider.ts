@@ -631,6 +631,7 @@ export class SupabaseProvider implements DatabaseProvider {
       bio: user.bio || 'New to the Nexus. Exploring the liminal spaces.',
       location: user.location || 'The Digital Realm',
       profile_image_url: user.profileImage,
+      banner_image_url: user.bannerImage,
       avatar: user.avatar,
       role: user.role || 'Explorer',
       stats: user.stats || { entries: 0, dreams: 0, connections: 0 }
@@ -681,6 +682,7 @@ export class SupabaseProvider implements DatabaseProvider {
             bio,
             location,
             profile_image_url,
+            banner_image_url,
             avatar,
             role,
             stats,
@@ -713,6 +715,7 @@ export class SupabaseProvider implements DatabaseProvider {
     if (updates.bio !== undefined) updateData.bio = updates.bio;
     if (updates.location !== undefined) updateData.location = updates.location;
     if (updates.profileImage !== undefined) updateData.profile_image_url = updates.profileImage;
+    if (updates.bannerImage !== undefined) updateData.banner_image_url = updates.bannerImage;
     if (updates.role) updateData.role = updates.role;
     if (updates.stats) updateData.stats = updates.stats;
 
@@ -841,6 +844,7 @@ export class SupabaseProvider implements DatabaseProvider {
       role: supabaseUser.role,
       avatar: supabaseUser.avatar,
       profileImage: supabaseUser.profile_image_url,
+      bannerImage: supabaseUser.banner_image_url,
       bio: supabaseUser.bio,
       location: supabaseUser.location,
       stats: {

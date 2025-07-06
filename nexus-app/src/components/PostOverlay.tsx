@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType } from '@/lib/types';
 import { StreamEntryData } from '@/lib/types';
 import { dataService } from '@/lib/services/dataService';
-import { authService } from '@/lib/services/authService';
+import { authService } from '@/lib/services/supabaseAuthService';
 import { shareContent, createPostShareData } from '@/lib/utils/shareUtils';
 
 interface PostOverlayProps {
