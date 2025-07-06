@@ -566,12 +566,6 @@ export const useNexusData = (): NexusData => {
     const state = userInteractionStates.get(entryId);
     const result = state?.hasResonated || false;
     
-    // Only log if we have a problem finding the state
-    if (!state && !resonatedCallsRef.current.has(entryId)) {
-      console.log(`⚠️ No state found for post ${entryId} when checking resonance`);
-      resonatedCallsRef.current.add(entryId);
-    }
-    
     return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
 
@@ -583,12 +577,6 @@ export const useNexusData = (): NexusData => {
     
     const state = userInteractionStates.get(entryId);
     const result = state?.hasAmplified || false;
-    
-    // Only log if we have a problem finding the state
-    if (!state && !amplifiedCallsRef.current.has(entryId)) {
-      console.log(`⚠️ No state found for post ${entryId} when checking amplification`);
-      amplifiedCallsRef.current.add(entryId);
-    }
     
     return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
