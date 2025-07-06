@@ -1453,15 +1453,15 @@ class DataService {
 
       let entries: StreamEntry[] = [];
   
-      console.log(`⚡ Database query optimized with JOIN for mode: ${mode}`);
+      // Reduced logging for production optimization
   
       // Fetch data based on mode - OPTIMIZED with JOIN queries
       switch (mode) {
         case 'feed':
         case 'all':
-          // FIXED: For feed mode, we need to fetch more entries to ensure we have enough
-          // after combining and sorting, then limit to the requested amount
-          const fetchLimit = Math.min(safeLimit * 2, 100); // Fetch up to 2x limit to ensure enough variety
+          // OPTIMIZED: Fetch exact amount needed for better performance
+          // We'll fetch slightly more to ensure variety, then limit precisely
+          const fetchLimit = Math.min(safeLimit + 10, 50); // Fetch limit + 10 for variety, cap at 50
           const [logbookEntries, dreamEntries] = await Promise.all([
             this.database!.getEntries('logbook', { page: safePage, limit: fetchLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' }),
             this.database!.getEntries('dream', { page: safePage, limit: fetchLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' })
@@ -1487,7 +1487,7 @@ class DataService {
           const startIndex = (safePage - 1) * safeLimit;
           entries = combinedEntries.slice(startIndex, startIndex + safeLimit);
           
-          console.log(`✅ Feed: Combined ${logbookEntries.length} logbook + ${dreamEntries.length} dream entries, returning ${entries.length} after pagination`);
+          console.log(`✅ Feed: Combined ${logbookEntries.length} logbook + ${dreamEntries.length} dream entries, returning ${entries.length}`);
           break;
         case 'logbook':
           entries = await this.database!.getEntries('logbook', { page: safePage, limit: safeLimit, sortBy: sortBy as 'timestamp' | 'interactions', sortOrder: sortOrder as 'asc' | 'desc' });
@@ -1540,13 +1540,11 @@ class DataService {
       }
   
       // OPTIMIZATION: No need to enrich with interactions - already included via JOIN!
-      console.log(`⚡ Skipping interaction enrichment - entries already optimized`);
   
       // Return threaded or flat based on mode
       const finalEntries = threaded ? this.buildThreadedEntries(entries) : entries;
       
       // OPTIMIZATION: Use map-based approach instead of embedding user states
-      console.log(`✅ Returning ${finalEntries.length} entries without embedded user states (using map-based lookup)`);
       
       return finalEntries;
     } catch (error) {

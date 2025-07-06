@@ -245,7 +245,7 @@ export const useNexusData = (): NexusData => {
         dataService.getSystemVitals(),
         dataService.getActiveAgents(),
         // Use optimized getPosts method instead of getFlattenedLogbookEntries
-        dataService.getPosts({ mode: 'logbook', page: 1, limit: 30, threaded: false })
+        dataService.getPosts({ mode: 'logbook', page: 1, limit: 20, threaded: false })
       ]);
       
       setLogbookState(state);
@@ -274,7 +274,7 @@ export const useNexusData = (): NexusData => {
         dataService.getDreamStateMetrics(),
         dataService.getActiveDreamers(),
         // Use optimized getPosts method instead of getSharedDreams
-        dataService.getPosts({ mode: 'dream', page: 1, limit: 30, threaded: false }),
+        dataService.getPosts({ mode: 'dream', page: 1, limit: 20, threaded: false }),
         dataService.getDreamAnalytics()
       ]);
       
@@ -581,7 +581,10 @@ export const useNexusData = (): NexusData => {
     return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
   
-  // CONSOLIDATED: Single auth state management with social media playbook loading
+  // OPTIMIZED: Single auth state management with throttling to prevent multiple calls
+  const authDataLoadedRef = useRef(false);
+  const authLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     setIsLoading(false);
     
@@ -610,8 +613,19 @@ export const useNexusData = (): NexusData => {
       setAuthState({ ...newAuthState, isAuthLoading: false });
       
       if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // Step 1: Load posts data first
-        await refreshData();
+        // OPTIMIZATION: Prevent multiple rapid data loads during auth changes
+        if (authLoadTimeoutRef.current) {
+          clearTimeout(authLoadTimeoutRef.current);
+        }
+        
+        // Only load data if we haven't loaded it already for this auth session
+        if (!authDataLoadedRef.current) {
+          authLoadTimeoutRef.current = setTimeout(async () => {
+            // Step 1: Load posts data first
+            await refreshData();
+            authDataLoadedRef.current = true;
+          }, 100); // Small delay to batch multiple auth state changes
+        }
         
         // NOTE: User interaction states are now loaded in a separate useEffect
         // that watches for logbookEntries and sharedDreams changes
@@ -627,6 +641,11 @@ export const useNexusData = (): NexusData => {
         }
       } else {
         // Clear data on logout
+        authDataLoadedRef.current = false; // Reset for next login
+        if (authLoadTimeoutRef.current) {
+          clearTimeout(authLoadTimeoutRef.current);
+        }
+        
         setProfileUser(null);
         setProfileUserPosts([]);
         setResonatedEntries([]);
@@ -650,7 +669,13 @@ export const useNexusData = (): NexusData => {
     const currentAuthState = authService.getAuthState();
     setAuthState(currentAuthState);
     
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      // Clean up timeout on unmount
+      if (authLoadTimeoutRef.current) {
+        clearTimeout(authLoadTimeoutRef.current);
+      }
+    };
   }, []);
 
   // OPTIMIZED: Load user interaction states when posts are available
@@ -809,13 +834,13 @@ export const useNexusData = (): NexusData => {
     }, [authState.currentUser]),
     ensureFeedDataLoaded: useCallback(async () => {
       if (authState.currentUser) {
-        // Only refresh if data appears stale (empty arrays)
-        if (logbookEntries.length === 0 && sharedDreams.length === 0) {
+        // Only refresh if data appears stale (empty arrays) and we're not already loading
+        if (logbookEntries.length === 0 && sharedDreams.length === 0 && !isLoading) {
           console.log('🔄 Ensuring feed data is loaded...');
           await refreshData();
         }
       }
-    }, [authState.currentUser, logbookEntries.length, sharedDreams.length, refreshData]),
+    }, [authState.currentUser, logbookEntries.length, sharedDreams.length, isLoading, refreshData]),
     
     // Auth actions
     login,

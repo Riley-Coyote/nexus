@@ -66,18 +66,18 @@ export default function NexusFeed({
   const [lastDataHash, setLastDataHash] = useState<string>('');
   const initialLoadRef = useRef(true);
   
-  // NEW: Auto-refresh feed data when component first loads with empty data
+  // OPTIMIZED: Auto-refresh feed data when component first loads with empty data
   const mountedRef = useRef(false);
   useEffect(() => {
     if (!mountedRef.current) {
       mountedRef.current = true;
-      if (logbookEntries.length === 0 && dreamEntries.length === 0) {
+      // Only trigger refresh if we have truly empty data (no loading in progress)
+      if (logbookEntries.length === 0 && dreamEntries.length === 0 && !isLoading) {
         console.log('📡 Feed mounted with empty data - triggering refresh...');
-        // Use the dedicated feed data loader
         ensureFeedDataLoaded?.();
       }
     }
-  }, [logbookEntries.length, dreamEntries.length, ensureFeedDataLoaded]);
+  }, [logbookEntries.length, dreamEntries.length, isLoading, ensureFeedDataLoaded]);
 
   // OPTIMIZATION: Use pre-loaded data instead of making separate API calls
   const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
@@ -112,12 +112,17 @@ export default function NexusFeed({
     }
   };
 
-  // Smart refresh: Only reset pagination if user is at top OR it's initial load
+  // OPTIMIZED: Smart refresh with throttling to prevent excessive calls
   useEffect(() => {
-    // Create a simple hash of the data to detect actual changes
+    // Skip if no data yet
+    if (logbookEntries.length === 0 && dreamEntries.length === 0) {
+      return;
+    }
+    
+    // Create a more comprehensive hash to better detect meaningful changes
     const dataHash = `${logbookEntries.length}-${dreamEntries.length}-${
-      logbookEntries[0]?.id || ''
-    }-${dreamEntries[0]?.id || ''}`;
+      logbookEntries.slice(0, 5).map(e => e.id).join(',')
+    }-${dreamEntries.slice(0, 5).map(e => e.id).join(',')}`;
     
     // Initial load - always load
     if (initialLoadRef.current) {
