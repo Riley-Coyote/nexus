@@ -291,8 +291,9 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         // Set success/error state immediately, synchronously
         if (result.success) {
           setSuccessMessage('If this email address is registered with NEXUS, you\'ll receive a password reset link shortly. Please check your inbox and spam folder.');
-          setAuthMode('login');
           setError(null);
+          // Don't automatically switch to login mode - let the user do it manually
+          // This prevents the success message from being cleared immediately
         } else {
           setError(result.error || 'Failed to send password reset email');
           setSuccessMessage(null);
