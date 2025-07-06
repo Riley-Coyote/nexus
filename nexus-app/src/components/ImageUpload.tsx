@@ -66,38 +66,29 @@ export default function ImageUpload({
   const handleFileUpload = async (file: File) => {
     if (disabled) return;
 
-    console.log('🖼️ Starting file upload in component...', { fileName: file.name, fileSize: file.size });
     setIsUploading(true);
     
     try {
       // Create preview
-      console.log('👁️ Creating preview...');
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreviewUrl(e.target?.result as string);
-        console.log('✅ Preview created');
       };
       reader.readAsDataURL(file);
 
       // Upload to storage
-      console.log('📤 Calling storage service...');
       const result = await storageService.uploadProfileImage(userId, file, type);
-      console.log('✅ Storage service returned:', result);
       
       // Call onUpload with the URL
-      console.log('🔄 Calling onUpload callback...');
       onUpload(result.publicUrl);
-      console.log('✅ Upload process completed');
       
     } catch (error) {
-      console.error('❌ Upload error in component:', error);
+      console.error('Upload error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
       onError(errorMessage);
       // Reset preview on error
       setPreviewUrl(currentImageUrl || null);
-      console.log('🔄 Reset preview due to error');
     } finally {
-      console.log('🏁 Setting isUploading to false');
       setIsUploading(false);
     }
   };
