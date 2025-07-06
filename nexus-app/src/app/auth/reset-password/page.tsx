@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/lib/services/supabaseAuthService';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +17,21 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Safe state setter to prevent updates after unmount
+  const safeSetState = (stateSetter: () => void) => {
+    if (isMountedRef.current) {
+      stateSetter();
+    }
+  };
 
   // Check if user came from magic link (forgot password flow)
   useEffect(() => {
@@ -42,8 +57,8 @@ export default function ResetPasswordPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Clear messages when user starts typing
-    if (error) setError(null);
-    if (successMessage) setSuccessMessage(null);
+    if (error) safeSetState(() => setError(null));
+    if (successMessage) safeSetState(() => setSuccessMessage(null));
   };
 
   const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
@@ -77,37 +92,37 @@ export default function ResetPasswordPage() {
     if (isLoading) return;
     
     setIsLoading(true);
-    setError(null);
-    setSuccessMessage(null);
+    safeSetState(() => setError(null));
+    safeSetState(() => setSuccessMessage(null));
 
     try {
       // Validate new password
       if (!formData.newPassword) {
-        setError('Please enter your new password');
+        safeSetState(() => setError('Please enter your new password'));
         return;
       }
 
       if (!formData.confirmPassword) {
-        setError('Please confirm your new password');
+        safeSetState(() => setError('Please confirm your new password'));
         return;
       }
 
       // For traditional flow, validate old password
       if (!isMagicLinkFlow && !formData.oldPassword) {
-        setError('Please enter your current password');
+        safeSetState(() => setError('Please enter your current password'));
         return;
       }
 
       // Validate new password requirements
       const passwordValidation = validatePassword(formData.newPassword);
       if (!passwordValidation.isValid) {
-        setError(passwordValidation.errors.join('. '));
+        safeSetState(() => setError(passwordValidation.errors.join('. ')));
         return;
       }
 
       // Check if passwords match
       if (formData.newPassword !== formData.confirmPassword) {
-        setError('New passwords do not match');
+        safeSetState(() => setError('New passwords do not match'));
         return;
       }
 
@@ -118,14 +133,14 @@ export default function ResetPasswordPage() {
         });
 
         if (updateError) {
-          setError(updateError.message || 'Failed to update password');
+          safeSetState(() => setError(updateError.message || 'Failed to update password'));
           return;
         }
       } else {
         // Traditional flow - verify old password first
         const currentUser = authService.getCurrentUser();
         if (!currentUser) {
-          setError('You must be signed in to change your password');
+          safeSetState(() => setError('You must be signed in to change your password'));
           return;
         }
 
@@ -135,11 +150,12 @@ export default function ResetPasswordPage() {
         );
 
         if (!result.success) {
-          setError(result.error || 'Failed to update password');
+          safeSetState(() => setError(result.error || 'Failed to update password'));
           return;
         }
       }
 
+      // Set success state immediately and synchronously
       if (isMagicLinkFlow) {
         setSuccessMessage('Password set successfully! You are now logged in and will be redirected to the main page.');
       } else {
@@ -153,17 +169,21 @@ export default function ResetPasswordPage() {
         confirmPassword: ''
       });
 
-      // Redirect after a short delay
+      // Reset loading state immediately after success
+      setIsLoading(false);
+
+      // Redirect after a short delay, but only if component is still mounted
       setTimeout(() => {
-        router.push('/');
+        if (isMountedRef.current) {
+          router.push('/');
+        }
       }, 2000);
 
     } catch (err) {
       console.error('Password update error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update password';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+      safeSetState(() => setError(errorMessage));
+      setIsLoading(false); // Reset loading state on error
     }
   };
 
