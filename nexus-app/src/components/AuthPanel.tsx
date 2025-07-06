@@ -282,7 +282,8 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       if (authMode === 'reset') {
         // Validation for reset
         if (!validateEmail(formData.username)) {
-          safeSetState(() => setError('Please enter a valid email address'));
+          setError('Please enter a valid email address');
+          setIsLoading(false);
           return;
         }
 
@@ -299,22 +300,21 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           setSuccessMessage(null);
         }
         
-        // Brief delay to ensure UI updates are processed before potential unmounting
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        if (!isMountedRef.current) {
-          return;
-        }
+        // Reset loading state immediately after API call
+        setIsLoading(false);
+        return;
         
       } else if (authMode === 'login') {
         // Validation for login
         if (!formData.username) {
-          safeSetState(() => setError('Please enter your username or email'));
+          setError('Please enter your username or email');
+          setIsLoading(false);
           return;
         }
 
         if (!formData.password) {
-          safeSetState(() => setError('Please enter your password'));
+          setError('Please enter your password');
+          setIsLoading(false);
           return;
         }
 
@@ -335,45 +335,53 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       } else {
         // Signup validation
         if (!formData.username) {
-          safeSetState(() => setError('Please enter a username'));
+          setError('Please enter a username');
+          setIsLoading(false);
           return;
         }
 
         if (!formData.email) {
-          safeSetState(() => setError('Please enter your email'));
+          setError('Please enter your email');
+          setIsLoading(false);
           return;
         }
 
         if (!validateEmail(formData.email)) {
-          safeSetState(() => setError('Please enter a valid email address'));
+          setError('Please enter a valid email address');
+          setIsLoading(false);
           return;
         }
 
         if (!formData.name) {
-          safeSetState(() => setError('Please enter your name'));
+          setError('Please enter your name');
+          setIsLoading(false);
           return;
         }
 
         const passwordValidation = validatePassword(formData.password);
         if (!passwordValidation.isValid) {
-          safeSetState(() => setError(passwordValidation.errors.join('. ')));
+          setError(passwordValidation.errors.join('. '));
+          setIsLoading(false);
           return;
         }
 
         if (formData.password !== formData.confirmPassword) {
-          safeSetState(() => setError('Passwords do not match'));
+          setError('Passwords do not match');
+          setIsLoading(false);
           return;
         }
 
         // Check email availability before proceeding
         if (emailStatus.available === false) {
-          safeSetState(() => setError('This email is already registered. Please sign in instead.'));
+          setError('This email is already registered. Please sign in instead.');
+          setIsLoading(false);
           return;
         }
 
         // If we're still checking email availability, wait a moment
         if (emailStatus.checking) {
-          safeSetState(() => setError('Still checking email availability. Please wait a moment.'));
+          setError('Still checking email availability. Please wait a moment.');
+          setIsLoading(false);
           return;
         }
         
