@@ -136,6 +136,11 @@ export default function ResetPasswordPage() {
           safeSetState(() => setError(updateError.message || 'Failed to update password'));
           return;
         }
+
+        // Clear the session and redirect to sign-in page
+        await supabase.auth.signOut();
+        
+        setSuccessMessage('Password set successfully! You will be redirected to sign in with your new password.');
       } else {
         // Traditional flow - verify old password first
         const currentUser = authService.getCurrentUser();
@@ -153,13 +158,11 @@ export default function ResetPasswordPage() {
           safeSetState(() => setError(result.error || 'Failed to update password'));
           return;
         }
-      }
 
-      // Set success state immediately and synchronously
-      if (isMagicLinkFlow) {
-        setSuccessMessage('Password set successfully! You are now logged in and will be redirected to the main page.');
-      } else {
-        setSuccessMessage('Password updated successfully! You will be redirected to the main page.');
+        // Sign out the user after successful password change
+        await authService.signOut();
+        
+        setSuccessMessage('Password updated successfully! You will be redirected to sign in with your new password.');
       }
       
       // Clear form
@@ -172,10 +175,10 @@ export default function ResetPasswordPage() {
       // Reset loading state immediately after success
       setIsLoading(false);
 
-      // Redirect after a short delay, but only if component is still mounted
+      // Redirect to sign-in page after a short delay
       setTimeout(() => {
         if (isMountedRef.current) {
-          router.push('/');
+          router.push('/?tab=signin&message=password_updated');
         }
       }, 2000);
 
