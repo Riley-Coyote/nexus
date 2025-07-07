@@ -7,6 +7,7 @@ import {
   InteractionType, 
   InteractionCounts,
   UserInteractionState,
+  StreamEntryWithUserStates,
   BranchNode,
   SupabaseStreamEntry, 
   SupabaseInteractionCounts,
@@ -1293,5 +1294,62 @@ export class SupabaseProvider implements DatabaseProvider {
 
       return await this.getEntriesByIds(resonatedIds);
     }
+  }
+
+  async getEntriesWithUserStates(
+    entryType: 'logbook' | 'dream' | null = null,
+    userId: string | null = null,
+    targetUserId: string | null = null,
+    options: QueryOptions = {}
+  ): Promise<StreamEntryWithUserStates[]> {
+    const { page = 1, limit = 20, sortBy = 'timestamp', sortOrder = 'desc' } = options;
+    const offset = (page - 1) * limit;
+
+    console.log(`🔄 Using optimized query for entries with user states. Type: ${entryType}, User: ${targetUserId}`);
+
+    const { data, error } = await this.client.rpc('get_entries_with_user_states', {
+      entry_type_filter: entryType,
+      user_id_filter: userId,
+      target_user_id: targetUserId,
+      page_offset: offset,
+      page_limit: limit,
+      sort_by: sortBy,
+      sort_order: sortOrder
+    });
+
+    if (error) {
+      console.error('❌ Error fetching entries with user states:', error);
+      throw new Error(`Failed to fetch entries with user states: ${error.message}`);
+    }
+
+    if (!data) {
+      console.log('📭 No entries found with user states');
+      return [];
+    }
+
+    // Convert to StreamEntryWithUserStates format
+    const entries = data.map((row: any): StreamEntryWithUserStates => {
+      const entry = this.supabaseToStreamEntry(row);
+      
+      // Add interaction counts from the optimized query
+      entry.interactions = {
+        resonances: row.resonance_count || 0,
+        branches: row.branch_count || 0,
+        amplifications: row.amplification_count || 0,
+        shares: row.share_count || 0
+      };
+
+      // Add user interaction states
+      const entryWithUserStates: StreamEntryWithUserStates = {
+        ...entry,
+        userHasResonated: row.has_resonated || false,
+        userHasAmplified: row.has_amplified || false,
+      };
+
+      return entryWithUserStates;
+    });
+
+    console.log(`✅ Fetched ${entries.length} entries with interaction counts and user states in single query`);
+    return entries;
   }
 }

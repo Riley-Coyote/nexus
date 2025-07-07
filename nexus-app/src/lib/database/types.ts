@@ -69,6 +69,14 @@ export interface DatabaseProvider {
   
   // Resonated entries in one shot (optimized view)
   getResonatedEntries?(userId: string, options?: { page?: number; limit?: number }): Promise<StreamEntry[]>;
+  
+  // OPTIMIZED: Get entries with user interaction states in a single query
+  getEntriesWithUserStates?(
+    entryType: 'logbook' | 'dream' | null,
+    userId: string | null,
+    targetUserId: string | null,
+    options?: QueryOptions
+  ): Promise<StreamEntryWithUserStates[]>;
 }
 
 export interface QueryOptions {
@@ -92,6 +100,12 @@ export interface InteractionCounts {
 export interface UserInteractionState {
   hasResonated: boolean;
   hasAmplified: boolean;
+}
+
+// Extended StreamEntry with user interaction states for optimized queries
+export interface StreamEntryWithUserStates extends StreamEntry {
+  userHasResonated: boolean;
+  userHasAmplified: boolean;
 }
 
 export interface BranchNode {

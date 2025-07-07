@@ -290,6 +290,60 @@ export const useNexusData = (): NexusData => {
       setIsLoading(false);
     }
   }, []); // No dependencies to prevent recreation
+
+  // OPTIMIZED: Feed data loader that includes user interaction states in single query
+  const loadFeedDataOptimized = useCallback(async () => {
+    // Prevent concurrent calls using ref
+    if (isLoadingRef.current) {
+      console.log('📡 Feed data already loading, skipping...');
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    setIsLoading(true);
+    try {
+      console.log('📡 Loading public feed data with user states (OPTIMIZED)...');
+      
+      const currentUser = authState.currentUser;
+      
+      // Use optimized method that gets posts WITH user interaction states in a single query
+      const [publicLogbookEntries, publicDreamEntries] = await Promise.all([
+        dataService.getPostsWithUserStates({ 
+          mode: 'logbook', 
+          page: 1, 
+          limit: 20, 
+          targetUserId: currentUser?.id, // Include user interaction states
+          filters: { privacy: 'public' } 
+        }),
+        dataService.getPostsWithUserStates({ 
+          mode: 'dream', 
+          page: 1, 
+          limit: 20, 
+          targetUserId: currentUser?.id, // Include user interaction states
+          filters: { privacy: 'public' } 
+        })
+      ]);
+      
+      // Store public entries for feed (no user filtering needed)
+      setLogbookEntries(publicLogbookEntries);
+      setSharedDreams(publicDreamEntries);
+      // Clear allDreams to prevent the filtering effect from running
+      setAllDreams([]);
+      
+      // Since we got user interaction states in the query, we can mark them as loaded
+      setIsUserStatesLoaded(true);
+      
+      console.log(`✅ OPTIMIZED: Loaded ${publicLogbookEntries.length} public logbook + ${publicDreamEntries.length} public dream entries WITH user states`);
+      
+    } catch (error) {
+      console.error('Failed to load optimized feed data:', error);
+      // Fall back to traditional method
+      await loadFeedData();
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoading(false);
+    }
+  }, [authState.currentUser, loadFeedData]); // Include loadFeedData as fallback dependency
   
   // Load logbook data (user-specific)
   const loadLogbookData = useCallback(async () => {
@@ -361,25 +415,25 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.currentUser, allDreams]);
   
-  // Refresh all data (now using path-independent logic)
+  // Refresh all data (now using path-independent logic with optimization)
   const refreshData = useCallback(async () => {
     // Check if we're currently on feed path using a more stable approach
     const isOnFeedPath = typeof window !== 'undefined' && 
       (window.location.pathname === '/' || window.location.pathname === '/feed');
     
     if (isOnFeedPath) {
-      // For feed view: only load public data
-      await loadFeedData();
+      // For feed view: use optimized loader that includes user states
+      await loadFeedDataOptimized();
     } else {
       // For logbook/dream views: load user-specific data
       await Promise.all([loadLogbookData(), loadDreamData()]);
     }
-  }, [loadFeedData, loadLogbookData, loadDreamData]);
+  }, [loadFeedDataOptimized, loadLogbookData, loadDreamData]);
 
-  // NEW: Feed-specific refresh for public data only
+  // OPTIMIZED: Feed-specific refresh that includes user interaction states in single query
   const refreshFeedData = useCallback(async () => {
-    await loadFeedData();
-  }, [loadFeedData]); // Stable since loadFeedData has no dependencies
+    await loadFeedDataOptimized();
+  }, [loadFeedDataOptimized]);
 
   // ========== GRANULAR REFRESH METHODS ==========
   
@@ -772,12 +826,40 @@ export const useNexusData = (): NexusData => {
 
   // OPTIMIZED: Load user interaction states when posts are available
   // This effect watches for logbookEntries, sharedDreams, and resonatedEntries changes and loads user interaction states
+  // NOTE: If posts were loaded with the optimized method (getPostsWithUserStates), user states are already included
   useEffect(() => {
     const loadUserInteractionStates = async () => {
       // Only load if user is authenticated and we have posts
       if (!authState.isAuthenticated || !authState.currentUser) {
         console.log(`⏭️ Skipping user interaction states load - not authenticated`);
         setIsUserStatesLoaded(false);
+        return;
+      }
+
+      // Check if posts already have user interaction states (from optimized loader)
+      // If posts have userHasResonated/userHasAmplified properties, skip separate loading
+      const feedPosts = [...logbookEntries, ...sharedDreams];
+      const hasOptimizedData = feedPosts.length > 0 && 
+        feedPosts.some(post => 'userHasResonated' in post && 'userHasAmplified' in post);
+      
+      if (hasOptimizedData) {
+        console.log(`⚡ Skipping separate user interaction states load - already included in optimized query`);
+        
+        // Populate the interaction states map from the posts themselves
+        setUserInteractionStates(prev => {
+          const newMap = new Map(prev);
+          feedPosts.forEach(post => {
+            if ('userHasResonated' in post && 'userHasAmplified' in post) {
+              newMap.set(post.id, {
+                hasResonated: (post as any).userHasResonated,
+                hasAmplified: (post as any).userHasAmplified
+              });
+            }
+          });
+          return newMap;
+        });
+        
+        setIsUserStatesLoaded(true);
         return;
       }
 

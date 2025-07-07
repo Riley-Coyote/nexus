@@ -1603,6 +1603,147 @@ class DataService {
     return userStates.get(entryId)?.hasAmplified || false;
   }
 
+  /**
+   * OPTIMIZED: Get posts with user interaction states in a single query
+   * This eliminates the need for separate batchLoadUserStates calls
+   */
+  async getPostsWithUserStates(options: {
+    mode: 'feed' | 'logbook' | 'dream' | 'all';
+    page?: number;
+    limit?: number;
+    userId?: string;
+    targetUserId?: string; // User whose interaction states we want
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      type?: string;
+      privacy?: 'public' | 'private';
+      dateRange?: { start: Date; end: Date };
+    };
+  }): Promise<StreamEntry[]> {
+    await this.initializeData();
+
+    const {
+      mode,
+      page = 1,
+      limit = 20,
+      userId,
+      targetUserId,
+      sortBy = 'timestamp',
+      sortOrder = 'desc',
+      filters
+    } = options;
+
+    // Bounds checking
+    const safeLimit = Math.max(1, Math.min(limit, 100));
+    const safePage = Math.max(1, page);
+
+    if (!this.database) {
+      return [];
+    }
+
+    // Check if database provider supports the optimized method
+    if (!this.database.getEntriesWithUserStates) {
+      console.warn('⚠️ Database provider does not support getEntriesWithUserStates, falling back to traditional method');
+      return this.getPosts(options);
+    }
+
+    try {
+      let entries: StreamEntry[] = [];
+
+      console.log(`🔄 Using optimized single-query approach for ${mode} mode`);
+
+      // Fetch data based on mode using optimized single query
+      switch (mode) {
+        case 'feed':
+        case 'all':
+          // For feed mode, we need to get both logbook and dream entries
+          // We'll make two optimized calls and combine them
+          const [logbookEntries, dreamEntries] = await Promise.all([
+            this.database.getEntriesWithUserStates('logbook', userId, targetUserId, {
+              page: safePage,
+              limit: Math.ceil(safeLimit / 2), // Split limit between types
+              sortBy,
+              sortOrder
+            }),
+            this.database.getEntriesWithUserStates('dream', userId, targetUserId, {
+              page: safePage,
+              limit: Math.ceil(safeLimit / 2),
+              sortBy,
+              sortOrder
+            })
+          ]);
+
+          // Combine entries from both types
+          const combinedEntries = [...logbookEntries, ...dreamEntries];
+          
+          // Sort by timestamp to get the most recent entries across both types
+          combinedEntries.sort((a, b) => {
+            if (sortBy === 'timestamp') {
+              const comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+              return sortOrder === 'desc' ? -comparison : comparison;
+            } else {
+              const aTotal = a.interactions.resonances + a.interactions.amplifications;
+              const bTotal = b.interactions.resonances + b.interactions.amplifications;
+              const comparison = aTotal - bTotal;
+              return sortOrder === 'desc' ? -comparison : comparison;
+            }
+          });
+          
+          // Apply pagination AFTER combining and sorting
+          const startIndex = (safePage - 1) * safeLimit;
+          entries = combinedEntries.slice(startIndex, startIndex + safeLimit);
+          
+          console.log(`✅ Optimized Feed: Combined ${logbookEntries.length} logbook + ${dreamEntries.length} dream entries with user states, returning ${entries.length}`);
+          break;
+          
+        case 'logbook':
+          entries = await this.database.getEntriesWithUserStates('logbook', userId, targetUserId, {
+            page: safePage,
+            limit: safeLimit,
+            sortBy,
+            sortOrder
+          });
+          console.log(`✅ Optimized: Fetched ${entries.length} logbook entries with user states`);
+          break;
+          
+        case 'dream':
+          entries = await this.database.getEntriesWithUserStates('dream', userId, targetUserId, {
+            page: safePage,
+            limit: safeLimit,
+            sortBy,
+            sortOrder
+          });
+          console.log(`✅ Optimized: Fetched ${entries.length} dream entries with user states`);
+          break;
+          
+        default:
+          throw new Error(`Mode ${mode} not supported by optimized query yet`);
+      }
+
+      // Apply filters if needed
+      if (filters) {
+        entries = entries.filter(entry => {
+          if (filters.type && entry.type !== filters.type) return false;
+          if (filters.privacy && entry.privacy !== filters.privacy) return false;
+          if (filters.dateRange) {
+            const entryDate = new Date(entry.timestamp);
+            if (entryDate < filters.dateRange.start || entryDate > filters.dateRange.end) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      console.log(`🎯 OPTIMIZED: Fetched ${entries.length} entries with interaction counts AND user states in single query`);
+      return entries;
+    } catch (error) {
+      console.error('❌ Error in optimized getPostsWithUserStates, falling back to traditional method:', error);
+      return this.getPosts(options);
+    }
+  }
+
 }
 
 // Export singleton instance
