@@ -84,7 +84,9 @@ export default function NotificationBanner({
         ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-100' 
         : variant === 'warning'
         ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-100'
-        : 'bg-red-500/20 border border-red-500/30 text-red-100'
+        : variant === 'error'
+        ? 'bg-red-500/20 border border-red-500/30 text-red-100'
+        : 'bg-blue-500/20 border border-blue-500/30 text-blue-100'
       }
       animate-slide-down
     `}>
