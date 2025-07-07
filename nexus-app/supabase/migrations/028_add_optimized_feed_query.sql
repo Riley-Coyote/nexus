@@ -35,24 +35,33 @@ ALTER TABLE entry_interaction_counts
     (resonance_count + amplification_count) STORED;
 
 -- Make interaction counts table covering (include all count columns in index)
-DROP INDEX CONCURRENTLY IF EXISTS idx_entry_interaction_counts_entry_id;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_entry_interaction_counts_covering 
+DROP INDEX IF EXISTS idx_entry_interaction_counts_entry_id;
+CREATE INDEX IF NOT EXISTS idx_entry_interaction_counts_covering 
 ON entry_interaction_counts (entry_id) 
 INCLUDE (resonance_count, branch_count, amplification_count, share_count, score);
 
 -- PERFORMANCE BOOST: Score index for fast popularity sorting (index-only scan)
 -- Structure: (score DESC, entry_id) for optimal index-only plans
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_eic_score_entry
+CREATE INDEX IF NOT EXISTS idx_eic_score_entry
 ON entry_interaction_counts (score DESC, entry_id);
+
+-- STANDARDIZE: Convert user_id columns to UUID for consistency
+-- Convert user_resonances.user_id from text to UUID
+ALTER TABLE user_resonances 
+ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
+
+-- Convert user_amplifications.user_id from text to UUID
+ALTER TABLE user_amplifications 
+ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
 
 -- UNIVERSAL: Function to get entries with interaction counts and user interaction states
 -- Powers all pages: feed, profile, logbook, dreams, resonance-field
 -- OPTIMIZED: Cursor pagination, validation guards, score column usage
 CREATE OR REPLACE FUNCTION get_entries_with_user_states(
     entry_type_filter text DEFAULT NULL,                    -- 'logbook', 'dream', or NULL for both
-    user_id_filter text DEFAULT NULL,                       -- Filter by post author (for profile/logbook/dreams)
+    user_id_filter uuid DEFAULT NULL,                       -- Filter by post author (for profile/logbook/dreams)
     privacy_filter text DEFAULT 'public',                   -- 'public', 'private', or NULL for both
-    target_user_id text DEFAULT NULL,                       -- User whose interaction states we want
+    target_user_id uuid DEFAULT NULL,                       -- User whose interaction states we want
     user_has_resonated boolean DEFAULT NULL,                -- Only posts user has resonated with (resonance-field)
     user_has_amplified boolean DEFAULT NULL,                -- Only posts user has amplified
     page_offset integer DEFAULT 0,                          -- Legacy pagination (use cursor for deep pages)
@@ -72,26 +81,29 @@ CREATE OR REPLACE FUNCTION get_entries_with_user_states(
     agent text,
     connections integer,
     metrics jsonb,
-    timestamp timestamp with time zone,
+    "timestamp" timestamp with time zone,
     content text,
     actions text[],
     privacy text,
     interactions jsonb,
-    threads bigint[],
+    threads jsonb,
     is_amplified boolean,
-    user_id text,
+    user_id uuid,
     username text,
     title text,
     resonance numeric,
     coherence numeric,
     tags text[],
-    response text,
+    response jsonb,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     subtype text,
-    resonance_field text,
-    quantum_layer text,
+    resonance_field numeric,
+    quantum_layer integer,
     metadata jsonb,
+    visibility text,
+    collaborators text[],
+    share_token text,
     entry_type text,
     
     -- Interaction counts
@@ -160,6 +172,9 @@ BEGIN
         se.resonance_field,
         se.quantum_layer,
         se.metadata,
+        se.visibility,
+        se.collaborators,
+        se.share_token,
         se.entry_type,
         
         -- Interaction counts
