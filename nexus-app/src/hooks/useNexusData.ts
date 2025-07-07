@@ -19,6 +19,9 @@ import {
   ProfileViewState
 } from '../lib/types';
 
+// ✅ GLOBAL SINGLETON: Ensure only one auth initialization happens across all hook instances
+let globalAuthInitialization: Promise<() => void> | null = null;
+let globalAuthInitialized = false;
 
 export interface NexusData {
   // Authentication
@@ -729,12 +732,16 @@ export const useNexusData = (): NexusData => {
   
   // ✅ DEBUG: Monitor auth state changes
   useEffect(() => {
-    console.log('🔍 DEBUG: Auth state changed in useNexusData:', {
-      isAuthLoading: authState.isAuthLoading,
-      isAuthenticated: authState.isAuthenticated,
-      currentUser: authState.currentUser?.username || 'null',
-      sessionToken: authState.sessionToken ? 'exists' : 'null'
-    });
+    // Only log significant auth state changes, not every minor update
+    const isSignificantChange = authState.isAuthenticated || 
+                               (!authState.isAuthLoading && !authState.isAuthenticated);
+    
+    if (isSignificantChange) {
+      console.log('🔐 Auth state:', {
+        isAuthenticated: authState.isAuthenticated,
+        currentUser: authState.currentUser?.username || 'null'
+      });
+    }
   }, [authState]);
 
   // ✅ CRITICAL SAFETY: Ensure we never stay in loading state indefinitely
@@ -761,6 +768,48 @@ export const useNexusData = (): NexusData => {
   
   useEffect(() => {
     setIsLoading(false);
+    
+    // ✅ GLOBAL SINGLETON: Prevent multiple concurrent initializations across all hook instances
+    if (globalAuthInitialization) {
+      console.log('⏭️ Auth initialization already in progress globally');
+      
+      // Wait for the global initialization to complete
+      globalAuthInitialization.then(cleanup => {
+        // Get the current auth state once initialization is complete
+        const currentAuthState = authService.getAuthState();
+        setAuthState(currentAuthState);
+        setIsLoading(false);
+      });
+      
+      return;
+    }
+    
+    if (globalAuthInitialized) {
+      console.log('⏭️ Auth already initialized globally');
+      
+      // Auth already initialized, just get current state
+      const currentAuthState = authService.getAuthState();
+      setAuthState(currentAuthState);
+      setIsLoading(false);
+      
+      // Set up listener for this hook instance
+      const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
+        setAuthState(prevState => {
+          const isStateChanged = 
+            prevState.isAuthLoading !== newAuthState.isAuthLoading ||
+            prevState.isAuthenticated !== newAuthState.isAuthenticated ||
+            prevState.currentUser?.id !== newAuthState.currentUser?.id;
+          
+          return isStateChanged ? newAuthState : prevState;
+        });
+        
+        if (!newAuthState.isAuthLoading) {
+          setIsLoading(false);
+        }
+      });
+      
+      return unsubscribe;
+    }
     
     // Check for corrupted localStorage data on mount
     if (typeof window !== 'undefined') {
@@ -790,29 +839,9 @@ export const useNexusData = (): NexusData => {
       sessionToken: null
     });
     
-    // Check for corrupted localStorage data on mount
-    if (typeof window !== 'undefined') {
-      try {
-        // Import authService for storage check
-        import('../lib/services/authService').then(({ authService }) => {
-          if (authService.hasCorruptedStorageData()) {
-            console.warn('Detected corrupted localStorage data, cleaning up...');
-            authService.clearAllStorageData();
-            // Force refresh auth state after cleanup
-            setTimeout(() => {
-              const currentAuthState = authService.getAuthState();
-              setAuthState(currentAuthState);
-            }, 100);
-          }
-        });
-      } catch (error) {
-        console.error('Error checking for corrupted storage data:', error);
-      }
-    }
-    
     // Initialize auth properly with error handling and timeout
     const initializeAuth = async () => {
-      console.log('🔄 [DEBUG] Starting auth initialization...');
+      console.log('🔄 Initializing authentication...');
       
       try {
         // Add a timeout to prevent hanging indefinitely
@@ -826,23 +855,15 @@ export const useNexusData = (): NexusData => {
           initTimeout
         ]);
         
-        console.log('🔐 [DEBUG] Auth initialization completed, setting initial state:', {
-          isAuthLoading: initialAuthState.isAuthLoading,
+        console.log('✅ Authentication completed:', {
           isAuthenticated: initialAuthState.isAuthenticated,
           currentUser: initialAuthState.currentUser?.username || 'null'
         });
         
         setAuthState(initialAuthState);
         
-        // ✅ SIMPLIFIED: Set up auth state change listener with minimal processing
-        console.log('🔗 [DEBUG] Setting up auth state listener...');
+        // Set up auth state change listener with minimal processing
         const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
-          console.log('🔄 [DEBUG] Auth state changed received in useNexusData:', {
-            isAuthLoading: newAuthState.isAuthLoading,
-            isAuthenticated: newAuthState.isAuthenticated,
-            currentUser: newAuthState.currentUser?.username || 'null'
-          });
-          
           // Only update state if it's actually different
           setAuthState(prevState => {
             const isStateChanged = 
@@ -851,17 +872,15 @@ export const useNexusData = (): NexusData => {
               prevState.currentUser?.id !== newAuthState.currentUser?.id;
             
             if (!isStateChanged) {
-              console.log('⏭️ [DEBUG] Auth state unchanged, skipping update');
               return prevState;
             }
             
-            console.log('🔧 [DEBUG] Setting new auth state in React...');
             return newAuthState;
           });
           
           // Handle logout cleanup
           if (!newAuthState.isAuthenticated && authState.isAuthenticated) {
-            console.log('🔐 [DEBUG] User logged out, clearing data');
+            console.log('🔐 User logged out, clearing data');
             authDataLoadedRef.current = false;
             if (authLoadTimeoutRef.current) {
               clearTimeout(authLoadTimeoutRef.current);
@@ -888,12 +907,14 @@ export const useNexusData = (): NexusData => {
           }
         });
         
+        // Mark as globally initialized
+        globalAuthInitialized = true;
+        
         // Return cleanup function
         return unsubscribe;
         
       } catch (error) {
         console.error('❌ Auth initialization failed:', error);
-        console.error('❌ Error details:', error instanceof Error ? error.message : String(error), error instanceof Error ? error.stack : 'No stack trace');
         
         // Set a fallback auth state on error - this is critical to prevent infinite loading
         const fallbackState = {
@@ -903,7 +924,7 @@ export const useNexusData = (): NexusData => {
           sessionToken: null
         };
         
-        console.log('🔧 Setting fallback auth state:', fallbackState);
+        console.log('🔧 Setting fallback auth state');
         setAuthState(fallbackState);
         setIsLoading(false);
         
@@ -912,10 +933,13 @@ export const useNexusData = (): NexusData => {
       }
     };
     
+    // Store the initialization promise globally
+    globalAuthInitialization = initializeAuth();
+    
     // Initialize auth and store cleanup function
     let authCleanup: (() => void) | undefined;
     
-    initializeAuth().then(cleanup => {
+    globalAuthInitialization.then(cleanup => {
       authCleanup = cleanup;
     }).catch(error => {
       console.error('❌ Failed to initialize auth completely:', error);
@@ -927,6 +951,8 @@ export const useNexusData = (): NexusData => {
         sessionToken: null
       });
       setIsLoading(false);
+    }).finally(() => {
+      globalAuthInitialization = null;
     });
     
     return () => {
