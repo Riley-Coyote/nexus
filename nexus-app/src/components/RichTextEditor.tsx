@@ -3,7 +3,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import Strike from '@tiptap/extension-strike';
 import React, { useEffect } from 'react';
 
 interface RichTextEditorProps {
@@ -28,10 +27,10 @@ export default function RichTextEditor({
     extensions: [
       StarterKit,
       Underline,
-      Strike,
     ],
     content: value || '<p></p>',
     editable: !disabled,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       const text = editor.getText();
@@ -80,7 +79,6 @@ export default function RichTextEditor({
         {renderBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
         {renderBtn(<em>I</em>, editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
         {renderBtn(<u>U</u>, editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run())}
-        {renderBtn(<s>S</s>, editor.isActive('strike'), () => editor.chain().focus().toggleStrike().run())}
         {renderBtn('•', editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run())}
         {renderBtn('1.', editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run())}
         {renderBtn('P', editor.isActive('paragraph'), () => editor.chain().focus().setParagraph().run())}
