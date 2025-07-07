@@ -28,7 +28,7 @@ interface NexusFeedProps {
   createBranch?: (parentId: string, content: string) => Promise<void>;
   refreshLogbookData?: () => Promise<void>;
   refreshDreamData?: () => Promise<void>;
-  ensureFeedDataLoaded?: () => Promise<void>;
+  refreshFeedData?: () => Promise<void>;
   onResonate?: (entryId: string) => Promise<void>;
   onAmplify?: (entryId: string) => Promise<void>;
   onShare?: (entryId: string) => void;
@@ -46,7 +46,7 @@ export default function NexusFeed({
   createBranch,
   refreshLogbookData,
   refreshDreamData,
-  ensureFeedDataLoaded,
+  refreshFeedData,
   onResonate,
   onAmplify,
   onShare,
@@ -66,18 +66,16 @@ export default function NexusFeed({
   const [lastDataHash, setLastDataHash] = useState<string>('');
   const initialLoadRef = useRef(true);
   
-  // OPTIMIZED: Auto-refresh feed data when component first loads with empty data
+  // DISABLED: Auto-refresh on mount to prevent infinite loops
   const mountedRef = useRef(false);
+  
   useEffect(() => {
     if (!mountedRef.current) {
       mountedRef.current = true;
-      // Only trigger refresh if we have truly empty data (no loading in progress)
-      if (logbookEntries.length === 0 && dreamEntries.length === 0 && !isLoading) {
-        console.log('📡 Feed mounted with empty data - triggering refresh...');
-        ensureFeedDataLoaded?.();
-      }
+      // Auto-refresh disabled to prevent infinite loops
+      console.log('📱 Feed mounted - auto-refresh disabled');
     }
-  }, [logbookEntries.length, dreamEntries.length, isLoading, ensureFeedDataLoaded]);
+  }, []);
 
   // OPTIMIZATION: Use pre-loaded data instead of making separate API calls
   const loadFlattenedEntries = async (requestedPage: number = 1, append: boolean = false) => {
@@ -112,44 +110,13 @@ export default function NexusFeed({
     }
   };
 
-  // OPTIMIZED: Smart refresh with throttling to prevent excessive calls
+  // SIMPLIFIED: Process entries when props change, no smart refresh
   useEffect(() => {
-    // Skip if no data yet
-    if (logbookEntries.length === 0 && dreamEntries.length === 0) {
-      return;
-    }
-    
-    // Create a more comprehensive hash to better detect meaningful changes
-    const dataHash = `${logbookEntries.length}-${dreamEntries.length}-${
-      logbookEntries.slice(0, 5).map(e => e.id).join(',')
-    }-${dreamEntries.slice(0, 5).map(e => e.id).join(',')}`;
-    
-    // Initial load - always load
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      setLastDataHash(dataHash);
-      setPage(1);
+    // Only process if we have data
+    if (logbookEntries.length > 0 || dreamEntries.length > 0) {
       loadFlattenedEntries(1, false);
-      return;
     }
-    
-    // Skip if data hasn't actually changed
-    if (dataHash === lastDataHash) {
-      return;
-    }
-    
-    setLastDataHash(dataHash);
-    
-    // Smart refresh: Only reset if at top of feed
-    if (isAtTop) {
-      console.log('🔄 Smart refresh: Resetting pagination (user at top)');
-      setPage(1);
-      loadFlattenedEntries(1, false);
-    } else {
-      console.log('📍 Smart refresh: Preserving pagination (user scrolled down)');
-      // Optional: Show a "New posts available" banner instead
-    }
-  }, [logbookEntries, dreamEntries, isAtTop]);
+  }, [logbookEntries.length, dreamEntries.length]); // Simple dependency on data lengths
 
   // Track scroll position to determine if user is at top
   const handleScroll = React.useCallback((e: Event) => {
@@ -177,6 +144,7 @@ export default function NexusFeed({
 
   // Manual refresh function for explicit user action
   const handleManualRefresh = async () => {
+    if (isLoading) return; // Prevent concurrent refreshes
     console.log('🔄 Manual refresh requested');
     setPage(1);
     setIsAtTop(true);
@@ -260,4 +228,4 @@ export default function NexusFeed({
       </div>
     </main>
   );
-} 
+}

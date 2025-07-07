@@ -128,7 +128,8 @@ export class SupabaseProvider implements DatabaseProvider {
       page = 1,
       limit = 50,
       sortBy = 'timestamp',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      filters = {}
     } = options;
 
     // OPTIMIZED: Single query with JOIN to get entries AND interaction counts
@@ -144,6 +145,20 @@ export class SupabaseProvider implements DatabaseProvider {
         )
       `)
       .eq('entry_type', type);
+
+    // Apply filters
+    if (filters.privacy) {
+      query = query.eq('privacy', filters.privacy);
+    }
+    if (filters.userId) {
+      query = query.eq('user_id', filters.userId);
+    }
+    // Add more filters as needed
+    Object.entries(filters).forEach(([key, value]) => {
+      if (key !== 'privacy' && key !== 'userId' && value !== undefined) {
+        query = query.eq(key, value);
+      }
+    });
 
     // Apply sorting and pagination
     query = query
@@ -189,13 +204,28 @@ export class SupabaseProvider implements DatabaseProvider {
       page = 1,
       limit = 50,
       sortBy = 'timestamp',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      filters = {}
     } = options;
 
     let query = this.client
       .from('stream_entries')
       .select('*')
       .eq('entry_type', type);
+
+    // Apply filters (same as main method)
+    if (filters.privacy) {
+      query = query.eq('privacy', filters.privacy);
+    }
+    if (filters.userId) {
+      query = query.eq('user_id', filters.userId);
+    }
+    // Add more filters as needed
+    Object.entries(filters).forEach(([key, value]) => {
+      if (key !== 'privacy' && key !== 'userId' && value !== undefined) {
+        query = query.eq(key, value);
+      }
+    });
 
     // Apply sorting and pagination
     query = query

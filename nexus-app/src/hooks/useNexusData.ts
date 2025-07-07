@@ -51,10 +51,12 @@ export interface NexusData {
   isLoading: boolean;
   isLoadingLogbook: boolean;
   isLoadingDreams: boolean;
+  isLoadingFeedData: boolean;
   isUserStatesLoaded: boolean;
   
   // Actions
   refreshData: () => Promise<void>;
+  refreshFeedData: () => Promise<void>;
   refreshLogbookData: () => Promise<void>;
   refreshDreamData: () => Promise<void>;
   refreshResonatedEntries: () => Promise<void>;
@@ -175,6 +177,10 @@ export const useNexusData = (): NexusData => {
   // Loading states - start as false to avoid hydration mismatch
   const [isLoadingLogbook, setIsLoadingLogbook] = useState(false);
   const [isLoadingDreams, setIsLoadingDreams] = useState(false);
+  const [isLoadingFeedData, setIsLoadingFeedData] = useState(false);
+  
+  // Use ref to track loading state to prevent function recreation
+  const isLoadingRef = useRef(false);
   
   // Static data (memoized)
   const entryComposer = useMemo(() => dataService.getEntryComposer('logbook'), []);
@@ -235,7 +241,54 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.currentUser]);
   
-  // Load logbook data
+  // NEW: Unified feed data loader for public entries only
+  const loadFeedData = useCallback(async () => {
+    // Prevent concurrent calls using ref
+    if (isLoadingRef.current) {
+      console.log('📡 Feed data already loading, skipping...');
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    setIsLoading(true);
+    try {
+      console.log('📡 Loading public feed data...');
+      
+      // Fetch public entries only - no auth required
+      const [publicLogbookEntries, publicDreamEntries] = await Promise.all([
+        dataService.getPosts({ 
+          mode: 'logbook', 
+          page: 1, 
+          limit: 20, 
+          threaded: false,
+          filters: { privacy: 'public' } 
+        }),
+        dataService.getPosts({ 
+          mode: 'dream', 
+          page: 1, 
+          limit: 20, 
+          threaded: false,
+          filters: { privacy: 'public' } 
+        })
+      ]);
+      
+      // Store public entries for feed (no user filtering needed)
+      setLogbookEntries(publicLogbookEntries);
+      setSharedDreams(publicDreamEntries);
+      // Clear allDreams to prevent the filtering effect from running
+      setAllDreams([]);
+      
+      console.log(`✅ Loaded ${publicLogbookEntries.length} public logbook + ${publicDreamEntries.length} public dream entries`);
+      
+    } catch (error) {
+      console.error('Failed to load feed data:', error);
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoading(false);
+    }
+  }, []); // No dependencies to prevent recreation
+  
+  // Load logbook data (user-specific)
   const loadLogbookData = useCallback(async () => {
     setIsLoadingLogbook(true);
     try {
@@ -266,7 +319,7 @@ export const useNexusData = (): NexusData => {
   // Store all dreams (unfiltered) for proper filtering
   const [allDreams, setAllDreams] = useState<StreamEntry[]>([]);
   
-  // Load dream data
+  // Load dream data (user-specific)
   const loadDreamData = useCallback(async () => {
     setIsLoadingDreams(true);
     try {
@@ -290,8 +343,11 @@ export const useNexusData = (): NexusData => {
     }
   }, []);
   
-  // Filter dreams whenever auth state or all dreams change
+  // Filter dreams whenever auth state or all dreams change (only for non-feed views)
   useEffect(() => {
+    // Only filter if we have allDreams data (not feed data)
+    if (allDreams.length === 0) return;
+    
     const userId = authState.currentUser?.id;
     if (userId && allDreams.length > 0) {
       const filteredDreams = allDreams.filter(entry => entry.userId === userId);
@@ -302,10 +358,25 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.currentUser, allDreams]);
   
-  // Refresh all data
+  // Refresh all data (now using path-independent logic)
   const refreshData = useCallback(async () => {
-    await Promise.all([loadLogbookData(), loadDreamData()]);
-  }, [loadLogbookData, loadDreamData]);
+    // Check if we're currently on feed path using a more stable approach
+    const isOnFeedPath = typeof window !== 'undefined' && 
+      (window.location.pathname === '/' || window.location.pathname === '/feed');
+    
+    if (isOnFeedPath) {
+      // For feed view: only load public data
+      await loadFeedData();
+    } else {
+      // For logbook/dream views: load user-specific data
+      await Promise.all([loadLogbookData(), loadDreamData()]);
+    }
+  }, [loadFeedData, loadLogbookData, loadDreamData]);
+
+  // NEW: Feed-specific refresh for public data only
+  const refreshFeedData = useCallback(async () => {
+    await loadFeedData();
+  }, [loadFeedData]); // Stable since loadFeedData has no dependencies
 
   // ========== GRANULAR REFRESH METHODS ==========
   
@@ -370,8 +441,7 @@ export const useNexusData = (): NexusData => {
       // Step 1: Create the branch (critical operation)
       await dataService.createBranch(parentId, content);
       
-      // Step 2: FIXED - Always refresh both logbook and dream data for feed consistency
-      // This ensures the feed shows the new branch regardless of parent type
+      // Step 2: Use appropriate refresh method based on current path
       try {
         // Add timeout wrapper for refresh operations
         const refreshWithTimeout = async (operation: () => Promise<void>, timeoutMs: number = 10000) => {
@@ -383,10 +453,17 @@ export const useNexusData = (): NexusData => {
           ]);
         };
         
-        // FIXED: Always refresh both logbook and dream data
-        // This ensures the feed (which combines both) shows the new branch
-        console.log('🔄 Refreshing both logbook and dream data after branch creation');
-        await refreshWithTimeout(refreshData, 15000);
+        // Use the appropriate refresh method based on current path
+        const isOnFeedPath = typeof window !== 'undefined' && 
+          (window.location.pathname === '/' || window.location.pathname === '/feed');
+        
+        if (isOnFeedPath) {
+          console.log('🔄 Refreshing feed data after branch creation');
+          await refreshWithTimeout(refreshFeedData, 15000);
+        } else {
+          console.log('🔄 Refreshing page data after branch creation');
+          await refreshWithTimeout(refreshData, 15000);
+        }
         
         // Update auth state to reflect new stats
         setAuthState(authService.getAuthState());
@@ -399,7 +476,7 @@ export const useNexusData = (): NexusData => {
       console.error('Failed to create branch:', error);
       throw error; // This will be caught by the UI error handling
     }
-  }, [refreshData]);
+  }, [refreshData, refreshFeedData]);
   
   // User interaction actions - following social media playbook pattern
   const resonateWithEntry = useCallback(async (entryId: string) => {
@@ -514,7 +591,15 @@ export const useNexusData = (): NexusData => {
       const result = await authService.signIn(email, password);
       if (result.success) {
         setAuthState(authService.getAuthState());
-        await refreshData();
+        // Use appropriate refresh method based on current path
+        const isOnFeedPath = typeof window !== 'undefined' && 
+          (window.location.pathname === '/' || window.location.pathname === '/feed');
+        
+        if (isOnFeedPath) {
+          await refreshFeedData();
+        } else {
+          await refreshData();
+        }
       } else {
         throw new Error(result.error || 'Login failed');
       }
@@ -522,7 +607,7 @@ export const useNexusData = (): NexusData => {
       console.error('Login failed:', error);
       throw error;
     }
-  }, [refreshData]);
+  }, [refreshData, refreshFeedData]);
 
   const signup = useCallback(async (email: string, password: string, options?: { name?: string }) => {
     try {
@@ -530,7 +615,15 @@ export const useNexusData = (): NexusData => {
       if (result.success) {
         setAuthState(authService.getAuthState());
         if (!result.needsVerification) {
-          await refreshData();
+          // Use appropriate refresh method based on current path
+          const isOnFeedPath = typeof window !== 'undefined' && 
+            (window.location.pathname === '/' || window.location.pathname === '/feed');
+          
+          if (isOnFeedPath) {
+            await refreshFeedData();
+          } else {
+            await refreshData();
+          }
         }
       } else {
         throw new Error(result.error || 'Signup failed');
@@ -539,7 +632,7 @@ export const useNexusData = (): NexusData => {
       console.error('Signup failed:', error);
       throw error;
     }
-  }, [refreshData]);
+  }, [refreshData, refreshFeedData]);
 
   const logout = useCallback(async () => {
     await authService.signOut();
@@ -613,16 +706,12 @@ export const useNexusData = (): NexusData => {
       setAuthState({ ...newAuthState, isAuthLoading: false });
       
       if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // OPTIMIZATION: Prevent multiple rapid data loads during auth changes
-        if (authLoadTimeoutRef.current) {
-          clearTimeout(authLoadTimeoutRef.current);
-        }
-        
         // Only load data if we haven't loaded it already for this auth session
         if (!authDataLoadedRef.current) {
           authLoadTimeoutRef.current = setTimeout(async () => {
-            // Step 1: Load posts data first
-            await refreshData();
+            // DISABLED: Auto data loading on auth - let components request data manually
+            // The infinite loop was caused by automatic data loading here
+            console.log('🔐 User authenticated - data loading disabled to prevent infinite loops');
             authDataLoadedRef.current = true;
           }, 100); // Small delay to batch multiple auth state changes
         }
@@ -689,7 +778,7 @@ export const useNexusData = (): NexusData => {
         return;
       }
 
-      // Load all posts (removed testing limit)
+      // Load all posts
       const allPosts = [...logbookEntries, ...sharedDreams];
       const allPostIds = allPosts.map(e => e.id);
       
@@ -733,33 +822,18 @@ export const useNexusData = (): NexusData => {
   }, [
     authState.isAuthenticated, 
     authState.currentUser, 
-    // Use lengths instead of full arrays to prevent excessive triggers
+    // Use only lengths to prevent excessive triggers from individual post changes
     logbookEntries.length, 
     sharedDreams.length,
-    // Include first few post IDs to detect actual content changes
-    logbookEntries.slice(0, 3).map(e => e.id).join(','),
-    sharedDreams.slice(0, 3).map(e => e.id).join(','),
-    isUserStatesLoaded
+    // Remove the individual ID dependencies that caused excessive triggers
   ]);
 
-  // NEW: Auto-refresh data when user returns to feed
-  // This ensures data is always fresh when navigating back to feed
+  // DISABLED: Auto-refresh data when user returns to feed to prevent infinite loops
+  // Users should manually refresh if they want new data
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const handleVisibilityChange = () => {
-        if (!document.hidden && authState.isAuthenticated && authState.currentUser) {
-          // Only refresh if data is stale (empty arrays suggest stale data)
-          if (logbookEntries.length === 0 && sharedDreams.length === 0) {
-            console.log('🔄 Auto-refreshing stale data on page visibility change');
-            refreshData();
-          }
-        }
-      };
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }
-  }, [authState.isAuthenticated, authState.currentUser, logbookEntries.length, sharedDreams.length, refreshData]);
+    // Auto-refresh disabled to prevent infinite loops
+    console.log('👁️ Visibility change auto-refresh disabled');
+  }, []);
   
   // NOTE: Resonated/amplified entry loading is now handled in the main auth state listener above
   
@@ -807,10 +881,12 @@ export const useNexusData = (): NexusData => {
     isLoading,
     isLoadingLogbook,
     isLoadingDreams,
+    isLoadingFeedData,
     isUserStatesLoaded,
     
     // Actions
     refreshData,
+    refreshFeedData,
     refreshLogbookData,
     refreshDreamData,
     refreshResonatedEntries,
@@ -833,14 +909,23 @@ export const useNexusData = (): NexusData => {
       }
     }, [authState.currentUser]),
     ensureFeedDataLoaded: useCallback(async () => {
-      if (authState.currentUser) {
-        // Only refresh if data appears stale (empty arrays) and we're not already loading
-        if (logbookEntries.length === 0 && sharedDreams.length === 0 && !isLoading) {
-          console.log('🔄 Ensuring feed data is loaded...');
-          await refreshData();
+      // Prevent duplicate calls by checking if we're already loading
+      if (isLoadingFeedData) {
+        console.log('🔄 Feed data load already in progress, skipping...');
+        return;
+      }
+      
+      // Only refresh if data appears stale (empty arrays) and we're not already loading
+      if (logbookEntries.length === 0 && sharedDreams.length === 0 && !isLoading) {
+        console.log('🔄 Ensuring feed data is loaded...');
+        setIsLoadingFeedData(true);
+        try {
+          await loadFeedData(); // Use feed-specific loader instead of refreshData
+        } finally {
+          setIsLoadingFeedData(false);
         }
       }
-    }, [authState.currentUser, logbookEntries.length, sharedDreams.length, isLoading, refreshData]),
+    }, [logbookEntries.length, sharedDreams.length, isLoading, loadFeedData, isLoadingFeedData]),
     
     // Auth actions
     login,

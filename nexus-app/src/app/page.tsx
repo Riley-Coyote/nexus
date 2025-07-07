@@ -59,7 +59,7 @@ export default function Home() {
   useEffect(() => {
     if (pathname === '/' || pathname === '/feed') {
       setViewMode('feed');
-      // NEW: Ensure feed data is loaded when navigating to feed
+      // Ensure feed data is loaded when navigating to feed without causing loops
       nexusData.ensureFeedDataLoaded?.();
     } else if (pathname.startsWith('/dream')) {
       setJournalMode('dream');
@@ -68,7 +68,14 @@ export default function Home() {
       setJournalMode('logbook');
       setViewMode('default');
     }
-  }, [pathname, nexusData.ensureFeedDataLoaded]);
+  }, [pathname]);
+
+  // After authentication resolves, make sure feed data is loaded if we are in feed view
+  useEffect(() => {
+    if (!nexusData.isLoading && viewMode === 'feed') {
+      nexusData.ensureFeedDataLoaded?.();
+    }
+  }, [nexusData.isLoading, viewMode]);
 
   // Handle opening posts (unified handler for both Post and StreamEntry)
   const handleOpenPost = (post: Post | StreamEntry) => {
@@ -245,7 +252,7 @@ export default function Home() {
               createBranch={nexusData.createBranch}
               refreshLogbookData={nexusData.refreshLogbookData}
               refreshDreamData={nexusData.refreshDreamData}
-              ensureFeedDataLoaded={nexusData.ensureFeedDataLoaded}
+              refreshFeedData={nexusData.refreshFeedData}
               onResonate={nexusData.resonateWithEntry}
               onAmplify={nexusData.amplifyEntry}
               onShare={handleShare}
