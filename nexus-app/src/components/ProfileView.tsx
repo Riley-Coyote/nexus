@@ -1,26 +1,29 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { User, StreamEntry } from '@/lib/types';
-import PostDisplay from './PostDisplay';
-import { streamEntryToPost, getPostContext, getDisplayMode } from '@/lib/utils/postUtils';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { User, StreamEntry, Post, AuthState } from '@/lib/types';
+import PostList from './PostList';
+import { streamEntryToPost } from '@/lib/utils/postUtils';
+import { StreamEntryWithUserStates } from '@/lib/database/types';
+import { DatabaseFactory } from '@/lib/database/factory';
+import { authService } from '@/lib/services/supabaseAuthService';
 // @ts-ignore
 import FollowsModal from './FollowsModal';
 import NotificationBanner from './NotificationBanner';
 import ImageUpload from './ImageUpload';
-import { makeBranchHandler } from '@/lib/utils/interactionHandlers';
 
 interface ProfileViewProps {
   user: User;
-  userPosts: StreamEntry[];
-  onPostClick: (post: StreamEntry) => void;
+  userPosts?: StreamEntry[]; // Make optional since we'll fetch directly
+  onPostClick: (post: Post) => void;
   onUserClick?: (username: string) => void;
   onResonate: (postId: string) => Promise<void>;
   onAmplify: (postId: string) => Promise<void>;
   onBranch?: (parentId: string, content: string) => Promise<void>;
   onDeepDive?: (username: string, postId: string) => void;
-  hasUserResonated: (postId: string) => boolean;
-  hasUserAmplified: (postId: string) => boolean;
+  onShare?: (id: string) => void;
+  hasUserResonated?: (postId: string) => boolean; // Make optional since we'll use PostList's built-in logic
+  hasUserAmplified?: (postId: string) => boolean; // Make optional since we'll use PostList's built-in logic
   onLogout: () => void;
   onUpdateProfile: (updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string }) => Promise<void>;
   isOwnProfile?: boolean;
@@ -35,17 +38,20 @@ interface ProfileViewProps {
 
 type ProfileTab = 'posts' | 'resonance' | 'media' | 'hypothesis';
 
+const PAGE_SIZE = 20;
+
 export default function ProfileView({ 
   user, 
-  userPosts, 
+  userPosts, // Keep for backward compatibility but don't use it
   onPostClick, 
   onUserClick,
   onResonate, 
   onAmplify, 
   onBranch,
   onDeepDive,
-  hasUserResonated, 
-  hasUserAmplified,
+  onShare,
+  hasUserResonated, // Keep for backward compatibility but don't use it
+  hasUserAmplified, // Keep for backward compatibility but don't use it
   onLogout,
   onUpdateProfile,
   isOwnProfile = true,
@@ -83,10 +89,185 @@ export default function ProfileView({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showProfileImageUpload, setShowProfileImageUpload] = useState(false);
 
+  // OPTIMIZED: PostList state (same pattern as ResonanceField)
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [isUserStatesLoaded, setIsUserStatesLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // Character limits similar to X (Twitter)
   const NAME_MAX_LENGTH = 50;
   const BIO_MAX_LENGTH = 160;
   const LOCATION_MAX_LENGTH = 30;
+
+  // Convert StreamEntryWithUserStates to Post format (same as ResonanceField)
+  const streamEntryWithUserStatesToPost = (entry: StreamEntryWithUserStates): Post => {
+    const basePost = streamEntryToPost(entry);
+    
+    // Add user interaction states from the database query
+    return {
+      ...basePost,
+      interactions: {
+        resonances: entry.resonance_count || 0,
+        branches: entry.branch_count || 0,
+        amplifications: entry.amplification_count || 0,
+        shares: entry.share_count || 0
+      },
+      // Store user interaction states for use by PostList
+      userInteractionStates: {
+        hasResonated: entry.has_resonated || false,
+        hasAmplified: entry.has_amplified || false
+      }
+    };
+  };
+
+  // OPTIMIZED: Load profile entries using the new get_entries_with_user_states function
+  const loadProfileEntries = async (requestedPage: number = 1, append: boolean = false) => {
+    setIsLoading(true);
+    try {
+      const currentUser = authService.getCurrentUser();
+      const offset = (requestedPage - 1) * PAGE_SIZE;
+      
+      console.log(`📡 Loading profile entries for user ${user.id} (page ${requestedPage}) with optimized single query...`);
+      
+      // Use the optimized database function that gets entries with user states in a single query
+      const database = DatabaseFactory.getInstance();
+      
+      // Profile entries: get all posts by the profile user
+      const entriesWithUserStates = await database.getProfileEntries?.(user.id, {
+        targetUserId: currentUser?.id, // For checking user interaction states
+        includePrivate: isOwnProfile, // Include private posts only for own profile
+        offset,
+        limit: PAGE_SIZE,
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+      });
+      
+      if (!entriesWithUserStates) {
+        console.warn('⚠️ getProfileEntries not available, showing empty profile');
+        setHasMore(false);
+        setIsUserStatesLoaded(true);
+        return;
+      }
+      
+      // Convert StreamEntryWithUserStates to Post format
+      const convertedPosts = entriesWithUserStates.map((entry: StreamEntryWithUserStates) => 
+        streamEntryWithUserStatesToPost(entry)
+      );
+      
+      if (append) {
+        setPosts(prevPosts => [...prevPosts, ...convertedPosts]);
+      } else {
+        setPosts(convertedPosts);
+      }
+      
+      setHasMore(convertedPosts.length === PAGE_SIZE);
+      setPage(requestedPage);
+      setIsUserStatesLoaded(true);
+      
+      console.log(`✅ OPTIMIZED: Loaded ${convertedPosts.length} profile entries with user states in single query`);
+      
+    } catch (error) {
+      console.error('❌ Error loading optimized profile entries:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load profile entries');
+      setHasMore(false);
+      setIsUserStatesLoaded(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial data load when user or activeTab changes
+  useEffect(() => {
+    if (activeTab === 'posts') {
+      loadProfileEntries(1, false);
+    }
+  }, [user.id, activeTab, isOwnProfile]);
+
+  // Auth state management - listen for auth changes
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
+      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
+        // User just became authenticated - reload profile data if needed
+        if (activeTab === 'posts' && posts.length === 0 && !isLoading) {
+          console.log('🔄 Auth completed, reloading profile data');
+          loadProfileEntries(1, false);
+        }
+      }
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [activeTab, posts.length, isLoading]);
+
+  // Load more entries for pagination
+  const handleLoadMore = async () => {
+    if (isLoading || !hasMore) return;
+    const nextPage = page + 1;
+    await loadProfileEntries(nextPage, true);
+    setPage(nextPage);
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    if (isLoading) return;
+    console.log('🔄 Manual refresh requested for profile');
+    setPage(1);
+    await loadProfileEntries(1, false);
+  };
+
+  // Branch refresh - reload data after branch creation
+  const profileBranchRefresh = async () => {
+    console.log('✅ Branch created - refreshing profile');
+    await loadProfileEntries(1, false);
+    setPage(1);
+  };
+
+  const handleBranch = React.useMemo(() => {
+    return onBranch ? async (parentId: string, content: string) => {
+      await onBranch(parentId, content);
+      await profileBranchRefresh();
+    } : undefined;
+  }, [onBranch]);
+
+  // Optimized user interaction state checks - use the data from the database query
+  const hasUserResonatedOptimized = React.useCallback((entryId: string) => {
+    const post = posts.find(p => p.id === entryId);
+    return post?.userInteractionStates?.hasResonated || false;
+  }, [posts]);
+
+  const hasUserAmplifiedOptimized = React.useCallback((entryId: string) => {
+    const post = posts.find(p => p.id === entryId);
+    return post?.userInteractionStates?.hasAmplified || false;
+  }, [posts]);
+
+  // Enhanced interaction handlers that refresh data
+  const handleResonate = React.useCallback(async (entryId: string) => {
+    if (onResonate) {
+      await onResonate(entryId);
+      // Refresh profile posts to get updated interaction states
+      await loadProfileEntries(1, false);
+      setPage(1);
+    }
+  }, [onResonate]);
+
+  const handleAmplify = React.useCallback(async (entryId: string) => {
+    if (onAmplify) {
+      await onAmplify(entryId);
+      // Refresh profile posts to get updated interaction states
+      await loadProfileEntries(1, false);
+      setPage(1);
+    }
+  }, [onAmplify]);
+
+  const handleDeepDive = (post: Post) => {
+    onDeepDive?.(post.username, post.id);
+  };
 
   useEffect(() => {
     setEditedName(user.name);
@@ -203,44 +384,47 @@ export default function ProfileView({
     setEditedLocation(user.location || '');
     setEditedProfileImage(user.profileImage || '');
     setEditedBannerImage(user.bannerImage || '');
-    setIsEditing(false);
     setValidationError(null);
-    setShowProfileImageUpload(false);
+    setIsEditing(false);
   };
 
+  // Load following state when component mounts
   useEffect(() => {
-    if (!isOwnProfile && checkIsFollowing) {
-      checkIsFollowing(user.id)
-        .then(setFollowingState)
-        .catch(() => setFollowingState(false));
-    }
-    // Determine if viewed user follows me (for Follow back)
-    if (!isOwnProfile && currentUserId && getFollowing) {
-      (async () => {
+    if (!isOwnProfile && checkIsFollowing && currentUserId) {
+      const loadFollowingState = async () => {
         try {
-          const theirFollowing = await getFollowing(user.id, 100, 0);
-          setFollowsYou(theirFollowing.some((rel: any) => rel.user.id === currentUserId));
-        } catch {/* ignore */}
-      })();
+          const following = await checkIsFollowing(user.id);
+          setFollowingState(following);
+        } catch (error) {
+          console.error('Error checking following state:', error);
+        }
+      };
+      loadFollowingState();
     }
-  }, [user.id, isOwnProfile, checkIsFollowing, currentUserId, getFollowing]);
+  }, [isOwnProfile, user.id, checkIsFollowing, currentUserId]);
 
   const handleFollowToggle = async () => {
     if (isFollowLoading || !followUser || !unfollowUser) return;
+    
     setIsFollowLoading(true);
     try {
-      const success = followingState ? await unfollowUser(user.id) : await followUser(user.id);
+      let success = false;
+      if (followingState) {
+        success = await unfollowUser(user.id);
+      } else {
+        success = await followUser(user.id);
+      }
+      
       if (success) {
         setFollowingState(!followingState);
-        // Update counts locally
+        // Update local stats
         setStats(prev => ({
           ...prev,
-          followerCount: prev.followerCount + (followingState ? -1 : 1)
+          followerCount: followingState ? prev.followerCount - 1 : prev.followerCount + 1
         }));
-        refreshFollowerCount();
       }
     } catch (error) {
-      console.error('Failed to toggle follow:', error);
+      console.error('Error toggling follow state:', error);
     } finally {
       setIsFollowLoading(false);
     }
@@ -249,22 +433,22 @@ export default function ProfileView({
   const openFollowersModal = async () => {
     if (!getFollowers) return;
     try {
-      const list = await getFollowers(user.id, 100, 0);
-      setFollowsList(list);
+      const followers = await getFollowers(user.id, 100, 0);
+      setFollowsList(followers);
       setFollowsModalType('followers');
     } catch (error) {
-      console.error('Failed to fetch followers:', error);
+      console.error('Error loading followers:', error);
     }
   };
 
   const openFollowingModal = async () => {
     if (!getFollowing) return;
     try {
-      const list = await getFollowing(user.id, 100, 0);
-      setFollowsList(list);
+      const following = await getFollowing(user.id, 100, 0);
+      setFollowsList(following);
       setFollowsModalType('following');
     } catch (error) {
-      console.error('Failed to fetch following:', error);
+      console.error('Error loading following:', error);
     }
   };
 
@@ -273,57 +457,64 @@ export default function ProfileView({
     setFollowsList([]);
   };
 
-  // Refresh follower count periodically and after follow toggle
   const refreshFollowerCount = async () => {
-    if (getFollowers) {
-      try {
-        const all = await getFollowers(user.id, 1000, 0);
-        setStats(s => ({ ...s, followerCount: all.length }));
-      } catch {/* ignore */}
+    // This would need to be implemented to refresh follower count
+    // For now, we'll just refetch the user data
+    console.log('Refreshing follower count...');
+    try {
+      // You could implement a method to refresh user stats here
+      // For example: const updatedUser = await getUserById(user.id);
+    } catch (error) {
+      console.error('Error refreshing follower count:', error);
     }
-  };
-
-  const handleBranch = React.useMemo(() => {
-    return onBranch ? makeBranchHandler(onBranch) : undefined;
-  }, [onBranch]);
-
-  const handleDeepDive = (post: any) => {
-    onDeepDive?.(post.username, post.id);
   };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'posts':
-        return (
-          <div className="space-y-4">
-            {userPosts.length > 0 ? (
-              userPosts.map((streamEntry) => {
-                const post = streamEntryToPost(streamEntry);
-                const context = getPostContext(post);
-                const displayMode = getDisplayMode('profile', post.content.length, !!post.parentId);
-                return (
-                  <PostDisplay
-                    key={post.id}
-                    post={post}
-                    context={context}
-                    displayMode={displayMode}
-                    onPostClick={() => onPostClick(streamEntry)}
-                    onUserClick={onUserClick}
-                    onResonate={onResonate}
-                    onAmplify={onAmplify}
-                    onBranch={handleBranch}
-                    onDeepDive={handleDeepDive}
-                    userHasResonated={hasUserResonated(post.id)}
-                    userHasAmplified={hasUserAmplified(post.id)}
-                  />
-                );
-              })
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <p>No posts yet</p>
+        // Following social media playbook - don't render posts until user interaction states are loaded
+        if (!isUserStatesLoaded) {
+          return (
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto mb-4"></div>
+                <p className="text-text-tertiary text-sm">Loading posts with user interaction states...</p>
               </div>
-            )}
-          </div>
+            </div>
+          );
+        }
+
+        // Error State
+        if (error) {
+          return (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          );
+        }
+
+        // Use PostList component for consistent rendering
+        return (
+          <PostList
+            posts={posts}
+            context="profile"
+            displayMode="preview"
+            showInteractions={true}
+            showBranching={true}
+            enablePagination={true}
+            pageSize={PAGE_SIZE}
+            hasMore={hasMore}
+            isLoading={isLoading}
+            onLoadMore={handleLoadMore}
+            onPostClick={onPostClick}
+            onResonate={handleResonate}
+            onAmplify={handleAmplify}
+            onBranch={handleBranch}
+            onShare={onShare}
+            onDeepDive={handleDeepDive}
+            hasUserResonated={hasUserResonatedOptimized}
+            hasUserAmplified={hasUserAmplifiedOptimized}
+          />
         );
       case 'resonance':
         return <div className="text-center py-8 text-gray-400"><p>Resonance field coming soon</p></div>;
@@ -541,7 +732,6 @@ export default function ProfileView({
                 </svg>
               </button>
             </div>
-            
             <ImageUpload
               currentImageUrl={editedProfileImage}
               onUpload={(url) => {

@@ -7,9 +7,10 @@ import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
 
-import { StreamEntry } from '@/lib/types';
+import { StreamEntry, Post } from '@/lib/types';
 import { StreamEntryData } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
+import { postToStreamEntry } from '@/lib/utils/postUtils';
 
 export default function UserProfilePage() {
   const router = useRouter();
@@ -45,20 +46,10 @@ export default function UserProfilePage() {
     }
   }, [username, nexusData.authState.isAuthenticated, nexusData.currentUser, nexusData.viewSelfProfile, nexusData.viewUserProfile]);
 
-  const handleOpenPost = (post: StreamEntry | StreamEntryData) => {
-    // Convert StreamEntryData to StreamEntry if needed
-    const streamEntry: StreamEntry =
-      'children' in post && 'actions' in post && 'threads' in post
-        ? post as StreamEntry
-        : {
-            ...post,
-            // Derive agent for StreamEntry fallback
-            agent: 'agent' in post ? (post as any).agent : post.username,
-            parentId: post.parentId || null,
-            children: [],
-            actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
-            threads: []
-          };
+  const handleOpenPost = (post: Post) => {
+    // Convert Post to StreamEntry for the overlay
+    const streamEntry: StreamEntry = postToStreamEntry(post);
+    
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
   };
@@ -129,6 +120,11 @@ export default function UserProfilePage() {
 
   const handleDeepDive = (username: string, postId: string) => {
     router.push(`/${username}/entry/${postId}`);
+  };
+
+  const handleShare = (postId: string) => {
+    // Implement share functionality
+    console.log('Share post:', postId);
   };
 
   const handleNavigateToFeed = () => {
@@ -239,15 +235,13 @@ export default function UserProfilePage() {
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
           <ProfileView 
             user={profileUser}
-            userPosts={nexusData.getUserPosts()}
             onPostClick={handleOpenPost}
             onUserClick={handleUserClick}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
             onBranch={nexusData.createBranch}
             onDeepDive={handleDeepDive}
-            hasUserResonated={nexusData.hasUserResonated}
-            hasUserAmplified={nexusData.hasUserAmplified}
+            onShare={handleShare}
             onLogout={nexusData.logout}
             onUpdateProfile={nexusData.updateUserProfile}
             isOwnProfile={nexusData.profileViewState.mode === 'self'}

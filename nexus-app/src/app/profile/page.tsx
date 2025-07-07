@@ -23,11 +23,9 @@ export default function ProfilePage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const handleOpenPost = (post: Post | StreamEntry) => {
-    // Convert Post to StreamEntry if needed
-    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post
-      ? post as StreamEntry
-      : postToStreamEntry(post as Post);
+  const handleOpenPost = (post: Post) => {
+    // Convert Post to StreamEntry for the overlay
+    const streamEntry: StreamEntry = postToStreamEntry(post);
     
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
@@ -85,6 +83,11 @@ export default function ProfilePage() {
     router.push(`/${username}/entry/${postId}`);
   };
 
+  const handleShare = (postId: string) => {
+    // Implement share functionality
+    console.log('Share post:', postId);
+  };
+
   // Auth is now handled at root level - no need for checks here
   
   // Show loading state while data is being fetched
@@ -122,15 +125,13 @@ export default function ProfilePage() {
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
           <ProfileView 
             user={nexusData.currentUser}
-            userPosts={nexusData.getUserPosts()}
             onPostClick={handleOpenPost}
             onUserClick={handleUserClick}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
             onBranch={nexusData.createBranch}
             onDeepDive={handleDeepDive}
-            hasUserResonated={nexusData.hasUserResonated}
-            hasUserAmplified={nexusData.hasUserAmplified}
+            onShare={handleShare}
             onLogout={handleLogout}
             onUpdateProfile={nexusData.updateUserProfile}
             isOwnProfile={true}
