@@ -119,61 +119,63 @@ export default function LogbookPageWrapper() {
   // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
   // Let the LogbookPage component handle its own data loading
   return (
-    <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
-      <Header 
-        currentMode={journalMode}
-        currentView={viewMode}
-        currentUser={nexusData.currentUser}
-        onModeChange={handleModeChange}
-        onViewChange={handleViewChange}
-        onProfileClick={handleProfileClick}
-      />
-      
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Using fallback data or loading state */}
-        <div className="w-80 hidden lg:block">
-          <LeftSidebar 
-            logbookState={nexusData.logbookState || {
-              awarenessLevel: 0.85,
-              reflectionDepth: 0.92,
-              fieldResonance: 0.78
-            }}
-            networkStatus={nexusData.networkStatus || {
-              nodes: "Loading...",
-              activeMessages: 0,
-              dreamEntries: 0,
-              entropy: 0.0
-            }}
-            consciousnessField={nexusData.logbookField || {
-              id: 'logbook-field',
-              rows: 8,
-              columns: 32,
-              characters: ['◊', '≋', '∞', '◈', '⚡', '◆', '∴', '∵', '≈', '∼']
-            }}
-          />
-        </div>
-
-        {/* Main Content - Optimized LogbookPage handles its own data loading */}
-        <LogbookPage
-          onPostClick={handleOpenPost}
-          entryComposer={nexusData.entryComposer}
+    <div className="liminal-logbook">
+      <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
+        <Header 
+          currentMode={journalMode}
+          currentView={viewMode}
+          currentUser={nexusData.currentUser}
+          onModeChange={handleModeChange}
+          onViewChange={handleViewChange}
+          onProfileClick={handleProfileClick}
         />
+        
+        <div className="grid overflow-hidden" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
+          {/* Left Sidebar - Using fallback data or loading state */}
+          <div className="w-80 hidden lg:block">
+            <LeftSidebar 
+              logbookState={nexusData.logbookState || {
+                awarenessLevel: 0.85,
+                reflectionDepth: 0.92,
+                fieldResonance: 0.78
+              }}
+              networkStatus={nexusData.networkStatus || {
+                nodes: "Loading...",
+                activeMessages: 0,
+                dreamEntries: 0,
+                entropy: 0.0
+              }}
+              consciousnessField={nexusData.logbookField || {
+                id: 'logbook-field',
+                rows: 8,
+                columns: 32,
+                characters: ['◊', '≋', '∞', '◈', '⚡', '◆', '∴', '∵', '≈', '∼']
+              }}
+            />
+          </div>
 
-        {/* Right Sidebar - Using fallback data or loading state */}
-        <div className="w-80 hidden lg:block">
-          <RightSidebar 
-            systemVitals={nexusData.systemVitals || [
-              { name: 'Loading...', value: 0.0 }
-            ]}
-            activeAgents={nexusData.activeAgents || [
-              { name: 'Loading...', connection: 0.0, specialty: 'Initializing', status: 'grey' as const }
-            ]}
-            onReverieClick={handleReverieClick}
+          {/* Main Content - Optimized LogbookPage handles its own data loading */}
+          <LogbookPage
+            onPostClick={handleOpenPost}
+            entryComposer={nexusData.entryComposer}
           />
+
+          {/* Right Sidebar - Using fallback data or loading state */}
+          <div className="w-80 hidden lg:block">
+            <RightSidebar 
+              systemVitals={nexusData.systemVitals || [
+                { name: 'Loading...', value: 0.0 }
+              ]}
+              activeAgents={nexusData.activeAgents || [
+                { name: 'Loading...', connection: 0.0, specialty: 'Initializing', status: 'grey' as const }
+              ]}
+              onReverieClick={handleReverieClick}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Post Overlay */}
+      {/* Post Overlay - MOVED OUTSIDE GRID */}
       {overlayPost && (
         <PostOverlay 
           post={overlayPost}

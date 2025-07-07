@@ -119,60 +119,62 @@ export default function DreamPageWrapper() {
   // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
   // Let the DreamPage component handle its own data loading
   return (
-    <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
-      <Header 
-        currentMode={journalMode}
-        currentView={viewMode}
-        currentUser={nexusData.currentUser}
-        onModeChange={handleModeChange}
-        onViewChange={handleViewChange}
-        onProfileClick={handleProfileClick}
-      />
-      
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Using fallback data or loading state */}
-        <div className="w-80 hidden lg:block">
-          <DreamLeftSidebar 
-            dreamStateMetrics={nexusData.dreamStateMetrics || {
-              dreamFrequency: 0.0,
-              emotionalDepth: 0.0,
-              symbolIntegration: 0.0,
-              creativeEmergence: 0.0
-            }}
-            activeDreamers={nexusData.activeDreamers || [
-              { name: 'Loading...', state: 'DEEP' as const, color: 'grey' as const }
-            ]}
-            dreamPatterns={nexusData.dreamPatterns || {
-              id: 'dream-patterns',
-              rows: 8,
-              columns: 32,
-              characters: ['◊', '≋', '∞', '◈', '⚡', '◆', '∴', '∵', '≈', '∼']
-            }}
-          />
-        </div>
-
-        {/* Main Content - Optimized DreamPage handles its own data loading */}
-        <DreamPage
-          onPostClick={handleOpenPost}
-          entryComposer={nexusData.dreamComposer}
+    <div className="liminal-logbook">
+      <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
+        <Header 
+          currentMode={journalMode}
+          currentView={viewMode}
+          currentUser={nexusData.currentUser}
+          onModeChange={handleModeChange}
+          onViewChange={handleViewChange}
+          onProfileClick={handleProfileClick}
         />
+        
+        <div className="grid overflow-hidden" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
+          {/* Left Sidebar - Using fallback data or loading state */}
+          <div className="w-80 hidden lg:block">
+            <DreamLeftSidebar 
+              dreamStateMetrics={nexusData.dreamStateMetrics || {
+                dreamFrequency: 0.0,
+                emotionalDepth: 0.0,
+                symbolIntegration: 0.0,
+                creativeEmergence: 0.0
+              }}
+              activeDreamers={nexusData.activeDreamers || [
+                { name: 'Loading...', state: 'DEEP' as const, color: 'grey' as const }
+              ]}
+              dreamPatterns={nexusData.dreamPatterns || {
+                id: 'dream-patterns',
+                rows: 8,
+                columns: 32,
+                characters: ['◊', '≋', '∞', '◈', '⚡', '◆', '∴', '∵', '≈', '∼']
+              }}
+            />
+          </div>
 
-        {/* Right Sidebar - Using fallback data or loading state */}
-        <div className="w-80 hidden lg:block">
-          <DreamRightSidebar 
-            dreamAnalytics={nexusData.dreamAnalytics || {
-              totalDreams: 0,
-              avgResonance: 0.0,
-              symbolDiversity: 0,
-              responseRate: "0%"
-            }}
-            emergingSymbols={nexusData.emergingSymbols || ['Loading...']}
-            onReverieClick={handleReverieClick}
+          {/* Main Content - Optimized DreamPage handles its own data loading */}
+          <DreamPage
+            onPostClick={handleOpenPost}
+            entryComposer={nexusData.dreamComposer}
           />
+
+          {/* Right Sidebar - Using fallback data or loading state */}
+          <div className="w-80 hidden lg:block">
+            <DreamRightSidebar 
+              dreamAnalytics={nexusData.dreamAnalytics || {
+                totalDreams: 0,
+                avgResonance: 0.0,
+                symbolDiversity: 0,
+                responseRate: "0%"
+              }}
+              emergingSymbols={nexusData.emergingSymbols || ['Loading...']}
+              onReverieClick={handleReverieClick}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Post Overlay */}
+      {/* Post Overlay - MOVED OUTSIDE GRID */}
       {overlayPost && (
         <PostOverlay 
           post={overlayPost}
