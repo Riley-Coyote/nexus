@@ -768,7 +768,7 @@ export const useNexusData = (): NexusData => {
   }, []);
 
   // OPTIMIZED: Load user interaction states when posts are available
-  // This effect watches for logbookEntries and sharedDreams changes and loads user interaction states
+  // This effect watches for logbookEntries, sharedDreams, and resonatedEntries changes and loads user interaction states
   useEffect(() => {
     const loadUserInteractionStates = async () => {
       // Only load if user is authenticated and we have posts
@@ -778,8 +778,8 @@ export const useNexusData = (): NexusData => {
         return;
       }
 
-      // Load all posts
-      const allPosts = [...logbookEntries, ...sharedDreams];
+      // Load all posts from all sources (feed, resonated entries, etc.)
+      const allPosts = [...logbookEntries, ...sharedDreams, ...resonatedEntries];
       const allPostIds = allPosts.map(e => e.id);
       
       // OPTIMIZATION: Only load if posts actually changed
@@ -825,6 +825,7 @@ export const useNexusData = (): NexusData => {
     // Use only lengths to prevent excessive triggers from individual post changes
     logbookEntries.length, 
     sharedDreams.length,
+    resonatedEntries.length,
     // Remove the individual ID dependencies that caused excessive triggers
   ]);
 

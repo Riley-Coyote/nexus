@@ -27,10 +27,12 @@ export default function ResonanceFieldPage() {
   const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
   const currentMode: 'logbook' | 'dream' = isDreamPath ? 'dream' : 'logbook';
 
-  // Ensure first page is loaded
+  // Ensure first page is loaded when user is authenticated
   useEffect(() => {
-    nexusData.ensureResonatedEntriesLoaded?.();
-  }, []);
+    if (nexusData.authState.isAuthenticated && nexusData.currentUser) {
+      nexusData.ensureResonatedEntriesLoaded?.();
+    }
+  }, [nexusData.authState.isAuthenticated, nexusData.currentUser]);
 
   const handleOpenPost = (post: Post | StreamEntry) => {
     // Convert Post to StreamEntry if needed
