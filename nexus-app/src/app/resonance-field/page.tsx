@@ -27,13 +27,6 @@ export default function ResonanceFieldPage() {
   const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
   const currentMode: 'logbook' | 'dream' = isDreamPath ? 'dream' : 'logbook';
 
-  // Ensure first page is loaded when user is authenticated
-  useEffect(() => {
-    if (nexusData.authState.isAuthenticated && nexusData.currentUser) {
-      nexusData.ensureResonatedEntriesLoaded?.();
-    }
-  }, [nexusData.authState.isAuthenticated, nexusData.currentUser]);
-
   const handleOpenPost = (post: Post | StreamEntry) => {
     // Convert Post to StreamEntry if needed
     const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
@@ -64,7 +57,6 @@ export default function ResonanceFieldPage() {
   const handleShare = (postId: string) => {
     // The share functionality is now handled natively in the PostDisplay component
     // We just need to provide this callback for compatibility
-    
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
@@ -118,20 +110,15 @@ export default function ResonanceFieldPage() {
           onProfileClick={handleProfileClick}
         />
         
-        {/* Resonance Field Content */}
+        {/* Resonance Field Content - Now using optimized direct loading */}
         <div className="grid overflow-hidden grid-cols-1">
           <ResonanceField
-            initialEntries={nexusData.resonatedEntries}
             onPostClick={handleOpenPost}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
             onBranch={nexusData.createBranch}
-            hasUserResonated={nexusData.hasUserResonated}
-            hasUserAmplified={nexusData.hasUserAmplified}
             onShare={handleShare}
             onDeepDive={(post) => handleDeepDive(post.username, post.id)}
-            isUserStatesLoaded={nexusData.isUserStatesLoaded}
-            appendResonatedEntries={nexusData.appendResonatedEntries}
           />
         </div>
       </div>
