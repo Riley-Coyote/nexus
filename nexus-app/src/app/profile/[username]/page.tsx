@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
-import AuthPanel from '@/components/AuthPanel';
+
 import { StreamEntry } from '@/lib/types';
 import { StreamEntryData } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
@@ -139,25 +139,7 @@ export default function UserProfilePage() {
     router.push(`/${mode}`);
   };
 
-  // Show a loading screen while auth state is being determined
-  if (nexusData.authState.isAuthLoading) {
-    return (
-      <div className="liminal-logbook loading-state">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">Authenticating...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show authentication panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return (
-      <AuthPanel 
-        onAuthSuccess={handleAuthSuccess}
-      />
-    );
-  }
+  // Auth is now handled at root level - no need for checks here
 
   // Get the profile user (either the viewed user or current user)
   const profileUser = nexusData.getCurrentProfileUser();

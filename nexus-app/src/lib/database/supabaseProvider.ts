@@ -1246,4 +1246,52 @@ export class SupabaseProvider implements DatabaseProvider {
       return [];
     }
   }
+
+  /**
+   * NEW: Fetch resonated entries in a single JOIN query using
+   * the `user_resonated_entries_v` view. Falls back to legacy
+   * getUserResonances + batch fetch if the view isn't available.
+   */
+  async getResonatedEntries(userId: string, options: { page?: number; limit?: number } = {}): Promise<StreamEntry[]> {
+    const { page = 1, limit = 20 } = options;
+
+    try {
+      const { data, error } = await this.client
+        .from('user_resonated_entries_v')
+        .select('*')
+        .eq('resonator_id', userId)
+        .order('timestamp', { ascending: false })
+        .range((page - 1) * limit, page * limit - 1);
+
+      if (error) {
+        console.error('❌ Error fetching resonated entries via view:', error);
+        throw error;
+      }
+
+      if (!data) return [];
+
+      const entries = data.map(row => {
+        const entry = this.supabaseToStreamEntry(row);
+        // Merge counts if columns exist
+        entry.interactions = {
+          resonances: row.resonance_count || 0,
+          branches: row.branch_count || 0,
+          amplifications: row.amplification_count || 0,
+          shares: row.share_count || 0
+        };
+        return entry;
+      });
+
+      console.log(`✅ Fetched ${entries.length} resonated entries via view (page ${page})`);
+      return entries;
+    } catch (err: any) {
+      console.warn('⚠️ Falling back to legacy resonated-entry path:', err?.message || err);
+
+      // Legacy fallback: get list of IDs, then batch fetch
+      const resonatedIds = await this.getUserResonances(userId);
+      if (resonatedIds.length === 0) return [];
+
+      return await this.getEntriesByIds(resonatedIds);
+    }
+  }
 }

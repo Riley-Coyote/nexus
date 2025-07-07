@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ResonanceField from '@/components/ResonanceField';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
-import AuthPanel from '@/components/AuthPanel';
 import { Post, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
@@ -27,6 +26,11 @@ export default function ResonanceFieldPage() {
   const isDreamPath = pathname.startsWith('/dream');
   const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
   const currentMode: 'logbook' | 'dream' = isDreamPath ? 'dream' : 'logbook';
+
+  // Ensure first page is loaded
+  useEffect(() => {
+    nexusData.ensureResonatedEntriesLoaded?.();
+  }, []);
 
   const handleOpenPost = (post: Post | StreamEntry) => {
     // Convert Post to StreamEntry if needed
@@ -96,22 +100,6 @@ export default function ResonanceFieldPage() {
     router.push(`/${username}/entry/${postId}`);
   };
 
-  // Show auth panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return <AuthPanel onAuthSuccess={() => nexusData.forceAuthRefresh()} />;
-  }
-
-  // Show loading state while data is being fetched
-  if (nexusData.isLoading) {
-    return (
-      <div className="liminal-logbook loading-state">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">Loading Resonance Field...</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`liminal-logbook ${modeClass}`}>
       <div className="grid grid-rows-[auto_1fr] h-screen overflow-hidden">
@@ -130,15 +118,15 @@ export default function ResonanceFieldPage() {
         
         {/* Resonance Field Content */}
         <div className="grid overflow-hidden grid-cols-1">
-          <ResonanceField 
-            resonatedEntries={nexusData.resonatedEntries}
+          <ResonanceField
+            initialEntries={nexusData.resonatedEntries}
+            getPosts={nexusData.getPosts}
             onPostClick={handleOpenPost}
-            refreshResonatedEntries={nexusData.refreshResonatedEntries}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
             onBranch={nexusData.createBranch}
+            hasUserResonated={nexusData.hasUserResonated}
             hasUserAmplified={nexusData.hasUserAmplified}
-            refreshAmplifiedEntries={nexusData.refreshAmplifiedEntries}
             onShare={handleShare}
             onDeepDive={(post) => handleDeepDive(post.username, post.id)}
           />

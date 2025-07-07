@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
-import AuthPanel from '@/components/AuthPanel';
+
 import { Post, StreamEntry } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
@@ -85,11 +85,8 @@ export default function ProfilePage() {
     router.push(`/${username}/entry/${postId}`);
   };
 
-  // Show auth panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return <AuthPanel onAuthSuccess={() => nexusData.forceAuthRefresh()} />;
-  }
-
+  // Auth is now handled at root level - no need for checks here
+  
   // Show loading state while data is being fetched
   if (nexusData.isLoading || !nexusData.currentUser) {
     return (

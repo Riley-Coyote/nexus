@@ -55,6 +55,38 @@ sequenceDiagram
 3. **Rendering** – `NexusFeed` converts `StreamEntry` ➜ `Post` and shows counts + coloured icons if the cache says the user interacted.
 4. **Pagination** – Scrolling calls `loadFlattenedEntries()` which slices already-loaded arrays; if depleted, `getEntries()` runs again for the next 20 rows (same pattern, still 2 queries).
 
+### 3.1b Resonance Field Flow (May 2025)
+
+Same playbook as the Feed, scoped to only the user's resonated posts.
+
+```mermaid
+sequenceDiagram
+  participant UI
+  participant Hook as useNexusData
+  participant DB
+
+  Note over UI,Hook: initial render
+  UI->>Hook: ensureResonatedEntriesLoaded()
+  Hook->>DB: SELECT * FROM user_resonated_entries_v  (1)
+  Note right of DB: 20 rows + counts, privacy filtered
+  Hook-->>UI: StreamEntry[]
+  UI->>Hook: batchLoadUserStates(userId, entryIds)
+  Hook->>DB: select entry_id from user_amplifications IN (ids)  (2)
+  DB-->>Hook: result set
+  Hook-->>UI: Map<entryId, {hasAmplified}>
+```
+
+• 1 JOIN query instead of ID-list + batch fetch.  
+• Interaction flag query drops resonance table (implicit true).  
+• Scroll → `getPosts({mode:'resonated', page:n})` repeats query (1) with range.
+
+Total DB calls per page: **2** (same structure as Feed but with one less table).
+
+The component (`ResonanceField.tsx`) reuses:
+1. `PostList` for rendering + pagination.  
+2. `userInteractionService` cache for per-post flags.  
+3. Optimistic UI handlers from Feed (`makeBranchHandler`, resonate/amplify helpers).
+
 ---
 
 ## 4. Database Call Budget

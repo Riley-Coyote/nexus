@@ -66,6 +66,9 @@ export interface DatabaseProvider {
   // New username management methods
   updateUsername?(userId: string, newUsername: string): Promise<boolean>;
   getCurrentUsername?(userId: string): Promise<string | null>;
+  
+  // Resonated entries in one shot (optimized view)
+  getResonatedEntries?(userId: string, options?: { page?: number; limit?: number }): Promise<StreamEntry[]>;
 }
 
 export interface QueryOptions {

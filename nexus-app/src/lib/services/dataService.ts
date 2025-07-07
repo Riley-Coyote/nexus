@@ -716,37 +716,22 @@ class DataService {
   }
 
   // Get resonated entries for resonance field - OPTIMIZED
-  async getResonatedEntries(userId: string): Promise<StreamEntry[]> {
+  async getResonatedEntries(userId: string, page: number = 1, limit: number = 20): Promise<StreamEntry[]> {
     console.log(`🔄 Loading resonated entries for user: ${userId}`);
-    
+
     await this.initializeData();
-    
-    if (!this.database) {
+
+    if (!this.database || !this.database.getResonatedEntries) {
+      console.error('❌ Database provider does not support getResonatedEntries');
       return [];
     }
-    
+
     try {
-      // Get user's resonated entry IDs from database
-      const resonatedEntryIds = await this.database.getUserResonances(userId);
-      
-      if (resonatedEntryIds.length === 0) {
-        console.log(`📝 No resonated entries found for user: ${userId}`);
-        return [];
-      }
-      
-      console.log(`📝 Found ${resonatedEntryIds.length} resonated entry IDs, batch fetching...`);
-      
-      // OPTIMIZED: Batch fetch all resonated entries
-      const resonatedEntries = await this.batchFetchEntries(resonatedEntryIds);
-      
-      console.log(`✅ Successfully fetched ${resonatedEntries.length} resonated entries`);
-      
-      // Sort by timestamp desc (newest first)
-      return resonatedEntries.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
+      const entries = await this.database.getResonatedEntries(userId, { page, limit });
+      console.log(`✅ Successfully fetched ${entries.length} resonated entries (page ${page})`);
+      return entries;
     } catch (error) {
-      console.error('❌ Database error fetching resonated entries:', error);
+      console.error('❌ Error fetching resonated entries:', error);
       return [];
     }
   }
@@ -1499,7 +1484,7 @@ class DataService {
           break;
         case 'resonated':
           if (!currentUser) return [];
-          entries = await this.getResonatedEntries(currentUser.id);
+          entries = await this.getResonatedEntries(currentUser.id, safePage, safeLimit);
           break;
         case 'amplified':
           if (!currentUser) return [];

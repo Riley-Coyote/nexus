@@ -11,7 +11,7 @@ import DreamMainContent from '@/components/DreamMainContent';
 import DreamRightSidebar from '@/components/DreamRightSidebar';
 import PostOverlay from '@/components/PostOverlay';
 import NexusFeed from '@/components/NexusFeed';
-import AuthPanel from '@/components/AuthPanel';
+
 import UserProfile from '@/components/UserProfile';
 import NotificationBanner from '@/components/NotificationBanner';
 import { Post, StreamEntry, JournalMode, ViewMode } from '@/lib/types';
@@ -171,21 +171,7 @@ export default function Home() {
     router.push(`/${username}/entry/${postId}`);
   };
 
-  // Show auth panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return <AuthPanel onAuthSuccess={handleAuthSuccess} />;
-  }
-
-  // Show loading state while data is being fetched
-  if (nexusData.isLoading) {
-    return (
-      <div className="liminal-logbook loading-state">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">Loading Nexus...</div>
-        </div>
-      </div>
-    );
-  }
+  // Auth is now handled at root level - no need for checks here
 
   // Show loading state if required logbook data is not available when in logbook mode
   if (viewMode === 'default' && journalMode === 'logbook' && 

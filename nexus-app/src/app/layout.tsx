@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Mono } from 'next/font/google'
+import AuthProvider from '@/components/AuthProvider'
 import './globals.css'
 
 const ibmPlexMono = IBM_Plex_Mono({ 
@@ -40,7 +41,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${ibmPlexMono.variable} bg-deep-void text-text-primary font-mono font-extralight`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
