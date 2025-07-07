@@ -78,7 +78,7 @@ export default function NotificationBanner({
 
   return (
     <div className={`
-      fixed top-4 left-1/2 transform -translate-x-1/2 z-50 
+      fixed top-4 right-4 z-[9999] 
       max-w-md w-full mx-4 p-4 rounded-lg shadow-lg backdrop-blur-md
       ${variant === 'success' 
         ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-100' 

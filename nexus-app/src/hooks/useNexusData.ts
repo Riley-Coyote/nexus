@@ -18,6 +18,7 @@ import {
   AuthState,
   ProfileViewState
 } from '../lib/types';
+import { mockSystemVitals, mockActiveAgents } from '../lib/data/mockData';
 
 // ✅ GLOBAL SINGLETON: Ensure only one auth initialization happens across all hook instances
 let globalAuthInitialization: Promise<() => void> | null = null;
@@ -170,8 +171,8 @@ export const useNexusData = (): NexusData => {
   // Logbook state
   const [logbookState, setLogbookState] = useState<LogbookState | null>(null);
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus | null>(null);
-  const [systemVitals, setSystemVitals] = useState<SystemVital[]>([]);
-  const [activeAgents, setActiveAgents] = useState<ActiveAgent[]>([]);
+  const [systemVitals, setSystemVitals] = useState<SystemVital[]>(mockSystemVitals);
+  const [activeAgents, setActiveAgents] = useState<ActiveAgent[]>(mockActiveAgents);
   const [logbookEntries, setLogbookEntries] = useState<StreamEntry[]>([]);
   
   // Dream state
