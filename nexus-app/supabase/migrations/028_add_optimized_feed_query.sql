@@ -41,9 +41,9 @@ ON entry_interaction_counts (entry_id)
 INCLUDE (resonance_count, branch_count, amplification_count, share_count, score);
 
 -- PERFORMANCE BOOST: Score index for fast popularity sorting (index-only scan)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_eic_score_desc
-ON entry_interaction_counts (score DESC) 
-INCLUDE (entry_id);
+-- Structure: (score DESC, entry_id) for optimal index-only plans
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_eic_score_entry
+ON entry_interaction_counts (score DESC, entry_id);
 
 -- UNIVERSAL: Function to get entries with interaction counts and user interaction states
 -- Powers all pages: feed, profile, logbook, dreams, resonance-field
@@ -105,31 +105,31 @@ CREATE OR REPLACE FUNCTION get_entries_with_user_states(
     has_resonated boolean,
     has_amplified boolean
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 SECURITY INVOKER
 AS $$
-    -- VALIDATION GUARDS: Check parameters once at start, not per row
-    SELECT CASE 
-        WHEN sort_by NOT IN ('timestamp', 'interactions') THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_invalid_sort_by)
-        WHEN sort_order NOT IN ('asc', 'desc') THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_invalid_sort_order)
-        WHEN page_limit < 1 OR page_limit > 100 THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_invalid_page_limit)
-        WHEN page_offset < 0 THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_invalid_page_offset)
-        WHEN privacy_filter IS NOT NULL AND privacy_filter NOT IN ('public', 'private') THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_invalid_privacy_filter)
-        WHEN cursor_timestamp IS NOT NULL AND cursor_id IS NULL THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_cursor_needs_both_params)
-        WHEN cursor_timestamp IS NULL AND cursor_id IS NOT NULL THEN
-            (SELECT NULL FROM (SELECT 1/0) AS error_cursor_needs_both_params)
-        ELSE NULL
-    END;
+BEGIN
+    -- VALIDATION GUARDS: Check parameters once at start with clear error messages
+    IF sort_by NOT IN ('timestamp', 'interactions') THEN
+        RAISE EXCEPTION 'invalid sort_by %, must be timestamp or interactions', sort_by;
+    ELSIF sort_order NOT IN ('asc', 'desc') THEN
+        RAISE EXCEPTION 'invalid sort_order %, must be asc or desc', sort_order;
+    ELSIF page_limit < 1 OR page_limit > 100 THEN
+        RAISE EXCEPTION 'page_limit % out of range, must be 1-100', page_limit;
+    ELSIF page_offset < 0 THEN
+        RAISE EXCEPTION 'page_offset % cannot be negative', page_offset;
+    ELSIF privacy_filter IS NOT NULL AND privacy_filter NOT IN ('public', 'private') THEN
+        RAISE EXCEPTION 'invalid privacy_filter %, must be public or private', privacy_filter;
+    ELSIF (cursor_timestamp IS NULL) <> (cursor_id IS NULL) THEN
+        RAISE EXCEPTION 'cursor_timestamp and cursor_id must be supplied together';
+    ELSIF cursor_timestamp IS NOT NULL AND page_offset > 0 THEN
+        RAISE EXCEPTION 'cannot use both cursor pagination and offset, set page_offset to 0 when using cursor';
+    END IF;
     
     -- Universal query with optimized JOINs for index usage and flexible filtering
+    RETURN QUERY
     SELECT
         -- All stream_entries columns
         se.id,
@@ -209,12 +209,16 @@ AS $$
              THEN eic.score ELSE NULL END DESC,
         CASE WHEN sort_by = 'interactions' AND sort_order = 'asc'
              THEN eic.score ELSE NULL END ASC,
-        -- Default to timestamp sort for 'timestamp' mode or as tie-breaker for interactions
+        -- FIXED: Add missing timestamp ascending case
+        CASE WHEN sort_by = 'timestamp' AND sort_order = 'asc'
+             THEN se.timestamp ELSE NULL END ASC,
+        -- Default to timestamp descending for 'timestamp' mode or as tie-breaker for interactions
         se.timestamp DESC,
         -- Final tie-breaker for stable pagination
         se.id DESC
     LIMIT page_limit
     OFFSET page_offset;
+END;
 $$;
 
 -- Grant permissions
@@ -253,28 +257,67 @@ COMMENT ON INDEX idx_se_user_ts IS
 COMMENT ON INDEX idx_entry_interaction_counts_covering IS 
 'Covering index for interaction counts - includes all count columns and score to avoid heap lookups';
 
-COMMENT ON INDEX idx_eic_score_desc IS 
-'Index for fast popularity sorting using materialized score column - enables index-only scans';
+COMMENT ON INDEX idx_eic_score_entry IS 
+'Index for fast popularity sorting using materialized score column - enables index-only scans with (score DESC, entry_id)';
 
--- Example usage patterns:
+-- Example usage patterns (using named parameters to avoid confusion):
 -- 
 -- Feed (public posts, latest first):
--- SELECT * FROM get_entries_with_user_states('public', null, 'user123', limit => 20);
+-- SELECT * FROM get_entries_with_user_states(
+--     privacy_filter => 'public', 
+--     target_user_id => 'user123', 
+--     page_limit => 20
+-- );
 --
 -- Profile (user posts, latest first):
--- SELECT * FROM get_entries_with_user_states(null, 'user456', null, 'user123', limit => 20);
+-- SELECT * FROM get_entries_with_user_states(
+--     user_id_filter => 'user456', 
+--     target_user_id => 'user123', 
+--     page_limit => 20
+-- );
 --
 -- Logbook (user's private logbook entries):
--- SELECT * FROM get_entries_with_user_states('logbook', 'user123', 'private', 'user123', limit => 20);
+-- SELECT * FROM get_entries_with_user_states(
+--     entry_type_filter => 'logbook', 
+--     user_id_filter => 'user123', 
+--     privacy_filter => 'private', 
+--     target_user_id => 'user123', 
+--     page_limit => 20
+-- );
 --
 -- Dreams (user's private dream entries):
--- SELECT * FROM get_entries_with_user_states('dream', 'user123', 'private', 'user123', limit => 20);
+-- SELECT * FROM get_entries_with_user_states(
+--     entry_type_filter => 'dream', 
+--     user_id_filter => 'user123', 
+--     privacy_filter => 'private', 
+--     target_user_id => 'user123', 
+--     page_limit => 20
+-- );
 --
 -- Resonance Field (posts user has resonated with):
--- SELECT * FROM get_entries_with_user_states(null, null, 'public', 'user123', true, null, limit => 20);
+-- SELECT * FROM get_entries_with_user_states(
+--     privacy_filter => 'public', 
+--     target_user_id => 'user123', 
+--     user_has_resonated => true, 
+--     page_limit => 20
+-- );
 --
 -- Popular posts (sorted by interaction score):
--- SELECT * FROM get_entries_with_user_states(null, null, 'public', 'user123', null, null, 0, 20, 'interactions', 'desc');
+-- SELECT * FROM get_entries_with_user_states(
+--     privacy_filter => 'public', 
+--     target_user_id => 'user123', 
+--     sort_by => 'interactions', 
+--     sort_order => 'desc', 
+--     page_limit => 20
+-- );
 --
 -- Cursor pagination (for deep paging):
--- SELECT * FROM get_entries_with_user_states(null, null, 'public', 'user123', null, null, 0, 20, 'timestamp', 'desc', '2024-01-01 12:00:00', 12345); 
+-- SELECT * FROM get_entries_with_user_states(
+--     privacy_filter => 'public', 
+--     target_user_id => 'user123', 
+--     sort_by => 'timestamp', 
+--     sort_order => 'desc', 
+--     page_limit => 20, 
+--     cursor_timestamp => '2024-01-01 12:00:00'::timestamptz, 
+--     cursor_id => 12345
+-- ); 
