@@ -122,7 +122,6 @@ export default function ResonanceFieldPage() {
         <div className="grid overflow-hidden grid-cols-1">
           <ResonanceField
             initialEntries={nexusData.resonatedEntries}
-            getPosts={nexusData.getPosts}
             onPostClick={handleOpenPost}
             onResonate={nexusData.resonateWithEntry}
             onAmplify={nexusData.amplifyEntry}
@@ -132,7 +131,7 @@ export default function ResonanceFieldPage() {
             onShare={handleShare}
             onDeepDive={(post) => handleDeepDive(post.username, post.id)}
             isUserStatesLoaded={nexusData.isUserStatesLoaded}
-            loadUserStatesForPosts={nexusData.loadUserStatesForPosts}
+            appendResonatedEntries={nexusData.appendResonatedEntries}
           />
         </div>
       </div>

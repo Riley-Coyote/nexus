@@ -4,31 +4,28 @@ import { Post } from '@/lib/types';
 import { streamEntryDataToPost } from '@/lib/utils/postUtils';
 
 /**
- * ResonanceField v2 – a thin wrapper that re-uses the exact same
- * pagination / PostList flow as NexusFeed.  The only difference is
- * the data source (mode:"resonated") and small header copy.
+ * ResonanceField v3 – follows exact NexusFeed pattern for consistency and scalability.
+ * No local state management, uses central state and automatic user interaction loading.
  */
 interface ResonanceFieldProps {
-  /** First page of resonated entries – already converted to StreamEntryData */
+  /** Resonated entries from useNexusData - central state */
   initialEntries: any[];
-  getPosts: (opts: { mode: 'resonated'; page?: number; limit?: number }) => Promise<any[]>;
   onPostClick?: (post: Post) => void;
   onResonate?: (id: string) => Promise<void>;
   onAmplify?: (id: string) => Promise<void>;
   onBranch?: (parentId: string, content: string) => Promise<void>;
-  hasUserResonated?: (id: string) => boolean; // should always be true but kept for symmetry
+  hasUserResonated?: (id: string) => boolean;
   hasUserAmplified?: (id: string) => boolean;
   onShare?: (id: string) => void;
   onDeepDive?: (post: Post) => void;
-  isUserStatesLoaded?: boolean; // Key addition - same as NexusFeed
-  loadUserStatesForPosts?: (postIds: string[]) => Promise<void>; // Manual user state loading
+  isUserStatesLoaded?: boolean; // Same as NexusFeed
+  appendResonatedEntries?: (page: number, limit?: number) => Promise<any[]>; // Central state management
 }
 
 const PAGE_SIZE = 20;
 
 export default function ResonanceField({
   initialEntries,
-  getPosts,
   onPostClick,
   onResonate,
   onAmplify,
@@ -38,47 +35,44 @@ export default function ResonanceField({
   onShare,
   onDeepDive,
   isUserStatesLoaded,
-  loadUserStatesForPosts
+  appendResonatedEntries
 }: ResonanceFieldProps) {
-  const [posts, setPosts] = useState<Post[]>(() => initialEntries.map(streamEntryDataToPost));
+  // SIMPLIFIED: Use central state directly, no local posts state
+  const posts = initialEntries.map(streamEntryDataToPost);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialEntries.length === PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(initialEntries.length >= PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sync when initialEntries prop updates (e.g., after async fetch)
+  // Update hasMore when initialEntries changes (like NexusFeed)
   useEffect(() => {
-    const firstPage = initialEntries.map(streamEntryDataToPost);
-    setPosts(firstPage);
-    setPage(1);
-    setHasMore(firstPage.length === PAGE_SIZE);
-  }, [initialEntries]);
+    setHasMore(initialEntries.length >= PAGE_SIZE);
+    // Reset page if entries were refreshed
+    if (initialEntries.length <= PAGE_SIZE) {
+      setPage(1);
+    }
+  }, [initialEntries.length]);
 
+  // SIMPLIFIED: Just update central state, automatic user interaction loading
   const loadMore = useCallback(async () => {
-    if (!hasMore || isLoading) return;
+    if (!hasMore || isLoading || !appendResonatedEntries) return;
+    
     setIsLoading(true);
     try {
       const nextPage = page + 1;
-      const newEntries = await getPosts({ mode: 'resonated', page: nextPage, limit: PAGE_SIZE });
-      const newPosts = newEntries.map(streamEntryDataToPost);
+      const newEntries = await appendResonatedEntries(nextPage, PAGE_SIZE);
       
-      // CRITICAL: Load user interaction states for new posts
-      const newPostIds = newPosts.map(p => p.id);
-      if (newPostIds.length > 0 && loadUserStatesForPosts) {
-        console.log(`🔄 ResonanceField: Loading user interaction states for ${newPostIds.length} new posts`);
-        await loadUserStatesForPosts(newPostIds);
-        console.log(`✅ ResonanceField: User interaction states loaded for ${newPostIds.length} new posts`);
-      }
+      // Central state automatically triggers user interaction loading via useEffect
+      console.log(`✅ ResonanceField: Appended ${newEntries.length} entries to central state`);
       
-      setPosts(prev => [...prev, ...newPosts]);
       setPage(nextPage);
-      setHasMore(newPosts.length === PAGE_SIZE);
+      setHasMore(newEntries.length === PAGE_SIZE);
     } catch (err) {
       console.error('ResonanceField: failed to load more', err);
       setHasMore(false);
     } finally {
       setIsLoading(false);
     }
-  }, [getPosts, hasMore, isLoading, page, loadUserStatesForPosts]);
+  }, [hasMore, isLoading, page, appendResonatedEntries]);
 
   // Following NexusFeed pattern - don't render until user interaction states are loaded
   if (isUserStatesLoaded === false) {
