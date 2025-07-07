@@ -785,39 +785,62 @@ export const useNexusData = (): NexusData => {
       const allPosts = [...logbookEntries, ...sharedDreams, ...resonatedEntries];
       const allPostIds = allPosts.map(e => e.id);
       
-      // OPTIMIZATION: Only load if posts actually changed
-      const currentPostIdsStr = allPostIds.sort().join(',');
-      const prevPostIdsStr = currentPostIds.sort().join(',');
+      // OPTIMIZATION: Use Set-based comparison instead of expensive string sorting
+      const currentPostIdsSet = new Set(allPostIds);
+      const prevPostIdsSet = new Set(currentPostIds);
       
-      if (currentPostIdsStr === prevPostIdsStr && isUserStatesLoaded) {
+      // Check if sets are equal (more efficient than string comparison)
+      const setsEqual = currentPostIdsSet.size === prevPostIdsSet.size && 
+                       Array.from(currentPostIdsSet).every(id => prevPostIdsSet.has(id));
+      
+      if (setsEqual && isUserStatesLoaded) {
         console.log(`⏭️ Skipping user interaction states load - same posts already loaded`);
+        return;
+      }
+      
+      // OPTIMIZATION: Only load states for NEW posts, not all posts
+      const newPostIds = allPostIds.filter(id => !prevPostIdsSet.has(id));
+      
+      if (newPostIds.length === 0 && isUserStatesLoaded) {
+        console.log(`⏭️ No new posts to load user states for`);
         return;
       }
       
       setCurrentPostIds(allPostIds);
       
-      console.log(`🔄 Loading user interaction states for ${allPostIds.length} posts`);
-      
-      if (allPostIds.length > 0) {
+      if (newPostIds.length > 0) {
+        console.log(`🔄 Loading user interaction states for ${newPostIds.length} NEW posts (${allPostIds.length} total)`);
+        
         try {
-          const states = await userInteractionService.batchLoadUserStates(
+          // Only fetch states for new posts
+          const newStates = await userInteractionService.batchLoadUserStates(
             authState.currentUser.id,
-            allPostIds
+            newPostIds
           );
           
-          const interactedCount = Array.from(states.values()).filter(s => s.hasResonated || s.hasAmplified).length;
+          // Merge with existing states efficiently
+          setUserInteractionStates(prev => {
+            const updatedMap = new Map(prev);
+            newStates.forEach((state, postId) => {
+              updatedMap.set(postId, state);
+            });
+            return updatedMap;
+          });
           
-          setUserInteractionStates(states);
           setIsUserStatesLoaded(true);
-          console.log(`✅ User interaction states loaded: ${states.size} total, ${interactedCount} with interactions`);
+          const interactedCount = Array.from(newStates.values()).filter(s => s.hasResonated || s.hasAmplified).length;
+          console.log(`✅ User interaction states loaded: ${newStates.size} new, ${interactedCount} with interactions`);
           
         } catch (error) {
           console.error('❌ Failed to load user interaction states:', error);
           setIsUserStatesLoaded(true); // Still allow rendering
         }
-      } else {
+      } else if (allPostIds.length === 0) {
         console.log(`📭 No posts to load user interaction states for`);
         setIsUserStatesLoaded(true); // No posts = no states needed
+      } else {
+        // We have posts but no new ones, and we're already loaded
+        setIsUserStatesLoaded(true);
       }
     };
 
