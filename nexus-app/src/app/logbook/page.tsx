@@ -180,6 +180,9 @@ export default function LogbookPageWrapper() {
           isOpen={isOverlayOpen}
           onClose={handleCloseOverlay}
           onInteraction={handlePostInteraction}
+          getDirectChildren={nexusData.getDirectChildren}
+          getParentPost={nexusData.getParentPost}
+          onChildClick={handleOpenPost}
         />
       )}
 

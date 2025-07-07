@@ -179,6 +179,9 @@ export default function DreamPageWrapper() {
           isOpen={isOverlayOpen}
           onClose={handleCloseOverlay}
           onInteraction={handlePostInteraction}
+          getDirectChildren={nexusData.getDirectChildren}
+          getParentPost={nexusData.getParentPost}
+          onChildClick={handleOpenPost}
         />
       )}
 
