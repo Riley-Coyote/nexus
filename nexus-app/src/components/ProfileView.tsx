@@ -179,19 +179,27 @@ export default function ProfileView({
     }
   };
 
-  // Initial data load when user or activeTab changes
+  // Initial data load
   useEffect(() => {
     if (activeTab === 'posts') {
       loadProfileEntries(1, false);
     }
-  }, [user.id, activeTab, isOwnProfile]);
+  }, []);
 
-  // Auth state management - listen for auth changes
+  // Reload when user or profile settings change
+  useEffect(() => {
+    if (activeTab === 'posts') {
+      console.log('🔄 User or profile settings changed, reloading profile data');
+      loadProfileEntries(1, false);
+    }
+  }, [user.id, isOwnProfile]);
+
+  // Auth state management - listen for auth changes (same pattern as ResonanceField)
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
       if (newAuthState.isAuthenticated && newAuthState.currentUser) {
         // User just became authenticated - reload profile data if needed
-        if (activeTab === 'posts' && posts.length === 0 && !isLoading) {
+        if (activeTab === 'posts' && !isUserStatesLoaded && !isLoading) {
           console.log('🔄 Auth completed, reloading profile data');
           loadProfileEntries(1, false);
         }
@@ -203,7 +211,7 @@ export default function ProfileView({
         unsubscribe();
       }
     };
-  }, [activeTab, posts.length, isLoading]);
+  }, [isUserStatesLoaded, activeTab]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {
