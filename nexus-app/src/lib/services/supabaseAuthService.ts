@@ -134,8 +134,6 @@ class SupabaseAuthService {
     try {
       // Wrap entire initialization in timeout
       const initializationProcess = async () => {
-        console.log('🔄 Starting Supabase auth initialization...');
-        
         // Check for existing session with timeout
         const sessionPromise = supabase.auth.getSession();
         const sessionTimeoutPromise = new Promise<never>((_, reject) => {
@@ -150,8 +148,6 @@ class SupabaseAuthService {
           return;
         }
         
-        console.log('🔐 Session check completed:', data.session ? 'session found' : 'no session');
-        
         if (data.session) {
           await this.handleAuthStateChange(data.session);
         }
@@ -159,8 +155,6 @@ class SupabaseAuthService {
         // Listen for auth changes - ONLY SET UP ONCE
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (this.initializationFailed) return; // Ignore if we've already failed
-          
-          console.log('Auth state change event:', event, session ? 'with session' : 'without session');
           
           // Handle session events
           if (event === 'SIGNED_IN' && session) {
@@ -173,7 +167,6 @@ class SupabaseAuthService {
             // Skip the profile fetch for simple USER_UPDATED events that don't change metadata we care about
             if (this.authState.currentUser?.id === session.user.id) {
               // Just update the session token, keep existing profile
-              console.log('USER_UPDATED: profile already cached, skipping DB fetch');
               this.atomicUpdateAuthState({
                 sessionToken: session.access_token
               });
@@ -186,8 +179,6 @@ class SupabaseAuthService {
 
         this.initialized = true;
         this.initializationFailed = false;
-        
-        console.log('✅ Supabase auth initialization completed successfully');
         
         this.atomicUpdateAuthState({
           isAuthLoading: false
