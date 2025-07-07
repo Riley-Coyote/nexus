@@ -134,9 +134,14 @@ export default function Home() {
     }
   };
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = async () => {
     // Force a re-check of auth state to trigger re-render
-    nexusData.forceAuthRefresh();
+    try {
+      await nexusData.forceAuthRefresh();
+    } catch (error) {
+      console.error('Failed to refresh auth state:', error);
+      // Continue rendering - the error is logged but shouldn't block UI
+    }
   };
 
   const handleProfileClick = () => {

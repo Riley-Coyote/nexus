@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { authService, AuthResult } from '../lib/services/supabaseAuthService';
 
 interface AuthPanelProps {
-  onAuthSuccess: () => void;
+  onAuthSuccess: () => void | Promise<void>;
   onLogin?: () => void; // Add optional onLogin prop
   onSignup?: () => void; // Add optional onSignup prop
 }
@@ -324,7 +324,11 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         
         if (result.success) {
           // Success - component may unmount, so don't update state after this
-          onAuthSuccess();
+          try {
+            await onAuthSuccess();
+          } catch (error) {
+            console.error('Auth success callback failed:', error);
+          }
           if (onLogin) onLogin();
         } else if (result.needsVerification) {
           safeSetState(() => setSuccessMessage('Please check your email and verify your account before signing in.'));
@@ -401,7 +405,11 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
             });
           } else {
             // Success - component may unmount, so don't update state after this
-            onAuthSuccess();
+            try {
+              await onAuthSuccess();
+            } catch (error) {
+              console.error('Auth success callback failed:', error);
+            }
             if (onSignup) onSignup();
           }
         } else {

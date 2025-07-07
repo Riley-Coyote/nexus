@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import PostList from './PostList';
-import { Post } from '@/lib/types';
+import { Post, AuthState } from '@/lib/types';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 import { StreamEntryWithUserStates } from '@/lib/database/types';
 import { DatabaseFactory } from '@/lib/database/factory';
-import { authService } from '@/lib/services/authService';
+import { authService } from '@/lib/services/supabaseAuthService';
 
 /**
  * ResonanceField v4 – follows exact NexusFeed optimized pattern for consistency and performance.
@@ -127,6 +127,26 @@ export default function ResonanceField({
   useEffect(() => {
     loadResonatedEntries(1, false);
   }, []);
+
+  // Proper auth state management - listen for auth changes like useNexusData does
+  useEffect(() => {
+    // Listen for auth state changes
+    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
+      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
+        // User just became authenticated - reload resonance field data
+        if (posts.length === 0 && !isLoading) {
+          console.log('🔄 Auth completed, reloading resonance field data');
+          loadResonatedEntries(1, false);
+        }
+      }
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [posts.length, isLoading]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {

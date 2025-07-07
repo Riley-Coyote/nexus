@@ -81,8 +81,12 @@ export default function UserProfilePage() {
     }
   };
 
-  const handleAuthSuccess = () => {
-    nexusData.forceAuthRefresh();
+  const handleAuthSuccess = async () => {
+    try {
+      await nexusData.forceAuthRefresh();
+    } catch (error) {
+      console.error('Failed to refresh auth state:', error);
+    }
   };
 
   const handleProfileClick = () => {

@@ -79,7 +79,7 @@ export interface NexusData {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, options?: { name?: string }) => Promise<void>;
   logout: () => void;
-  forceAuthRefresh: () => void;
+  forceAuthRefresh: () => Promise<void>;
   
   // Profile actions
   updateUserProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
@@ -664,9 +664,42 @@ export const useNexusData = (): NexusData => {
     setDreamStateMetrics(null);
   }, []);
 
-  const forceAuthRefresh = useCallback(() => {
-    const currentAuthState = authService.getAuthState();
-    setAuthState(currentAuthState);
+  // ✅ FIXED: Enhanced forceAuthRefresh with async initialization and timeout recovery
+  const forceAuthRefresh = useCallback(async () => {
+    console.log('🔄 Force auth refresh requested');
+    
+    try {
+      // Set loading state immediately
+      setAuthState(prev => ({ ...prev, isAuthLoading: true }));
+      
+      // Wait for auth service to complete re-initialization
+      const refreshedAuthState = await authService.getAuthStateAsync();
+      console.log('🔐 Force auth refresh completed:', refreshedAuthState);
+      setAuthState(refreshedAuthState);
+      
+      // If still stuck in loading state after timeout, force fallback
+      setTimeout(() => {
+        if (refreshedAuthState.isAuthLoading) {
+          console.warn('⚠️ Auth still loading after timeout, forcing fallback state');
+          setAuthState({
+            isAuthLoading: false,
+            isAuthenticated: false,
+            currentUser: null,
+            sessionToken: null
+          });
+        }
+      }, 10000); // 10 second timeout
+      
+    } catch (error) {
+      console.error('❌ Force auth refresh failed:', error);
+      // Set fallback auth state on error
+      setAuthState({
+        isAuthLoading: false,
+        isAuthenticated: false,
+        currentUser: null,
+        sessionToken: null
+      });
+    }
   }, []);
 
   // User interaction checks - following social media playbook pattern
@@ -694,6 +727,34 @@ export const useNexusData = (): NexusData => {
     return result;
   }, [authState.currentUser, isUserStatesLoaded, userInteractionStates]);
   
+  // ✅ DEBUG: Monitor auth state changes
+  useEffect(() => {
+    console.log('🔍 DEBUG: Auth state changed in useNexusData:', {
+      isAuthLoading: authState.isAuthLoading,
+      isAuthenticated: authState.isAuthenticated,
+      currentUser: authState.currentUser?.username || 'null',
+      sessionToken: authState.sessionToken ? 'exists' : 'null'
+    });
+  }, [authState]);
+
+  // ✅ CRITICAL SAFETY: Ensure we never stay in loading state indefinitely
+  useEffect(() => {
+    if (authState.isAuthLoading) {
+      const safetyTimeout = setTimeout(() => {
+        console.warn('⚠️ Auth has been loading for too long, forcing fallback state');
+        setAuthState({
+          isAuthLoading: false,
+          isAuthenticated: false,
+          currentUser: null,
+          sessionToken: null
+        });
+        setIsLoading(false);
+      }, 30000); // 30 second absolute maximum
+
+      return () => clearTimeout(safetyTimeout);
+    }
+  }, [authState.isAuthLoading]);
+
   // OPTIMIZED: Single auth state management with throttling to prevent multiple calls
   const authDataLoadedRef = useRef(false);
   const authLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -721,65 +782,159 @@ export const useNexusData = (): NexusData => {
       }
     }
     
-    // Single auth state listener with all logic consolidated
-    const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
-      setAuthState({ ...newAuthState, isAuthLoading: false });
-      
-      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // Only load data if we haven't loaded it already for this auth session
-        if (!authDataLoadedRef.current) {
-          authLoadTimeoutRef.current = setTimeout(async () => {
-            // DISABLED: Auto data loading on auth - let components request data manually
-            // The infinite loop was caused by automatic data loading here
-            console.log('🔐 User authenticated - data loading disabled to prevent infinite loops');
-            authDataLoadedRef.current = true;
-          }, 100); // Small delay to batch multiple auth state changes
-        }
-        
-        // NOTE: User interaction states are now loaded in a separate useEffect
-        // that watches for logbookEntries and sharedDreams changes
-        
-        // OPTIMIZATION: Only load resonance data when needed (legacy support)
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-        const shouldLoadResonanceData = currentPath.includes('/resonance-field') || 
-                                       currentPath.includes('/profile');
-        
-        if (shouldLoadResonanceData) {
-          loadResonatedEntries();
-          loadAmplifiedEntries();
-        }
-      } else {
-        // Clear data on logout
-        authDataLoadedRef.current = false; // Reset for next login
-        if (authLoadTimeoutRef.current) {
-          clearTimeout(authLoadTimeoutRef.current);
-        }
-        
-        setProfileUser(null);
-        setProfileUserPosts([]);
-        setResonatedEntries([]);
-        setAmplifiedEntries([]);
-        setUserInteractionStates(new Map());
-        setIsUserStatesLoaded(false);
-        setCurrentPostIds([]);
-        
-        // Clear user interaction service cache
-        const previousUser = authState.currentUser;
-        if (previousUser) {
-          userInteractionService.clearUserCache(previousUser.id);
-        }
+    // Set a temporary auth state immediately to prevent infinite loading
+    setAuthState({
+      isAuthLoading: true,
+      isAuthenticated: false,
+      currentUser: null,
+      sessionToken: null
+    });
+    
+    // Check for corrupted localStorage data on mount
+    if (typeof window !== 'undefined') {
+      try {
+        // Import authService for storage check
+        import('../lib/services/authService').then(({ authService }) => {
+          if (authService.hasCorruptedStorageData()) {
+            console.warn('Detected corrupted localStorage data, cleaning up...');
+            authService.clearAllStorageData();
+            // Force refresh auth state after cleanup
+            setTimeout(() => {
+              const currentAuthState = authService.getAuthState();
+              setAuthState(currentAuthState);
+            }, 100);
+          }
+        });
+      } catch (error) {
+        console.error('Error checking for corrupted storage data:', error);
       }
+    }
+    
+    // Initialize auth properly with error handling and timeout
+    const initializeAuth = async () => {
+      console.log('🔄 [DEBUG] Starting auth initialization...');
       
-      // Stop global loading indicator after auth state is resolved
+      try {
+        // Add a timeout to prevent hanging indefinitely
+        const initTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Auth initialization timeout after 20 seconds')), 20000);
+        });
+        
+        // Wait for auth service to complete initialization with timeout
+        const initialAuthState = await Promise.race([
+          authService.getAuthStateAsync(),
+          initTimeout
+        ]);
+        
+        console.log('🔐 [DEBUG] Auth initialization completed, setting initial state:', {
+          isAuthLoading: initialAuthState.isAuthLoading,
+          isAuthenticated: initialAuthState.isAuthenticated,
+          currentUser: initialAuthState.currentUser?.username || 'null'
+        });
+        
+        setAuthState(initialAuthState);
+        
+        // ✅ SIMPLIFIED: Set up auth state change listener with minimal processing
+        console.log('🔗 [DEBUG] Setting up auth state listener...');
+        const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
+          console.log('🔄 [DEBUG] Auth state changed received in useNexusData:', {
+            isAuthLoading: newAuthState.isAuthLoading,
+            isAuthenticated: newAuthState.isAuthenticated,
+            currentUser: newAuthState.currentUser?.username || 'null'
+          });
+          
+          // Only update state if it's actually different
+          setAuthState(prevState => {
+            const isStateChanged = 
+              prevState.isAuthLoading !== newAuthState.isAuthLoading ||
+              prevState.isAuthenticated !== newAuthState.isAuthenticated ||
+              prevState.currentUser?.id !== newAuthState.currentUser?.id;
+            
+            if (!isStateChanged) {
+              console.log('⏭️ [DEBUG] Auth state unchanged, skipping update');
+              return prevState;
+            }
+            
+            console.log('🔧 [DEBUG] Setting new auth state in React...');
+            return newAuthState;
+          });
+          
+          // Handle logout cleanup
+          if (!newAuthState.isAuthenticated && authState.isAuthenticated) {
+            console.log('🔐 [DEBUG] User logged out, clearing data');
+            authDataLoadedRef.current = false;
+            if (authLoadTimeoutRef.current) {
+              clearTimeout(authLoadTimeoutRef.current);
+            }
+            
+            setProfileUser(null);
+            setProfileUserPosts([]);
+            setResonatedEntries([]);
+            setAmplifiedEntries([]);
+            setUserInteractionStates(new Map());
+            setIsUserStatesLoaded(false);
+            setCurrentPostIds([]);
+            
+            // Clear user interaction service cache
+            const previousUser = authState.currentUser;
+            if (previousUser) {
+              userInteractionService.clearUserCache(previousUser.id);
+            }
+          }
+          
+          // Stop global loading indicator after auth state is resolved
+          if (!newAuthState.isAuthLoading) {
+            setIsLoading(false);
+          }
+        });
+        
+        // Return cleanup function
+        return unsubscribe;
+        
+      } catch (error) {
+        console.error('❌ Auth initialization failed:', error);
+        console.error('❌ Error details:', error instanceof Error ? error.message : String(error), error instanceof Error ? error.stack : 'No stack trace');
+        
+        // Set a fallback auth state on error - this is critical to prevent infinite loading
+        const fallbackState = {
+          isAuthLoading: false,
+          isAuthenticated: false,
+          currentUser: null,
+          sessionToken: null
+        };
+        
+        console.log('🔧 Setting fallback auth state:', fallbackState);
+        setAuthState(fallbackState);
+        setIsLoading(false);
+        
+        // Still return a cleanup function to prevent errors
+        return () => {};
+      }
+    };
+    
+    // Initialize auth and store cleanup function
+    let authCleanup: (() => void) | undefined;
+    
+    initializeAuth().then(cleanup => {
+      authCleanup = cleanup;
+    }).catch(error => {
+      console.error('❌ Failed to initialize auth completely:', error);
+      // Final fallback - ensure we never stay in loading state
+      setAuthState({
+        isAuthLoading: false,
+        isAuthenticated: false,
+        currentUser: null,
+        sessionToken: null
+      });
       setIsLoading(false);
     });
     
-    // Get initial auth state
-    const currentAuthState = authService.getAuthState();
-    setAuthState(currentAuthState);
-    
     return () => {
-      unsubscribe();
+      // Clean up auth listener
+      if (authCleanup) {
+        authCleanup();
+      }
+      
       // Clean up timeout on unmount
       if (authLoadTimeoutRef.current) {
         clearTimeout(authLoadTimeoutRef.current);
@@ -927,14 +1082,12 @@ export const useNexusData = (): NexusData => {
     if (!authState.currentUser) return [];
     
     try {
-      console.log(`🔄 Loading resonated entries page ${page}`);
       const newEntries = await dataService.getResonatedEntries(authState.currentUser.id, page, limit);
       const newEntriesData = newEntries.map(convertToStreamEntryData);
       
       // Append to existing resonated entries (triggers useEffect automatically)
       setResonatedEntries(prev => [...prev, ...newEntriesData]);
       
-      console.log(`✅ Appended ${newEntriesData.length} resonated entries to main state`);
       return newEntriesData;
     } catch (error) {
       console.error('❌ Error loading more resonated entries:', error);
@@ -1003,13 +1156,11 @@ export const useNexusData = (): NexusData => {
     ensureFeedDataLoaded: useCallback(async () => {
       // Prevent duplicate calls by checking if we're already loading
       if (isLoadingFeedData) {
-        console.log('🔄 Feed data load already in progress, skipping...');
         return;
       }
       
       // Only refresh if data appears stale (empty arrays) and we're not already loading
       if (logbookEntries.length === 0 && sharedDreams.length === 0 && !isLoading) {
-        console.log('🔄 Ensuring feed data is loaded with optimized method...');
         setIsLoadingFeedData(true);
         try {
           await loadFeedDataOptimized(); // Use optimized method instead of old loadFeedData
@@ -1223,7 +1374,6 @@ export const useNexusData = (): NexusData => {
         // Update profile data
         setProfileUser(user);
         setProfileUserPosts(posts);
-        console.log(`✅ Loaded profile for ${username}:`, { user, postsCount: posts.length });
       } catch (error) {
         console.error('❌ Failed to load user profile:', error);
       } finally {

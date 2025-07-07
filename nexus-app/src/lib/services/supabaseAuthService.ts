@@ -99,16 +99,19 @@ class MockAuthBridge {
 
 class SupabaseAuthService {
   private authState: AuthState = {
-    isAuthLoading: false,
+    isAuthLoading: true,
     isAuthenticated: false,
     currentUser: null,
     sessionToken: null
   };
   private initialized = false;
+  private initializationFailed = false;
+  private initializationStartTime: number = 0;
   private authListeners: ((authState: AuthState) => void)[] = [];
   private initializationPromise: Promise<void> | null = null;
 
   constructor() {
+    this.initializationStartTime = Date.now();
     // Initialize auth state
     this.initialize();
   }
@@ -126,60 +129,110 @@ class SupabaseAuthService {
   }
 
   private async performInitialization() {
+    const initTimeout = 30000; // 30 second timeout
+    
     try {
-      // Check for existing session with timeout
-      const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Session check timeout')), 10000);
-      });
-
-      const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
-      
-      if (error) {
-        console.warn('Session check error:', error);
-        await this.cleanupInvalidSession();
-        return;
-      }
-      
-      if (data.session) {
-        await this.handleAuthStateChange(data.session);
-      }
-
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event, session ? 'session exists' : 'no session');
+      // Wrap entire initialization in timeout
+      const initializationProcess = async () => {
+        console.log('🔄 Starting Supabase auth initialization...');
         
-        if (event === 'SIGNED_IN' && session) {
-          await this.handleAuthStateChange(session);
-        } else if (event === 'SIGNED_OUT') {
-          this.clearAuthState();
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          await this.handleAuthStateChange(session);
-        } else if (event === 'USER_UPDATED' && session) {
-          // Skip the profile fetch for simple USER_UPDATED events that don't change metadata we care about
-          if (this.authState.currentUser?.id === session.user.id) {
-            // Just update the session token, keep existing profile
-            console.log('USER_UPDATED: profile already cached, skipping DB fetch');
-            this.authState = {
-              ...this.authState,
-              sessionToken: session.access_token
-            };
-            this.notifyAuthListeners();
-          } else {
-            // Different user or no cached profile - fetch it
-            await this.handleAuthStateChange(session);
-          }
-        }
-      });
+        // Check for existing session with timeout
+        const sessionPromise = supabase.auth.getSession();
+        const sessionTimeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Session check timeout')), 10000);
+        });
 
-      this.initialized = true;
+        const { data, error } = await Promise.race([sessionPromise, sessionTimeoutPromise]);
+        
+        if (error) {
+          console.warn('Session check error:', error);
+          await this.cleanupInvalidSession();
+          return;
+        }
+        
+        console.log('🔐 Session check completed:', data.session ? 'session found' : 'no session');
+        
+        if (data.session) {
+          await this.handleAuthStateChange(data.session);
+        }
+
+        // Listen for auth changes - ONLY SET UP ONCE
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (this.initializationFailed) return; // Ignore if we've already failed
+          
+          console.log('Auth state change event:', event, session ? 'with session' : 'without session');
+          
+          // Handle session events
+          if (event === 'SIGNED_IN' && session) {
+            await this.handleAuthStateChange(session);
+          } else if (event === 'SIGNED_OUT') {
+            this.clearAuthState();
+          } else if (event === 'TOKEN_REFRESHED' && session) {
+            await this.handleAuthStateChange(session);
+          } else if (event === 'USER_UPDATED' && session) {
+            // Skip the profile fetch for simple USER_UPDATED events that don't change metadata we care about
+            if (this.authState.currentUser?.id === session.user.id) {
+              // Just update the session token, keep existing profile
+              console.log('USER_UPDATED: profile already cached, skipping DB fetch');
+              this.atomicUpdateAuthState({
+                sessionToken: session.access_token
+              });
+            } else {
+              // Different user or no cached profile - fetch it
+              await this.handleAuthStateChange(session);
+            }
+          }
+        });
+
+        this.initialized = true;
+        this.initializationFailed = false;
+        
+        console.log('✅ Supabase auth initialization completed successfully');
+        
+        this.atomicUpdateAuthState({
+          isAuthLoading: false
+        });
+      };
+
+      // Apply timeout to the entire initialization process
+      await Promise.race([
+        initializationProcess(),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Auth initialization timeout')), initTimeout);
+        })
+      ]);
+
     } catch (error) {
-      console.error('Error initializing auth:', error);
-      // On initialization error, clear any stale state
-      await this.cleanupInvalidSession();
+      console.error('Auth initialization failed:', error);
+      this.initializationFailed = true;
+      this.atomicUpdateAuthState({
+        isAuthLoading: false,
+        isAuthenticated: false,
+        currentUser: null,
+        sessionToken: null
+      });
     } finally {
       this.initializationPromise = null;
+      
+      // CRITICAL: Ensure we NEVER stay in loading state indefinitely
+      setTimeout(() => {
+        if (this.authState.isAuthLoading) {
+          console.warn('⚠️ Auth still loading after timeout, forcing non-loading state');
+          this.atomicUpdateAuthState({
+            isAuthLoading: false
+          });
+        }
+      }, 5000); // 5 second final safety check
     }
+  }
+
+  private atomicUpdateAuthState(updates: Partial<AuthState>) {
+    this.authState = {
+      ...this.authState,
+      ...updates
+    };
+    
+    this.notifyAuthListeners();
   }
 
   private async cleanupInvalidSession() {
@@ -218,14 +271,13 @@ class SupabaseAuthService {
 
       const user = await this.createOrGetUserProfile(session.user);
       
-      this.authState = {
+      this.atomicUpdateAuthState({
         isAuthLoading: false,
         isAuthenticated: true,
         currentUser: user,
         sessionToken: session.access_token
-      };
+      });
 
-      this.notifyAuthListeners();
     } catch (error) {
       console.error('Error handling auth state change:', error);
       
@@ -233,13 +285,12 @@ class SupabaseAuthService {
       if (error instanceof Error && error.message.includes('timeout')) {
         // Keep session valid; mark profile as stale and retry in background
         console.warn('Profile fetch timed out; keeping session valid and will retry later');
-        this.authState = {
+        this.atomicUpdateAuthState({
           isAuthLoading: false,
           isAuthenticated: true,
           currentUser: this.authState.currentUser, // Keep existing profile if available
           sessionToken: session.access_token
-        };
-        this.notifyAuthListeners();
+        });
         
         // Schedule background retry
         setTimeout(() => {
@@ -379,22 +430,39 @@ class SupabaseAuthService {
   }
 
   private clearAuthState() {
-    this.authState = {
+    this.atomicUpdateAuthState({
       isAuthLoading: false,
       isAuthenticated: false,
       currentUser: null,
       sessionToken: null
-    };
-    this.notifyAuthListeners();
+    });
   }
 
   private notifyAuthListeners() {
     this.authListeners.forEach(listener => listener(this.authState));
   }
 
-  // Subscribe to auth state changes
+  // ✅ NEW: Wait for initialization to complete
+  private async waitForInitialization(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return;
+    }
+    
+    // If no initialization promise exists, start initialization
+    return this.initialize();
+  }
+
   onAuthStateChange(callback: (authState: AuthState) => void) {
     this.authListeners.push(callback);
+    
+    // Immediately notify with current state
+    callback(this.authState);
+    
     return () => {
       this.authListeners = this.authListeners.filter(listener => listener !== callback);
     };
@@ -693,7 +761,35 @@ class SupabaseAuthService {
     return this.authState.isAuthenticated;
   }
 
+  // ✅ FIXED: Make getAuthState wait for initialization
   getAuthState(): AuthState {
+    // If not initialized and still loading, return current state
+    // The initialization will notify listeners when complete
+    if (!this.initialized && this.authState.isAuthLoading) {
+      return this.authState;
+    }
+    
+    // If initialization failed, return current state
+    if (this.initializationFailed) {
+      return this.authState;
+    }
+    
+    return this.authState;
+  }
+
+  // ✅ NEW: Async version that waits for initialization
+  async getAuthStateAsync(): Promise<AuthState> {
+    if (this.initialized) {
+      return this.authState;
+    }
+    
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return this.authState;
+    }
+    
+    // If no initialization promise exists, start initialization
+    await this.initialize();
     return this.authState;
   }
 
