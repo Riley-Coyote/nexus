@@ -959,21 +959,30 @@ export class DataService {
       const currentUser = authService.getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
+      // Get parent entry to inherit privacy and entry_type
+      const parentEntry = await this.getEntryById(parentId);
+      if (!parentEntry) {
+        throw new Error(`Parent entry ${parentId} not found`);
+      }
+
+      console.log(`🔄 Inheriting from parent: privacy=${parentEntry.privacy}, entry_type=${parentEntry.entryType}, type=${parentEntry.type}`);
+
       const newEntry = await this.database.createEntry({
-        type: 'logbook',
+        type: parentEntry.type || 'Branch', // Inherit the specific type from parent (e.g., "Deep Reflection")
         title: '',
         content,
         agent: currentUser.username || currentUser.email,
         username: currentUser.username || currentUser.email,
         userId: currentUser.id,
         timestamp: new Date().toISOString(),
-        privacy: 'public',
+        privacy: parentEntry.privacy || 'private', // Inherit privacy from parent
         parentId: parentId,
         children: [],
-        depth: 1,
+        depth: (parentEntry.depth || 0) + 1, // Inherit proper depth
         actions: ["Resonate ◊", "Branch ∞", "Amplify ≋", "Share ∆"],
         threads: [],
         isAmplified: false,
+        entryType: parentEntry.entryType || 'logbook', // Inherit entry_type from parent (logbook/dream)
         interactions: {
           resonances: 0,
           branches: 0,
@@ -987,7 +996,7 @@ export class DataService {
       // OPTIMIZATION: Update parent's branch count in cache immediately
       this.updateInteractionCountInCache(parentId, 'branch', 1);
       
-      console.log(`✅ Branch created for entry ${parentId} - cache updated`);
+      console.log(`✅ Branch created for entry ${parentId} - cache updated with inherited properties`);
     } catch (error) {
       console.error('❌ Error creating branch:', error);
       throw error;
@@ -1681,13 +1690,13 @@ export class DataService {
           // For feed mode, we need to get both logbook and dream entries
           // We'll make two optimized calls and combine them
           const [logbookEntries, dreamEntries] = await Promise.all([
-            this.database.getEntriesWithUserStates('logbook', userId, targetUserId || null, {
+            this.database.getEntriesWithUserStates('logbook', userId || '', targetUserId || null, {
               page: safePage,
               limit: Math.ceil(safeLimit / 2), // Split limit between types
               sortBy,
               sortOrder
             }),
-            this.database.getEntriesWithUserStates('dream', userId, targetUserId || null, {
+            this.database.getEntriesWithUserStates('dream', userId || '', targetUserId || null, {
               page: safePage,
               limit: Math.ceil(safeLimit / 2),
               sortBy,
@@ -1719,7 +1728,7 @@ export class DataService {
           break;
           
         case 'logbook':
-          entries = await this.database.getEntriesWithUserStates('logbook', userId, targetUserId || null, {
+          entries = await this.database.getEntriesWithUserStates('logbook', userId || '', targetUserId || null, {
             page: safePage,
             limit: safeLimit,
             sortBy,
@@ -1729,7 +1738,7 @@ export class DataService {
           break;
           
         case 'dream':
-          entries = await this.database.getEntriesWithUserStates('dream', userId, targetUserId || null, {
+          entries = await this.database.getEntriesWithUserStates('dream', userId || '', targetUserId || null, {
             page: safePage,
             limit: safeLimit,
             sortBy,
@@ -1808,12 +1817,29 @@ export class DataService {
       return entries.map(this.streamEntryWithUserStatesToPost);
     }
     // Fallback to existing method
-    return this.getPostsWithUserStates(options.entryType as 'logbook' | 'dream', profileUserId, options.targetUserId, {
+    const entries = await this.getPosts({
+      mode: options.entryType as 'logbook' | 'dream' || 'all',
+      userId: profileUserId,
       page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
       limit: options.limit || 20,
       sortBy: options.sortBy || 'timestamp',
       sortOrder: options.sortOrder || 'desc'
     });
+    return entries.map(entry => ({
+      id: entry.id,
+      type: entry.type,
+      agent: entry.agent,
+      content: entry.content,
+      timestamp: entry.timestamp,
+      privacy: entry.privacy as 'public' | 'private',
+      username: entry.username,
+      userId: entry.userId,
+      title: entry.title,
+      entryType: entry.entryType,
+      interactions: entry.interactions,
+      userHasResonated: false,
+      userHasAmplified: false
+    }));
   }
 
   // Logbook: User's own logbook entries (public + private)
@@ -1874,11 +1900,25 @@ export class DataService {
       return entries.map(this.streamEntryWithUserStatesToPost);
     }
     // Fallback to existing method
-    const posts = await this.getResonatedPosts(userId, {
-      page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
-      limit: options.limit || 20
-    });
-    return posts;
+    const entries = await this.getResonatedEntries(userId, 
+      Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+      options.limit || 20
+    );
+    return entries.map(entry => ({
+      id: entry.id,
+      type: entry.type,
+      agent: entry.agent,
+      content: entry.content,
+      timestamp: entry.timestamp,
+      privacy: entry.privacy as 'public' | 'private',
+      username: entry.username,
+      userId: entry.userId,
+      title: entry.title,
+      entryType: entry.entryType,
+      interactions: entry.interactions,
+      userHasResonated: true, // These are resonated entries
+      userHasAmplified: false
+    }));
   }
 
   // Amplified: Posts the user has amplified
@@ -1898,8 +1938,8 @@ export class DataService {
     return [];
   }
 
-  // Helper method to convert StreamEntryWithUserStates to PostWithUserStates
-  private streamEntryWithUserStatesToPost(entry: StreamEntryWithUserStates): PostWithUserStates {
+  // Helper method to convert StreamEntry to PostWithUserStates
+  private streamEntryWithUserStatesToPost(entry: any): PostWithUserStates {
     return {
       id: entry.id,
       type: entry.type,
@@ -1912,13 +1952,13 @@ export class DataService {
       title: entry.title,
       entryType: entry.entryType,
       interactions: {
-        resonances: entry.resonance_count,
-        branches: entry.branch_count,
-        amplifications: entry.amplification_count,
-        shares: entry.share_count
+        resonances: entry.resonance_count || entry.interactions?.resonances || 0,
+        branches: entry.branch_count || entry.interactions?.branches || 0,
+        amplifications: entry.amplification_count || entry.interactions?.amplifications || 0,
+        shares: entry.share_count || entry.interactions?.shares || 0
       },
-      userHasResonated: entry.has_resonated,
-      userHasAmplified: entry.has_amplified
+      userHasResonated: entry.has_resonated || false,
+      userHasAmplified: entry.has_amplified || false
     };
   }
 

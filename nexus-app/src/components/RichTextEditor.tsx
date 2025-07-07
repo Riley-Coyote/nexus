@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Strike from '@tiptap/extension-strike';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface RichTextEditorProps {
   value: string;
@@ -40,6 +40,20 @@ export default function RichTextEditor({
       }
     },
   });
+
+  // Sync editor content when value prop changes (for clearing after submission)
+  useEffect(() => {
+    if (editor && editor.getHTML() !== value) {
+      // Only update if the content actually differs to avoid infinite loops
+      if (value === '' || value === '<p></p>') {
+        // Clear the editor completely
+        editor.commands.clearContent(true);
+      } else {
+        // Set new content
+        editor.commands.setContent(value, false);
+      }
+    }
+  }, [value, editor]);
 
   // Helper to render toolbar buttons
   const renderBtn = (
