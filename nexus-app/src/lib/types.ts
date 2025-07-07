@@ -74,6 +74,11 @@ export interface Post {
   actions?: string[];
   threads?: any[];
   userId?: string;
+  // User interaction states (populated by optimized queries)
+  userInteractionStates?: {
+    hasResonated: boolean;
+    hasAmplified: boolean;
+  };
 }
 
 // Legacy type alias for backwards compatibility

@@ -244,52 +244,13 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.currentUser]);
   
-  // NEW: Unified feed data loader for public entries only
+  // NEW: Unified feed data loader for public entries only (DEPRECATED - use optimized version)
   const loadFeedData = useCallback(async () => {
-    // Prevent concurrent calls using ref
-    if (isLoadingRef.current) {
-      console.log('📡 Feed data already loading, skipping...');
-      return;
-    }
-    
-    isLoadingRef.current = true;
-    setIsLoading(true);
-    try {
-      console.log('📡 Loading public feed data...');
-      
-      // Fetch public entries only - no auth required
-      const [publicLogbookEntries, publicDreamEntries] = await Promise.all([
-        dataService.getPosts({ 
-          mode: 'logbook', 
-          page: 1, 
-          limit: 20, 
-          threaded: false,
-          filters: { privacy: 'public' } 
-        }),
-        dataService.getPosts({ 
-          mode: 'dream', 
-          page: 1, 
-          limit: 20, 
-          threaded: false,
-          filters: { privacy: 'public' } 
-        })
-      ]);
-      
-      // Store public entries for feed (no user filtering needed)
-      setLogbookEntries(publicLogbookEntries);
-      setSharedDreams(publicDreamEntries);
-      // Clear allDreams to prevent the filtering effect from running
-      setAllDreams([]);
-      
-      console.log(`✅ Loaded ${publicLogbookEntries.length} public logbook + ${publicDreamEntries.length} public dream entries`);
-      
-    } catch (error) {
-      console.error('Failed to load feed data:', error);
-    } finally {
-      isLoadingRef.current = false;
-      setIsLoading(false);
-    }
-  }, []); // No dependencies to prevent recreation
+    // DEPRECATED: This method is kept for fallback only
+    // Redirect to optimized version
+    console.warn('⚠️ Using deprecated loadFeedData, redirecting to optimized version');
+    return loadFeedDataOptimized();
+  }, []);
 
   // OPTIMIZED: Feed data loader that includes user interaction states in single query
   const loadFeedDataOptimized = useCallback(async () => {
@@ -337,13 +298,15 @@ export const useNexusData = (): NexusData => {
       
     } catch (error) {
       console.error('Failed to load optimized feed data:', error);
-      // Fall back to traditional method
-      await loadFeedData();
+      // Fall back to empty arrays instead of calling old method to prevent infinite loops
+      setLogbookEntries([]);
+      setSharedDreams([]);
+      setAllDreams([]);
     } finally {
       isLoadingRef.current = false;
       setIsLoading(false);
     }
-  }, [authState.currentUser, loadFeedData]); // Include loadFeedData as fallback dependency
+  }, [authState.currentUser]);
   
   // Load logbook data (user-specific)
   const loadLogbookData = useCallback(async () => {
@@ -415,7 +378,7 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState.currentUser, allDreams]);
   
-  // Refresh all data (now using path-independent logic with optimization)
+  // Refresh all data (now using optimized flow by default)
   const refreshData = useCallback(async () => {
     // Check if we're currently on feed path using a more stable approach
     const isOnFeedPath = typeof window !== 'undefined' && 
@@ -1046,15 +1009,15 @@ export const useNexusData = (): NexusData => {
       
       // Only refresh if data appears stale (empty arrays) and we're not already loading
       if (logbookEntries.length === 0 && sharedDreams.length === 0 && !isLoading) {
-        console.log('🔄 Ensuring feed data is loaded...');
+        console.log('🔄 Ensuring feed data is loaded with optimized method...');
         setIsLoadingFeedData(true);
         try {
-          await loadFeedData(); // Use feed-specific loader instead of refreshData
+          await loadFeedDataOptimized(); // Use optimized method instead of old loadFeedData
         } finally {
           setIsLoadingFeedData(false);
         }
       }
-    }, [logbookEntries.length, sharedDreams.length, isLoading, loadFeedData, isLoadingFeedData]),
+    }, [logbookEntries.length, sharedDreams.length, isLoading, loadFeedDataOptimized, isLoadingFeedData]),
     
     // Auth actions
     login,

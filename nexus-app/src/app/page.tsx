@@ -59,8 +59,8 @@ export default function Home() {
   useEffect(() => {
     if (pathname === '/' || pathname === '/feed') {
       setViewMode('feed');
-      // Ensure feed data is loaded when navigating to feed without causing loops
-      nexusData.ensureFeedDataLoaded?.();
+      // OPTIMIZED: No longer trigger old data loading - let NexusFeed handle its own optimized data loading
+      // This allows NexusFeed to use the optimized get_entries_with_user_states SQL function
     } else if (pathname.startsWith('/dream')) {
       setJournalMode('dream');
       setViewMode('default');
@@ -70,12 +70,8 @@ export default function Home() {
     }
   }, [pathname]);
 
-  // After authentication resolves, make sure feed data is loaded if we are in feed view
-  useEffect(() => {
-    if (!nexusData.isLoading && viewMode === 'feed') {
-      nexusData.ensureFeedDataLoaded?.();
-    }
-  }, [nexusData.isLoading, viewMode]);
+  // OPTIMIZED: No longer trigger old data loading after auth - let NexusFeed handle its own optimized data loading
+  // This prevents interference with the optimized get_entries_with_user_states SQL function flow
 
   // Handle opening posts (unified handler for both Post and StreamEntry)
   const handleOpenPost = (post: Post | StreamEntry) => {
@@ -230,22 +226,15 @@ export default function Home() {
           {/* Feed View */}
           {viewMode === 'feed' && (
             <NexusFeed 
-              logbookEntries={nexusData.logbookEntries}
-              dreamEntries={nexusData.sharedDreams}
               onPostClick={handleOpenPost}
               onUserClick={handleUserClick}
-              getPosts={nexusData.getPosts}
               createBranch={nexusData.createBranch}
               refreshLogbookData={nexusData.refreshLogbookData}
               refreshDreamData={nexusData.refreshDreamData}
-              refreshFeedData={nexusData.refreshFeedData}
               onResonate={nexusData.resonateWithEntry}
               onAmplify={nexusData.amplifyEntry}
               onShare={handleShare}
               onDeepDive={handleDeepDive}
-              hasUserResonated={nexusData.hasUserResonated}
-              hasUserAmplified={nexusData.hasUserAmplified}
-              isUserStatesLoaded={nexusData.isUserStatesLoaded}
             />
           )}
           
