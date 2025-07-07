@@ -1856,12 +1856,16 @@ export class DataService {
       return entries.map(this.streamEntryWithUserStatesToPost);
     }
     // Fallback to existing method
-    return this.getPostsWithUserStates('logbook', userId, options.targetUserId, {
+    const entries = await this.getPostsWithUserStates({
+      mode: 'logbook',
+      userId: userId,
+      targetUserId: options.targetUserId,
       page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
       limit: options.limit || 20,
       sortBy: options.sortBy || 'timestamp',
       sortOrder: options.sortOrder || 'desc'
     });
+    return entries.map(this.streamEntryWithUserStatesToPost);
   }
 
   // Dreams: User's own dream entries (public + private)
@@ -1878,12 +1882,16 @@ export class DataService {
       return entries.map(this.streamEntryWithUserStatesToPost);
     }
     // Fallback to existing method
-    return this.getPostsWithUserStates('dream', userId, options.targetUserId, {
+    const entries = await this.getPostsWithUserStates({
+      mode: 'dream',
+      userId: userId,
+      targetUserId: options.targetUserId,
       page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
       limit: options.limit || 20,
       sortBy: options.sortBy || 'timestamp',
       sortOrder: options.sortOrder || 'desc'
     });
+    return entries.map(this.streamEntryWithUserStatesToPost);
   }
 
   // Resonance Field: Posts the user has resonated with
