@@ -131,6 +131,8 @@ export default function ResonanceFieldPage() {
             hasUserAmplified={nexusData.hasUserAmplified}
             onShare={handleShare}
             onDeepDive={(post) => handleDeepDive(post.username, post.id)}
+            isUserStatesLoaded={nexusData.isUserStatesLoaded}
+            loadUserStatesForPosts={nexusData.loadUserStatesForPosts}
           />
         </div>
       </div>

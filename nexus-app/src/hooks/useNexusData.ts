@@ -94,6 +94,9 @@ export interface NexusData {
   hasUserResonated: (entryId: string) => boolean;
   hasUserAmplified: (entryId: string) => boolean;
   
+  // NEW: Manual user interaction state loading for specific posts
+  loadUserStatesForPosts: (postIds: string[]) => Promise<void>;
+  
   // UNIFIED PAGINATION API (NEW)
   getPosts: (options: {
     mode: 'feed' | 'logbook' | 'dream' | 'all' | 'resonated' | 'amplified' | 'profile';
@@ -851,6 +854,38 @@ export const useNexusData = (): NexusData => {
     }
   }, []);
   
+  // NEW: Manual user interaction state loading for specific posts
+  const loadUserStatesForPosts = useCallback(async (postIds: string[]) => {
+    if (!authState.currentUser || postIds.length === 0) {
+      console.log(`⏭️ Cannot load user states - no user or no posts`);
+      return;
+    }
+
+    console.log(`🔄 Manually loading user interaction states for ${postIds.length} posts`);
+    
+    try {
+      const states = await userInteractionService.batchLoadUserStates(
+        authState.currentUser.id,
+        postIds
+      );
+      
+      // Merge with existing states
+      setUserInteractionStates(prev => {
+        const newMap = new Map(prev);
+        states.forEach((state, postId) => {
+          newMap.set(postId, state);
+        });
+        return newMap;
+      });
+      
+      const interactedCount = Array.from(states.values()).filter(s => s.hasResonated || s.hasAmplified).length;
+      console.log(`✅ Manually loaded user states for ${states.size} posts (${interactedCount} with interactions)`);
+      
+    } catch (error) {
+      console.error('❌ Failed to manually load user interaction states:', error);
+    }
+  }, [authState.currentUser]);
+  
   return {
     // Authentication
     authState,
@@ -959,6 +994,9 @@ export const useNexusData = (): NexusData => {
     // User interaction checks
     hasUserResonated,
     hasUserAmplified,
+    
+    // NEW: Manual user interaction state loading for specific posts
+    loadUserStatesForPosts,
     
     // UNIFIED PAGINATION API (NEW)
     getPosts: useCallback(async (options: {

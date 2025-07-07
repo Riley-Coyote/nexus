@@ -20,6 +20,8 @@ interface ResonanceFieldProps {
   hasUserAmplified?: (id: string) => boolean;
   onShare?: (id: string) => void;
   onDeepDive?: (post: Post) => void;
+  isUserStatesLoaded?: boolean; // Key addition - same as NexusFeed
+  loadUserStatesForPosts?: (postIds: string[]) => Promise<void>; // Manual user state loading
 }
 
 const PAGE_SIZE = 20;
@@ -34,7 +36,9 @@ export default function ResonanceField({
   hasUserResonated,
   hasUserAmplified,
   onShare,
-  onDeepDive
+  onDeepDive,
+  isUserStatesLoaded,
+  loadUserStatesForPosts
 }: ResonanceFieldProps) {
   const [posts, setPosts] = useState<Post[]>(() => initialEntries.map(streamEntryDataToPost));
   const [page, setPage] = useState(1);
@@ -56,6 +60,15 @@ export default function ResonanceField({
       const nextPage = page + 1;
       const newEntries = await getPosts({ mode: 'resonated', page: nextPage, limit: PAGE_SIZE });
       const newPosts = newEntries.map(streamEntryDataToPost);
+      
+      // CRITICAL: Load user interaction states for new posts
+      const newPostIds = newPosts.map(p => p.id);
+      if (newPostIds.length > 0 && loadUserStatesForPosts) {
+        console.log(`🔄 ResonanceField: Loading user interaction states for ${newPostIds.length} new posts`);
+        await loadUserStatesForPosts(newPostIds);
+        console.log(`✅ ResonanceField: User interaction states loaded for ${newPostIds.length} new posts`);
+      }
+      
       setPosts(prev => [...prev, ...newPosts]);
       setPage(nextPage);
       setHasMore(newPosts.length === PAGE_SIZE);
@@ -65,7 +78,21 @@ export default function ResonanceField({
     } finally {
       setIsLoading(false);
     }
-  }, [getPosts, hasMore, isLoading, page]);
+  }, [getPosts, hasMore, isLoading, page, loadUserStatesForPosts]);
+
+  // Following NexusFeed pattern - don't render until user interaction states are loaded
+  if (isUserStatesLoaded === false) {
+    return (
+      <main className="py-4 sm:py-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
+        <div className="max-w-4xl mx-auto w-full flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto mb-4"></div>
+            <p className="text-text-tertiary text-sm">Loading interaction states...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="py-4 sm:py-8 px-4 sm:px-8 lg:px-10 flex flex-col gap-6 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
