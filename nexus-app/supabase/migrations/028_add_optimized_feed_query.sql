@@ -46,13 +46,105 @@ CREATE INDEX IF NOT EXISTS idx_eic_score_entry
 ON entry_interaction_counts (score DESC, entry_id);
 
 -- STANDARDIZE: Convert user_id columns to UUID for consistency
--- Convert user_resonances.user_id from text to UUID
+-- Step 1: Drop views that depend on user_id columns
+DROP VIEW IF EXISTS public.user_resonated_entries_v;
+
+-- Step 2: Drop ALL RLS policies that depend on user_id columns (from various migrations)
+DROP POLICY IF EXISTS select_own_resonances ON user_resonances;
+DROP POLICY IF EXISTS insert_own_resonances ON user_resonances;
+DROP POLICY IF EXISTS delete_own_resonances ON user_resonances;
+DROP POLICY IF EXISTS select_own_amplifications ON user_amplifications;
+DROP POLICY IF EXISTS insert_own_amplifications ON user_amplifications;
+DROP POLICY IF EXISTS delete_own_amplifications ON user_amplifications;
+-- From migration 006_add_auth_profiles.sql
+DROP POLICY IF EXISTS "Users can manage their own resonances" ON user_resonances;
+DROP POLICY IF EXISTS "Users can manage their own amplifications" ON user_amplifications;
+-- Additional policies that might exist
+DROP POLICY IF EXISTS "Anyone can view resonances" ON user_resonances;
+DROP POLICY IF EXISTS "Anyone can view amplifications" ON user_amplifications;
+
+-- Step 3: Convert user_resonances.user_id from text to UUID
 ALTER TABLE user_resonances 
 ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
 
--- Convert user_amplifications.user_id from text to UUID
+-- Step 4: Convert user_amplifications.user_id from text to UUID
 ALTER TABLE user_amplifications 
 ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
+
+-- Step 5: Recreate RLS policies with UUID column type
+-- Public read policies (anyone can view resonances/amplifications)
+CREATE POLICY "Anyone can view resonances" ON user_resonances
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can view amplifications" ON user_amplifications
+    FOR SELECT USING (true);
+
+-- User management policies (users can only manage their own interactions)
+CREATE POLICY "Users can manage their own resonances" ON user_resonances
+    FOR ALL USING (user_id = auth.uid());
+
+CREATE POLICY "Users can manage their own amplifications" ON user_amplifications
+    FOR ALL USING (user_id = auth.uid());
+
+-- Step 6: Recreate the user_resonated_entries_v view with UUID support
+CREATE VIEW public.user_resonated_entries_v AS
+SELECT
+    -- All columns from stream_entries (actual schema with UUID user_id)
+    se.id,
+    se.parent_id,
+    se.children,
+    se.depth,
+    se.type,
+    se.agent,
+    se.connections,
+    se.metrics,
+    se.timestamp,
+    se.content,
+    se.actions,
+    se.privacy,
+    se.interactions,
+    se.threads,
+    se.is_amplified,
+    se.user_id,
+    se.username,
+    se.title,
+    se.resonance,
+    se.coherence,
+    se.tags,
+    se.response,
+    se.created_at,
+    se.updated_at,
+    se.subtype,
+    se.resonance_field,
+    se.quantum_layer,
+    se.metadata,
+    se.visibility,
+    se.collaborators,
+    se.share_token,
+    se.entry_type,
+    
+    -- Interaction counts from entry_interaction_counts table
+    COALESCE(eic.resonance_count, 0) as resonance_count,
+    COALESCE(eic.branch_count, 0) as branch_count,
+    COALESCE(eic.amplification_count, 0) as amplification_count,
+    COALESCE(eic.share_count, 0) as share_count,
+    
+    -- Include the resonator user ID for filtering (now UUID)
+    ur.user_id as resonator_id,
+    
+    -- Include when the resonance was created
+    ur.created_at as resonated_at
+    
+FROM public.user_resonances ur
+INNER JOIN public.stream_entries se ON se.id = ur.entry_id
+LEFT JOIN public.entry_interaction_counts eic ON eic.entry_id = se.id;
+
+-- Add comment explaining the view
+COMMENT ON VIEW public.user_resonated_entries_v IS 
+'View that returns all stream entries a user has resonated with, including interaction counts. Filtered by resonator_id. Updated for UUID user_id support.';
+
+-- Grant appropriate permissions
+GRANT SELECT ON public.user_resonated_entries_v TO authenticated;
 
 -- UNIVERSAL: Function to get entries with interaction counts and user interaction states
 -- Powers all pages: feed, profile, logbook, dreams, resonance-field
