@@ -70,13 +70,83 @@ export interface DatabaseProvider {
   // Resonated entries in one shot (optimized view)
   getResonatedEntries?(userId: string, options?: { page?: number; limit?: number }): Promise<StreamEntry[]>;
   
-  // OPTIMIZED: Get entries with user interaction states in a single query
+  // OPTIMIZED: Get entries with user interaction states in a single query (legacy signature)
   getEntriesWithUserStates?(
     entryType: 'logbook' | 'dream' | null,
     userId: string | null,
     targetUserId: string | null,
     options?: QueryOptions
   ): Promise<StreamEntryWithUserStates[]>;
+
+  // UNIVERSAL: Flexible method for all page types
+  getEntriesWithUserStatesFlexible?(options?: {
+    entryType?: string;
+    userIdFilter?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    userHasResonated?: boolean;
+    userHasAmplified?: boolean;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
+
+  // CONVENIENCE METHODS for each page type
+  getFeedEntries?(options?: {
+    entryType?: string;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
+
+  getProfileEntries?(profileUserId: string, options?: {
+    entryType?: string;
+    targetUserId?: string;
+    includePrivate?: boolean;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
+
+  getLogbookEntries?(userId: string, options?: {
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
+
+  getDreamEntries?(userId: string, options?: {
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
+
+  getResonanceFieldEntries?(userId: string, options?: {
+    entryType?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
+
+  getAmplifiedEntries?(userId: string, options?: {
+    entryType?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
 }
 
 export interface QueryOptions {
@@ -102,10 +172,14 @@ export interface UserInteractionState {
   hasAmplified: boolean;
 }
 
-// Extended StreamEntry with user interaction states for optimized queries
+// Extended StreamEntry with user interaction states and interaction counts for optimized queries
 export interface StreamEntryWithUserStates extends StreamEntry {
-  userHasResonated: boolean;
-  userHasAmplified: boolean;
+  resonance_count: number;
+  branch_count: number;
+  amplification_count: number;
+  share_count: number;
+  has_resonated: boolean;
+  has_amplified: boolean;
 }
 
 export interface BranchNode {

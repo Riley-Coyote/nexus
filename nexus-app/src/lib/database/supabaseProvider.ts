@@ -19,6 +19,19 @@ import {
   SupabaseUserFollow
 } from './types';
 
+export interface GetEntriesOptions {
+  entryType?: string | null;
+  userIdFilter?: string | null;
+  privacyFilter?: 'public' | 'private' | null;
+  targetUserId?: string | null;
+  userHasResonated?: boolean | null;
+  userHasAmplified?: boolean | null;
+  offset?: number;
+  limit?: number;
+  sortBy?: 'timestamp' | 'interactions';
+  sortOrder?: 'asc' | 'desc';
+}
+
 export class SupabaseProvider implements DatabaseProvider {
   private client: SupabaseClient = supabase;
   private isConnected = true;
@@ -1296,6 +1309,43 @@ export class SupabaseProvider implements DatabaseProvider {
     }
   }
 
+  // UNIVERSAL: Get entries with interaction counts and user states in single query (flexible signature)
+  async getEntriesWithUserStatesFlexible(options: GetEntriesOptions = {}): Promise<StreamEntryWithUserStates[]> {
+    const {
+      entryType = null,
+      userIdFilter = null,
+      privacyFilter = 'public',
+      targetUserId = null,
+      userHasResonated = null,
+      userHasAmplified = null,
+      offset = 0,
+      limit = 20,
+      sortBy = 'timestamp',
+      sortOrder = 'desc'
+    } = options;
+
+    const { data, error } = await this.client.rpc('get_entries_with_user_states', {
+      entry_type_filter: entryType,
+      user_id_filter: userIdFilter,
+      privacy_filter: privacyFilter,
+      target_user_id: targetUserId,
+      user_has_resonated: userHasResonated,
+      user_has_amplified: userHasAmplified,
+      page_offset: offset,
+      page_limit: limit,
+      sort_by: sortBy,
+      sort_order: sortOrder
+    });
+
+    if (error) {
+      console.error('Error fetching entries with user states:', error);
+      throw error;
+    }
+
+    return data || [];
+  }
+
+  // LEGACY: Get entries with interaction counts and user states (backward compatibility)
   async getEntriesWithUserStates(
     entryType: 'logbook' | 'dream' | null = null,
     userId: string | null = null,
@@ -1305,51 +1355,117 @@ export class SupabaseProvider implements DatabaseProvider {
     const { page = 1, limit = 20, sortBy = 'timestamp', sortOrder = 'desc' } = options;
     const offset = (page - 1) * limit;
 
-    console.log(`🔄 Using optimized query for entries with user states. Type: ${entryType}, User: ${targetUserId}`);
-
-    const { data, error } = await this.client.rpc('get_entries_with_user_states', {
-      entry_type_filter: entryType,
-      user_id_filter: userId,
-      target_user_id: targetUserId,
-      page_offset: offset,
-      page_limit: limit,
-      sort_by: sortBy,
-      sort_order: sortOrder
+    return this.getEntriesWithUserStatesFlexible({
+      entryType,
+      userIdFilter: userId,
+      privacyFilter: 'public',
+      targetUserId,
+      offset,
+      limit,
+      sortBy: sortBy as 'timestamp' | 'interactions',
+      sortOrder: sortOrder as 'asc' | 'desc'
     });
+  }
 
-    if (error) {
-      console.error('❌ Error fetching entries with user states:', error);
-      throw new Error(`Failed to fetch entries with user states: ${error.message}`);
-    }
+  // CONVENIENCE METHODS for each page type
 
-    if (!data) {
-      console.log('📭 No entries found with user states');
-      return [];
-    }
-
-    // Convert to StreamEntryWithUserStates format
-    const entries = data.map((row: any): StreamEntryWithUserStates => {
-      const entry = this.supabaseToStreamEntry(row);
-      
-      // Add interaction counts from the optimized query
-      entry.interactions = {
-        resonances: row.resonance_count || 0,
-        branches: row.branch_count || 0,
-        amplifications: row.amplification_count || 0,
-        shares: row.share_count || 0
-      };
-
-      // Add user interaction states
-      const entryWithUserStates: StreamEntryWithUserStates = {
-        ...entry,
-        userHasResonated: row.has_resonated || false,
-        userHasAmplified: row.has_amplified || false,
-      };
-
-      return entryWithUserStates;
+  // Feed: Public entries, optionally filtered by type
+  async getFeedEntries(options: {
+    entryType?: string;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    return this.getEntriesWithUserStatesFlexible({
+      ...options,
+      privacyFilter: 'public'
     });
+  }
 
-    console.log(`✅ Fetched ${entries.length} entries with interaction counts and user states in single query`);
-    return entries;
+  // Profile: All entries by specific user (public only for other users, both for own profile)
+  async getProfileEntries(profileUserId: string, options: {
+    entryType?: string;
+    targetUserId?: string;
+    includePrivate?: boolean;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    return this.getEntriesWithUserStatesFlexible({
+      ...options,
+      userIdFilter: profileUserId,
+      privacyFilter: options.includePrivate ? null : 'public'
+    });
+  }
+
+  // Logbook: User's own logbook entries (public + private)
+  async getLogbookEntries(userId: string, options: {
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    return this.getEntriesWithUserStatesFlexible({
+      ...options,
+      userIdFilter: userId,
+      entryType: 'logbook',
+      privacyFilter: options.privacyFilter || null // Default to both public and private
+    });
+  }
+
+  // Dreams: User's own dream entries (public + private)
+  async getDreamEntries(userId: string, options: {
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    return this.getEntriesWithUserStatesFlexible({
+      ...options,
+      userIdFilter: userId,
+      entryType: 'dream',
+      privacyFilter: options.privacyFilter || null // Default to both public and private
+    });
+  }
+
+  // Resonance Field: Posts the user has resonated with
+  async getResonanceFieldEntries(userId: string, options: {
+    entryType?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    return this.getEntriesWithUserStatesFlexible({
+      ...options,
+      targetUserId: userId,
+      userHasResonated: true,
+      privacyFilter: options.privacyFilter || 'public'
+    });
+  }
+
+  // Amplified: Posts the user has amplified
+  async getAmplifiedEntries(userId: string, options: {
+    entryType?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    return this.getEntriesWithUserStatesFlexible({
+      ...options,
+      targetUserId: userId,
+      userHasAmplified: true,
+      privacyFilter: options.privacyFilter || 'public'
+    });
   }
 }

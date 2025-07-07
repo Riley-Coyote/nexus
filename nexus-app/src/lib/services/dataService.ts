@@ -75,7 +75,28 @@ const formatTimestamp = (date: Date = new Date()): string => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-class DataService {
+interface PostWithUserStates {
+  id: string;
+  type: string;
+  agent: string;
+  content: string;
+  timestamp: string;
+  privacy: 'public' | 'private';
+  username?: string;
+  userId?: string;
+  title?: string;
+  entryType?: 'logbook' | 'dream';
+  interactions: {
+    resonances: number;
+    branches: number;
+    amplifications: number;
+    shares: number;
+  };
+  userHasResonated?: boolean;
+  userHasAmplified?: boolean;
+}
+
+export class DataService {
   
   // Database provider for persistent storage
   private database: DatabaseProvider | null = null;
@@ -1742,6 +1763,159 @@ class DataService {
       console.error('❌ Error in optimized getPostsWithUserStates, falling back to traditional method:', error);
       return this.getPosts(options);
     }
+  }
+
+  // UNIVERSAL METHODS FOR ALL PAGE TYPES
+
+  // Feed: Public posts with user interaction states
+  async getFeedPosts(options: {
+    entryType?: string;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<PostWithUserStates[]> {
+    if (this.database?.getFeedEntries) {
+      const entries = await this.database.getFeedEntries(options);
+      return entries.map(this.streamEntryWithUserStatesToPost);
+    }
+    // Fallback to existing method
+    return this.getPostsWithUserStates(options.entryType as 'logbook' | 'dream', null, options.targetUserId, {
+      page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+      limit: options.limit || 20,
+      sortBy: options.sortBy || 'timestamp',
+      sortOrder: options.sortOrder || 'desc'
+    });
+  }
+
+  // Profile: All posts by specific user (public only for other users, both for own profile)
+  async getProfilePosts(profileUserId: string, options: {
+    entryType?: string;
+    targetUserId?: string;
+    includePrivate?: boolean;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<PostWithUserStates[]> {
+    if (this.database?.getProfileEntries) {
+      const entries = await this.database.getProfileEntries(profileUserId, options);
+      return entries.map(this.streamEntryWithUserStatesToPost);
+    }
+    // Fallback to existing method
+    return this.getPostsWithUserStates(options.entryType as 'logbook' | 'dream', profileUserId, options.targetUserId, {
+      page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+      limit: options.limit || 20,
+      sortBy: options.sortBy || 'timestamp',
+      sortOrder: options.sortOrder || 'desc'
+    });
+  }
+
+  // Logbook: User's own logbook entries (public + private)
+  async getLogbookPosts(userId: string, options: {
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<PostWithUserStates[]> {
+    if (this.database?.getLogbookEntries) {
+      const entries = await this.database.getLogbookEntries(userId, options);
+      return entries.map(this.streamEntryWithUserStatesToPost);
+    }
+    // Fallback to existing method
+    return this.getPostsWithUserStates('logbook', userId, options.targetUserId, {
+      page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+      limit: options.limit || 20,
+      sortBy: options.sortBy || 'timestamp',
+      sortOrder: options.sortOrder || 'desc'
+    });
+  }
+
+  // Dreams: User's own dream entries (public + private)
+  async getDreamPosts(userId: string, options: {
+    privacyFilter?: 'public' | 'private' | null;
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<PostWithUserStates[]> {
+    if (this.database?.getDreamEntries) {
+      const entries = await this.database.getDreamEntries(userId, options);
+      return entries.map(this.streamEntryWithUserStatesToPost);
+    }
+    // Fallback to existing method
+    return this.getPostsWithUserStates('dream', userId, options.targetUserId, {
+      page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+      limit: options.limit || 20,
+      sortBy: options.sortBy || 'timestamp',
+      sortOrder: options.sortOrder || 'desc'
+    });
+  }
+
+  // Resonance Field: Posts the user has resonated with
+  async getResonanceFieldPosts(userId: string, options: {
+    entryType?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<PostWithUserStates[]> {
+    if (this.database?.getResonanceFieldEntries) {
+      const entries = await this.database.getResonanceFieldEntries(userId, options);
+      return entries.map(this.streamEntryWithUserStatesToPost);
+    }
+    // Fallback to existing method
+    const posts = await this.getResonatedPosts(userId, {
+      page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+      limit: options.limit || 20
+    });
+    return posts;
+  }
+
+  // Amplified: Posts the user has amplified
+  async getAmplifiedPosts(userId: string, options: {
+    entryType?: string;
+    privacyFilter?: 'public' | 'private' | null;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<PostWithUserStates[]> {
+    if (this.database?.getAmplifiedEntries) {
+      const entries = await this.database.getAmplifiedEntries(userId, options);
+      return entries.map(this.streamEntryWithUserStatesToPost);
+    }
+    // Fallback: Would need to implement amplified posts method
+    return [];
+  }
+
+  // Helper method to convert StreamEntryWithUserStates to PostWithUserStates
+  private streamEntryWithUserStatesToPost(entry: StreamEntryWithUserStates): PostWithUserStates {
+    return {
+      id: entry.id,
+      type: entry.type,
+      agent: entry.agent,
+      content: entry.content,
+      timestamp: entry.timestamp,
+      privacy: entry.privacy as 'public' | 'private',
+      username: entry.username,
+      userId: entry.userId,
+      title: entry.title,
+      entryType: entry.entryType,
+      interactions: {
+        resonances: entry.resonance_count,
+        branches: entry.branch_count,
+        amplifications: entry.amplification_count,
+        shares: entry.share_count
+      },
+      userHasResonated: entry.has_resonated,
+      userHasAmplified: entry.has_amplified
+    };
   }
 
 }
