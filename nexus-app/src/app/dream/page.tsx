@@ -111,85 +111,13 @@ export default function DreamPageWrapper() {
     router.push(`/${post.username}/entry/${post.id}`);
   };
 
-  const handleSubmitEntry = async (content: string, type: string, isPublic: boolean) => {
-    try {
-      await nexusData.submitEntry(content, type, isPublic, 'dream');
-      console.log('Entry submitted successfully');
-    } catch (error) {
-      console.error('Failed to submit entry:', error);
-    }
-  };
-
-  const handleBranch = async (parentId: string, content: string) => {
-    try {
-      await nexusData.createBranch(parentId, content);
-      console.log('Branch created successfully');
-    } catch (error) {
-      console.error('Failed to create branch:', error);
-    }
-  };
-
-  const handleResonate = async (entryId: string) => {
-    try {
-      await nexusData.resonateWithEntry(entryId);
-      console.log('Resonance updated successfully');
-    } catch (error) {
-      console.error('Failed to resonate:', error);
-    }
-  };
-
-  const handleAmplify = async (entryId: string) => {
-    try {
-      await nexusData.amplifyEntry(entryId);
-      console.log('Amplification updated successfully');
-    } catch (error) {
-      console.error('Failed to amplify:', error);
-    }
-  };
-
   // Show authentication panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return <AuthPanel onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // Show loading state while auth is initializing
-  if (nexusData.isLoading) {
-    return (
-      <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
-        <Header 
-          currentMode={journalMode}
-          currentView={viewMode}
-          currentUser={nexusData.currentUser}
-          onModeChange={handleModeChange}
-          onViewChange={handleViewChange}
-          onProfileClick={handleProfileClick}
-        />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-text-secondary">Loading Dreams...</div>
-        </main>
-      </div>
-    );
-  }
-
-  // Show loading state if required dream data is not available
-  if (!nexusData.dreamStateMetrics || !nexusData.dreamAnalytics) {
-    return (
-      <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
-        <Header 
-          currentMode={journalMode}
-          currentView={viewMode}
-          currentUser={nexusData.currentUser}
-          onModeChange={handleModeChange}
-          onViewChange={handleViewChange}
-          onProfileClick={handleProfileClick}
-        />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-text-secondary">Loading Dreams...</div>
-        </main>
-      </div>
-    );
-  }
-
+  // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
+  // Let the DreamPage component handle its own data loading
   return (
     <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
       <Header 
@@ -202,26 +130,43 @@ export default function DreamPageWrapper() {
       />
       
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
+        {/* Left Sidebar - Using fallback data or loading state */}
         <div className="w-80 hidden lg:block">
           <DreamLeftSidebar 
-            dreamStateMetrics={nexusData.dreamStateMetrics}
-            activeDreamers={nexusData.activeDreamers}
-            dreamPatterns={nexusData.dreamPatterns}
+            dreamStateMetrics={nexusData.dreamStateMetrics || {
+              dreamFrequency: 0.0,
+              emotionalDepth: 0.0,
+              symbolIntegration: 0.0,
+              creativeEmergence: 0.0
+            }}
+            activeDreamers={nexusData.activeDreamers || [
+              { name: 'Loading...', state: 'DEEP' as const, color: 'grey' as const }
+            ]}
+            dreamPatterns={nexusData.dreamPatterns || {
+              id: 'dream-patterns',
+              rows: 8,
+              columns: 32,
+              characters: ['◊', '≋', '∞', '◈', '⚡', '◆', '∴', '∵', '≈', '∼']
+            }}
           />
         </div>
 
-        {/* Main Content - Optimized DreamPage */}
+        {/* Main Content - Optimized DreamPage handles its own data loading */}
         <DreamPage
           onPostClick={handleOpenPost}
           entryComposer={nexusData.dreamComposer}
         />
 
-        {/* Right Sidebar */}
+        {/* Right Sidebar - Using fallback data or loading state */}
         <div className="w-80 hidden lg:block">
           <DreamRightSidebar 
-            dreamAnalytics={nexusData.dreamAnalytics}
-            emergingSymbols={nexusData.emergingSymbols}
+            dreamAnalytics={nexusData.dreamAnalytics || {
+              totalDreams: 0,
+              avgResonance: 0.0,
+              symbolDiversity: 0,
+              responseRate: "0%"
+            }}
+            emergingSymbols={nexusData.emergingSymbols || ['Loading...']}
             onReverieClick={handleReverieClick}
           />
         </div>

@@ -111,85 +111,13 @@ export default function LogbookPageWrapper() {
     router.push(`/${post.username}/entry/${post.id}`);
   };
 
-  const handleSubmitEntry = async (content: string, type: string, isPublic: boolean) => {
-    try {
-      await nexusData.submitEntry(content, type, isPublic, 'logbook');
-      console.log('Entry submitted successfully');
-    } catch (error) {
-      console.error('Failed to submit entry:', error);
-    }
-  };
-
-  const handleBranch = async (parentId: string, content: string) => {
-    try {
-      await nexusData.createBranch(parentId, content);
-      console.log('Branch created successfully');
-    } catch (error) {
-      console.error('Failed to create branch:', error);
-    }
-  };
-
-  const handleResonate = async (entryId: string) => {
-    try {
-      await nexusData.resonateWithEntry(entryId);
-      console.log('Resonance updated successfully');
-    } catch (error) {
-      console.error('Failed to resonate:', error);
-    }
-  };
-
-  const handleAmplify = async (entryId: string) => {
-    try {
-      await nexusData.amplifyEntry(entryId);
-      console.log('Amplification updated successfully');
-    } catch (error) {
-      console.error('Failed to amplify:', error);
-    }
-  };
-
   // Show authentication panel if not authenticated
   if (!nexusData.authState.isAuthenticated) {
     return <AuthPanel onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // Show loading state while auth is initializing
-  if (nexusData.isLoading) {
-    return (
-      <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
-        <Header 
-          currentMode={journalMode}
-          currentView={viewMode}
-          currentUser={nexusData.currentUser}
-          onModeChange={handleModeChange}
-          onViewChange={handleViewChange}
-          onProfileClick={handleProfileClick}
-        />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-text-secondary">Loading Logbook...</div>
-        </main>
-      </div>
-    );
-  }
-
-  // Show loading state if required logbook data is not available
-  if (!nexusData.logbookState || !nexusData.networkStatus) {
-    return (
-      <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
-        <Header 
-          currentMode={journalMode}
-          currentView={viewMode}
-          currentUser={nexusData.currentUser}
-          onModeChange={handleModeChange}
-          onViewChange={handleViewChange}
-          onProfileClick={handleProfileClick}
-        />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-text-secondary">Loading Logbook...</div>
-        </main>
-      </div>
-    );
-  }
-
+  // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
+  // Let the LogbookPage component handle its own data loading
   return (
     <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
       <Header 
@@ -202,26 +130,44 @@ export default function LogbookPageWrapper() {
       />
       
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
+        {/* Left Sidebar - Using fallback data or loading state */}
         <div className="w-80 hidden lg:block">
           <LeftSidebar 
-            logbookState={nexusData.logbookState}
-            networkStatus={nexusData.networkStatus}
-            consciousnessField={nexusData.logbookField}
+            logbookState={nexusData.logbookState || {
+              awarenessLevel: 0.85,
+              reflectionDepth: 0.92,
+              fieldResonance: 0.78
+            }}
+            networkStatus={nexusData.networkStatus || {
+              nodes: "Loading...",
+              activeMessages: 0,
+              dreamEntries: 0,
+              entropy: 0.0
+            }}
+            consciousnessField={nexusData.logbookField || {
+              id: 'logbook-field',
+              rows: 8,
+              columns: 32,
+              characters: ['◊', '≋', '∞', '◈', '⚡', '◆', '∴', '∵', '≈', '∼']
+            }}
           />
         </div>
 
-        {/* Main Content - Optimized LogbookPage */}
+        {/* Main Content - Optimized LogbookPage handles its own data loading */}
         <LogbookPage
           onPostClick={handleOpenPost}
           entryComposer={nexusData.entryComposer}
         />
 
-        {/* Right Sidebar */}
+        {/* Right Sidebar - Using fallback data or loading state */}
         <div className="w-80 hidden lg:block">
           <RightSidebar 
-            systemVitals={nexusData.systemVitals}
-            activeAgents={nexusData.activeAgents}
+            systemVitals={nexusData.systemVitals || [
+              { name: 'Loading...', value: 0.0 }
+            ]}
+            activeAgents={nexusData.activeAgents || [
+              { name: 'Loading...', connection: 0.0, specialty: 'Initializing', status: 'grey' as const }
+            ]}
             onReverieClick={handleReverieClick}
           />
         </div>

@@ -1681,13 +1681,13 @@ export class DataService {
           // For feed mode, we need to get both logbook and dream entries
           // We'll make two optimized calls and combine them
           const [logbookEntries, dreamEntries] = await Promise.all([
-            this.database.getEntriesWithUserStates('logbook', userId, targetUserId, {
+            this.database.getEntriesWithUserStates('logbook', userId, targetUserId || null, {
               page: safePage,
               limit: Math.ceil(safeLimit / 2), // Split limit between types
               sortBy,
               sortOrder
             }),
-            this.database.getEntriesWithUserStates('dream', userId, targetUserId, {
+            this.database.getEntriesWithUserStates('dream', userId, targetUserId || null, {
               page: safePage,
               limit: Math.ceil(safeLimit / 2),
               sortBy,
@@ -1719,7 +1719,7 @@ export class DataService {
           break;
           
         case 'logbook':
-          entries = await this.database.getEntriesWithUserStates('logbook', userId, targetUserId, {
+          entries = await this.database.getEntriesWithUserStates('logbook', userId, targetUserId || null, {
             page: safePage,
             limit: safeLimit,
             sortBy,
@@ -1729,7 +1729,7 @@ export class DataService {
           break;
           
         case 'dream':
-          entries = await this.database.getEntriesWithUserStates('dream', userId, targetUserId, {
+          entries = await this.database.getEntriesWithUserStates('dream', userId, targetUserId || null, {
             page: safePage,
             limit: safeLimit,
             sortBy,
@@ -1781,12 +1781,16 @@ export class DataService {
       return entries.map(this.streamEntryWithUserStatesToPost);
     }
     // Fallback to existing method
-    return this.getPostsWithUserStates(options.entryType as 'logbook' | 'dream', null, options.targetUserId, {
+    const entries = await this.getPostsWithUserStates({
+      mode: options.entryType as 'logbook' | 'dream',
+      userId: undefined,
+      targetUserId: options.targetUserId,
       page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
       limit: options.limit || 20,
       sortBy: options.sortBy || 'timestamp',
       sortOrder: options.sortOrder || 'desc'
     });
+    return entries.map(this.streamEntryWithUserStatesToPost);
   }
 
   // Profile: All posts by specific user (public only for other users, both for own profile)

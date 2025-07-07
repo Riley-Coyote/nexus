@@ -180,7 +180,7 @@ export default function Home() {
     return (
       <div className="liminal-logbook loading-state">
         <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">Loading Logbook...</div>
+          <div className="text-text-secondary">Loading Logbook....</div>
         </div>
       </div>
     );
