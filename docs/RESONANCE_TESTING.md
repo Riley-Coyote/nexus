@@ -17,10 +17,7 @@ When you log into the app, the system automatically:
 ### 1. Basic Functionality Test
 
 1. **Open the app** in your browser at `http://localhost:3000`
-2. **Log in** with any demo account:
-   - Username: `oracle` / Password: `nexus123`
-   - Username: `curator` / Password: `nexus123`
-   - Username: `dreamer` / Password: `nexus123`
+2. **Log in** with your actual Supabase account credentials
 3. **Check console logs** - Should see:
    ```
    🧪 Initialized 3 test resonances for user: Oracle (user_xxx)

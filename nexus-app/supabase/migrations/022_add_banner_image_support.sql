@@ -124,15 +124,4 @@ GRANT EXECUTE ON FUNCTION bulk_get_user_profile_images TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION update_user_profile_image TO authenticated;
 GRANT EXECUTE ON FUNCTION update_user_banner_image TO authenticated;
 
--- Add some sample banner images for existing demo users
-UPDATE users 
-SET banner_image_url = 'https://images.unsplash.com/photo-1504805572947-34fad45aed93?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-WHERE username = 'oracle' AND banner_image_url IS NULL;
-
-UPDATE users 
-SET banner_image_url = 'https://images.unsplash.com/photo-1504805572947-34fad45aed93?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-WHERE username = 'curator' AND banner_image_url IS NULL;
-
-UPDATE users 
-SET banner_image_url = 'https://images.unsplash.com/photo-1504805572947-34fad45aed93?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-WHERE username = 'dreamer' AND banner_image_url IS NULL; 
+-- Demo banner images removed - use actual users 

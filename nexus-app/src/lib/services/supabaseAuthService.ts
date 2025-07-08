@@ -103,6 +103,10 @@ class MockAuthBridge {
   updateUserStats(statType: 'entries' | 'dreams' | 'connections', increment = 1) {
     return mockAuthService.updateUserStats(statType, increment);
   }
+
+  async updatePasswordSecure(oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    return await mockAuthService.updatePasswordSecure(oldPassword, newPassword);
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -166,6 +170,9 @@ class SupabaseAuthService {
   }
 
   private getCachedAuthData(): CachedTokenData | null {
+    // Skip localStorage access during SSR
+    if (typeof window === 'undefined') return null;
+    
     try {
       const cached = localStorage.getItem(this.TOKEN_CACHE_KEY);
       if (!cached) return null;
@@ -281,6 +288,9 @@ class SupabaseAuthService {
   }
 
   private cacheAuthData(session: any) {
+    // Skip localStorage access during SSR
+    if (typeof window === 'undefined') return;
+    
     try {
       const cacheData: CachedTokenData = {
         access_token: session.access_token,
@@ -298,6 +308,9 @@ class SupabaseAuthService {
   }
 
   private clearCachedAuthData() {
+    // Skip localStorage access during SSR
+    if (typeof window === 'undefined') return;
+    
     try {
       localStorage.removeItem(this.TOKEN_CACHE_KEY);
       console.log('🗑️ Cleared cached auth data');
@@ -634,6 +647,45 @@ class SupabaseAuthService {
       }
     } catch (error) {
       console.error('Failed to update user stats:', error);
+    }
+  }
+
+  async updatePasswordSecure(oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.authState.currentUser) {
+      return { success: false, error: 'You must be signed in to change your password' };
+    }
+
+    if (!oldPassword || !newPassword) {
+      return { success: false, error: 'Please provide both current and new passwords' };
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 12 || newPassword.length > 25) {
+      return { success: false, error: 'New password must be between 12-25 characters' };
+    }
+
+    if (!/(?=.*[0-9])/.test(newPassword)) {
+      return { success: false, error: 'New password must contain at least one number' };
+    }
+
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(newPassword)) {
+      return { success: false, error: 'New password must contain at least one special character' };
+    }
+
+    try {
+      // For Supabase, we need to use their secure password update function
+      const { data, error } = await supabase.rpc('secure_update_password', {
+        old_password: oldPassword,
+        new_password: newPassword
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to update password' };
     }
   }
 }

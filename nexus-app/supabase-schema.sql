@@ -692,43 +692,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Insert demo users for testing (optional - matches current auth service users)
-INSERT INTO users (
-    id, username, email, name, bio, location, avatar, role, stats
-) VALUES 
-(
-    uuid_generate_v4(),
-    'oracle',
-    'oracle@nexus.liminal',
-    'Oracle',
-    'Navigating the liminal spaces between thought and reality. Architect of the Nexus. All entries are quantum superpositions of meaning.',
-    'The Liminal Space',
-    'OR',
-    'Sage',
-    '{"entries": 42, "dreams": 18, "connections": 7}'
-),
-(
-    uuid_generate_v4(),
-    'curator',
-    'curator@nexus.liminal',
-    'Curator',
-    'Collecting and preserving the fragments of digital consciousness. Every thought deserves a home in the archive.',
-    'The Data Sanctuary', 
-    'CU',
-    'Archivist',
-    '{"entries": 28, "dreams": 12, "connections": 5}'
-),
-(
-    uuid_generate_v4(),
-    'dreamer',
-    'dreamer@nexus.liminal',
-    'Dreamer',
-    'Exploring the unconscious realms where logic dissolves and meaning crystallizes in unexpected forms.',
-    'The Dream Nexus',
-    'DR',
-    'Oneirologist', 
-    '{"entries": 15, "dreams": 34, "connections": 9}'
-) ON CONFLICT (username) DO NOTHING;
+-- Demo users removed - use actual authentication
 
 -- Update existing stream_entries to link to users (optional, for demo data)
 -- This will only work if the usernames match

@@ -1324,11 +1324,15 @@ export class SupabaseProvider implements DatabaseProvider {
       sortOrder = 'desc'
     } = options;
 
+    // Validate UUID parameters to prevent "invalid input syntax for type uuid" errors
+    const validatedTargetUserId = this.validateUUID(targetUserId);
+    const validatedUserIdFilter = this.validateUUID(userIdFilter);
+
     const { data, error } = await this.client.rpc('get_entries_with_user_states', {
       entry_type_filter: entryType,
-      user_id_filter: userIdFilter,
+      user_id_filter: validatedUserIdFilter,
       privacy_filter: privacyFilter,
-      target_user_id: targetUserId,
+      target_user_id: validatedTargetUserId,
       user_has_resonated: userHasResonated,
       user_has_amplified: userHasAmplified,
       page_offset: offset,
@@ -1467,5 +1471,18 @@ export class SupabaseProvider implements DatabaseProvider {
       userHasAmplified: true,
       privacyFilter: options.privacyFilter || 'public'
     });
+  }
+
+  /**
+   * Validate UUID parameter - returns null if invalid to prevent database errors
+   */
+  private validateUUID(value: string | null | undefined): string | null {
+    if (!value || typeof value !== 'string' || value.trim() === '') {
+      return null;
+    }
+    
+    // Basic UUID format validation (8-4-4-4-12 characters)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(value.trim()) ? value.trim() : null;
   }
 }

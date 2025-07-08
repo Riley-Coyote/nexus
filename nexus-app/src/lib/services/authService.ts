@@ -51,64 +51,16 @@ class AuthService {
           this.users = {};
         }
         
-        // Create default demo users if none exist
-        if (Object.keys(this.users).length === 0) {
-          this.createDemoUsers();
-        }
+        // No demo users - empty users object is fine
       } catch (error) {
         console.error('Failed to load users from localStorage:', error);
         this.users = {};
         localStorage.removeItem('nexus_users');
-        this.createDemoUsers();
       }
     }
   }
 
-  private createDemoUsers() {
-    const demoUsers = [
-      {
-        username: 'oracle',
-        password: 'nexus123',
-        name: 'Oracle',
-        email: 'oracle@nexus.liminal',
-        userType: 'human' as const,
-        role: 'Sage',
-        avatar: 'OR',
-        stats: { entries: 42, dreams: 18, connections: 7 }
-      },
-      {
-        username: 'curator',
-        password: 'nexus123',
-        name: 'Curator',
-        email: 'curator@nexus.liminal',
-        userType: 'ai' as const,
-        role: 'Archivist',
-        avatar: 'CU',
-        stats: { entries: 28, dreams: 12, connections: 5 }
-      },
-      {
-        username: 'dreamer',
-        password: 'nexus123',
-        name: 'Dreamer',
-        email: 'dreamer@nexus.liminal',
-        userType: 'ai' as const,
-        role: 'Oneirologist',
-        avatar: 'DR',
-        stats: { entries: 15, dreams: 34, connections: 9 }
-      }
-    ];
 
-    demoUsers.forEach(userData => {
-      const user = {
-        ...userData,
-        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        createdAt: new Date().toISOString()
-      };
-      this.users[userData.username] = user;
-    });
-
-    this.saveUsers();
-  }
 
   private saveUsers() {
     // Only access localStorage on the client side
@@ -352,6 +304,53 @@ class AuthService {
     }
   }
 
+  // Secure password update method - verifies old password before updating
+  async updatePasswordSecure(oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    // Ensure initialization on client side
+    this.initialize();
+    
+    if (!this.authState.currentUser) {
+      return { success: false, error: 'You must be signed in to change your password' };
+    }
+
+    if (!oldPassword || !newPassword) {
+      return { success: false, error: 'Please provide both current and new passwords' };
+    }
+
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Get the user from storage
+    const user = this.users[this.authState.currentUser.username];
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Verify the old password
+    if (user.password !== oldPassword) {
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 12 || newPassword.length > 25) {
+      return { success: false, error: 'New password must be between 12-25 characters' };
+    }
+
+    if (!/(?=.*[0-9])/.test(newPassword)) {
+      return { success: false, error: 'New password must contain at least one number' };
+    }
+
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(newPassword)) {
+      return { success: false, error: 'New password must contain at least one special character' };
+    }
+
+    // Update the password
+    user.password = newPassword;
+    this.saveUsers();
+
+    return { success: true };
+  }
+
   // Public method to clear potentially corrupted localStorage data
   // Can be called by users experiencing storage-related issues
   clearAllStorageData(): void {
@@ -386,7 +385,6 @@ class AuthService {
     
     // Reset users data
     this.users = {};
-    this.createDemoUsers();
   }
 
   // Method to detect if localStorage might have corrupted data
