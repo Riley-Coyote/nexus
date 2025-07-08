@@ -79,16 +79,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
     };
   };
 
-  // Show authentication panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return <AuthPanel onAuthSuccess={async () => {
-      try {
-        await nexusData.forceAuthRefresh();
-      } catch (error) {
-        console.error('Failed to refresh auth state:', error);
-      }
-    }} />;
-  }
+  // Auth is now handled at root level - no need for checks here
 
   // Show loading state while auth is initializing
   if (nexusData.isLoading) {

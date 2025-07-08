@@ -7,7 +7,7 @@ import DreamLeftSidebar from '@/components/DreamLeftSidebar';
 import DreamPage from '@/components/DreamPage';
 import DreamRightSidebar from '@/components/DreamRightSidebar';
 import PostOverlay from '@/components/PostOverlay';
-import AuthPanel from '@/components/AuthPanel';
+
 import NotificationBanner from '@/components/NotificationBanner';
 import { Post, StreamEntry, JournalMode, ViewMode } from '@/lib/types';
 import { useNexusData } from '@/hooks/useNexusData';
@@ -83,15 +83,7 @@ export default function DreamPageWrapper() {
     }
   };
 
-  const handleAuthSuccess = async () => {
-    // Force a re-check of auth state to trigger re-render
-    try {
-      await nexusData.forceAuthRefresh();
-    } catch (error) {
-      console.error('Failed to refresh auth state:', error);
-      // Continue rendering - the error is logged but shouldn't block UI
-    }
-  };
+
 
   const handleProfileClick = () => {
     if (nexusData.currentUser) {
@@ -111,10 +103,7 @@ export default function DreamPageWrapper() {
     router.push(`/${post.username}/entry/${post.id}`);
   };
 
-  // Show authentication panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return <AuthPanel onAuthSuccess={handleAuthSuccess} />;
-  }
+  // Auth is now handled at root level - no need for checks here
 
   // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
   // Let the DreamPage component handle its own data loading
