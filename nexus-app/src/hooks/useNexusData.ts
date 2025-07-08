@@ -20,9 +20,7 @@ import {
 } from '../lib/types';
 import { mockSystemVitals, mockActiveAgents } from '../lib/data/mockData';
 
-// ✅ GLOBAL SINGLETON: Ensure only one auth initialization happens across all hook instances
-let globalAuthInitialization: Promise<() => void> | null = null;
-let globalAuthInitialized = false;
+// Simplified auth management - no complex global singleton
 
 export interface NexusData {
   // Authentication
@@ -668,31 +666,33 @@ export const useNexusData = (): NexusData => {
     setDreamStateMetrics(null);
   }, []);
 
-  // ✅ FIXED: Enhanced forceAuthRefresh with async initialization and timeout recovery
+  // Simple force auth refresh using the new robust auth service
   const forceAuthRefresh = useCallback(async () => {
     console.log('🔄 Force auth refresh requested');
     
     try {
-      // Set loading state immediately
-      setAuthState(prev => ({ ...prev, isAuthLoading: true }));
+      // Clear any cached auth data and force re-initialization
+      if (typeof window !== 'undefined') {
+        const authKeys = Object.keys(localStorage).filter(key => 
+          key.includes('supabase') || key.includes('auth') || key.includes('nexus')
+        );
+        authKeys.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            console.warn('Failed to clear key:', key);
+          }
+        });
+      }
       
-      // Wait for auth service to complete re-initialization
-      const refreshedAuthState = await authService.getAuthStateAsync();
-      console.log('🔐 Force auth refresh completed:', refreshedAuthState);
-      setAuthState(refreshedAuthState);
+      // Get fresh auth state (the service will handle re-initialization)
+      const freshAuthState = await authService.getAuthStateAsync();
+      console.log('🔐 Force auth refresh completed:', {
+        isAuthenticated: freshAuthState.isAuthenticated,
+        currentUser: freshAuthState.currentUser?.username || 'null'
+      });
       
-      // If still stuck in loading state after timeout, force fallback
-      setTimeout(() => {
-        if (refreshedAuthState.isAuthLoading) {
-          console.warn('⚠️ Auth still loading after timeout, forcing fallback state');
-          setAuthState({
-            isAuthLoading: false,
-            isAuthenticated: false,
-            currentUser: null,
-            sessionToken: null
-          });
-        }
-      }, 10000); // 10 second timeout
+      setAuthState(freshAuthState);
       
     } catch (error) {
       console.error('❌ Force auth refresh failed:', error);
@@ -745,228 +745,56 @@ export const useNexusData = (): NexusData => {
     }
   }, [authState]);
 
-  // ✅ CRITICAL SAFETY: Ensure we never stay in loading state indefinitely
+  // Simplified auth initialization - no complex global singleton
   useEffect(() => {
-    if (authState.isAuthLoading) {
-      const safetyTimeout = setTimeout(() => {
-        console.warn('⚠️ Auth has been loading for too long, forcing fallback state');
-        setAuthState({
-          isAuthLoading: false,
-          isAuthenticated: false,
-          currentUser: null,
-          sessionToken: null
-        });
-        setIsLoading(false);
-      }, 30000); // 30 second absolute maximum
-
-      return () => clearTimeout(safetyTimeout);
-    }
-  }, [authState.isAuthLoading]);
-
-  // OPTIMIZED: Single auth state management with throttling to prevent multiple calls
-  const authDataLoadedRef = useRef(false);
-  const authLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  useEffect(() => {
+    console.log('🔄 Setting up auth state listener...');
+    
+    // Get initial auth state
+    const initialAuthState = authService.getAuthState();
+    setAuthState(initialAuthState);
     setIsLoading(false);
     
-    // ✅ GLOBAL SINGLETON: Prevent multiple concurrent initializations across all hook instances
-    if (globalAuthInitialization) {
-      console.log('⏭️ Auth initialization already in progress globally');
-      
-      // Wait for the global initialization to complete
-      globalAuthInitialization.then(cleanup => {
-        // Get the current auth state once initialization is complete
-        const currentAuthState = authService.getAuthState();
-        setAuthState(currentAuthState);
-        setIsLoading(false);
+    // Set up auth state change listener  
+    const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
+      console.log('🔄 Auth state changed:', {
+        isAuthenticated: newAuthState.isAuthenticated,
+        currentUser: newAuthState.currentUser?.username || 'null'
       });
       
-      return;
-    }
-    
-    if (globalAuthInitialized) {
-      console.log('⏭️ Auth already initialized globally');
-      
-      // Auth already initialized, just get current state
-      const currentAuthState = authService.getAuthState();
-      setAuthState(currentAuthState);
-      setIsLoading(false);
-      
-      // Set up listener for this hook instance
-      const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
-        setAuthState(prevState => {
-          const isStateChanged = 
-            prevState.isAuthLoading !== newAuthState.isAuthLoading ||
-            prevState.isAuthenticated !== newAuthState.isAuthenticated ||
-            prevState.currentUser?.id !== newAuthState.currentUser?.id;
-          
-          return isStateChanged ? newAuthState : prevState;
-        });
+      setAuthState(prevState => {
+        const isStateChanged = 
+          prevState.isAuthLoading !== newAuthState.isAuthLoading ||
+          prevState.isAuthenticated !== newAuthState.isAuthenticated ||
+          prevState.currentUser?.id !== newAuthState.currentUser?.id;
         
-        if (!newAuthState.isAuthLoading) {
-          setIsLoading(false);
+        return isStateChanged ? newAuthState : prevState;
+      });
+      
+      // Handle logout cleanup
+      if (!newAuthState.isAuthenticated && authState.isAuthenticated) {
+        console.log('🔐 User logged out, clearing data');
+        setProfileUser(null);
+        setProfileUserPosts([]);
+        setResonatedEntries([]);
+        setAmplifiedEntries([]);
+        setUserInteractionStates(new Map());
+        setIsUserStatesLoaded(false);
+        setCurrentPostIds([]);
+        
+        // Clear user interaction service cache
+        const previousUser = authState.currentUser;
+        if (previousUser) {
+          userInteractionService.clearUserCache(previousUser.id);
         }
-      });
-      
-      return unsubscribe;
-    }
-    
-    // Check for corrupted localStorage data on mount
-    if (typeof window !== 'undefined') {
-      try {
-        // Import authService for storage check
-        import('../lib/services/authService').then(({ authService }) => {
-          if (authService.hasCorruptedStorageData()) {
-            console.warn('Detected corrupted localStorage data, cleaning up...');
-            authService.clearAllStorageData();
-            // Force refresh auth state after cleanup
-            setTimeout(() => {
-              const currentAuthState = authService.getAuthState();
-              setAuthState(currentAuthState);
-            }, 100);
-          }
-        });
-      } catch (error) {
-        console.error('Error checking for corrupted storage data:', error);
       }
-    }
-    
-    // Set a temporary auth state immediately to prevent infinite loading
-    setAuthState({
-      isAuthLoading: true,
-      isAuthenticated: false,
-      currentUser: null,
-      sessionToken: null
-    });
-    
-    // Initialize auth properly with error handling and timeout
-    const initializeAuth = async () => {
-      console.log('🔄 Initializing authentication...');
       
-      try {
-        // Add a timeout to prevent hanging indefinitely
-        const initTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Auth initialization timeout after 20 seconds')), 20000);
-        });
-        
-        // Wait for auth service to complete initialization with timeout
-        const initialAuthState = await Promise.race([
-          authService.getAuthStateAsync(),
-          initTimeout
-        ]);
-        
-        console.log('✅ Authentication completed:', {
-          isAuthenticated: initialAuthState.isAuthenticated,
-          currentUser: initialAuthState.currentUser?.username || 'null'
-        });
-        
-        setAuthState(initialAuthState);
-        
-        // Set up auth state change listener with minimal processing
-        const unsubscribe = authService.onAuthStateChange(async (newAuthState: AuthState) => {
-          // Only update state if it's actually different
-          setAuthState(prevState => {
-            const isStateChanged = 
-              prevState.isAuthLoading !== newAuthState.isAuthLoading ||
-              prevState.isAuthenticated !== newAuthState.isAuthenticated ||
-              prevState.currentUser?.id !== newAuthState.currentUser?.id;
-            
-            if (!isStateChanged) {
-              return prevState;
-            }
-            
-            return newAuthState;
-          });
-          
-          // Handle logout cleanup
-          if (!newAuthState.isAuthenticated && authState.isAuthenticated) {
-            console.log('🔐 User logged out, clearing data');
-            authDataLoadedRef.current = false;
-            if (authLoadTimeoutRef.current) {
-              clearTimeout(authLoadTimeoutRef.current);
-            }
-            
-            setProfileUser(null);
-            setProfileUserPosts([]);
-            setResonatedEntries([]);
-            setAmplifiedEntries([]);
-            setUserInteractionStates(new Map());
-            setIsUserStatesLoaded(false);
-            setCurrentPostIds([]);
-            
-            // Clear user interaction service cache
-            const previousUser = authState.currentUser;
-            if (previousUser) {
-              userInteractionService.clearUserCache(previousUser.id);
-            }
-          }
-          
-          // Stop global loading indicator after auth state is resolved
-          if (!newAuthState.isAuthLoading) {
-            setIsLoading(false);
-          }
-        });
-        
-        // Mark as globally initialized
-        globalAuthInitialized = true;
-        
-        // Return cleanup function
-        return unsubscribe;
-        
-      } catch (error) {
-        console.error('❌ Auth initialization failed:', error);
-        
-        // Set a fallback auth state on error - this is critical to prevent infinite loading
-        const fallbackState = {
-          isAuthLoading: false,
-          isAuthenticated: false,
-          currentUser: null,
-          sessionToken: null
-        };
-        
-        console.log('🔧 Setting fallback auth state');
-        setAuthState(fallbackState);
+      // Stop global loading indicator after auth state is resolved
+      if (!newAuthState.isAuthLoading) {
         setIsLoading(false);
-        
-        // Still return a cleanup function to prevent errors
-        return () => {};
       }
-    };
-    
-    // Store the initialization promise globally
-    globalAuthInitialization = initializeAuth();
-    
-    // Initialize auth and store cleanup function
-    let authCleanup: (() => void) | undefined;
-    
-    globalAuthInitialization.then(cleanup => {
-      authCleanup = cleanup;
-    }).catch(error => {
-      console.error('❌ Failed to initialize auth completely:', error);
-      // Final fallback - ensure we never stay in loading state
-      setAuthState({
-        isAuthLoading: false,
-        isAuthenticated: false,
-        currentUser: null,
-        sessionToken: null
-      });
-      setIsLoading(false);
-    }).finally(() => {
-      globalAuthInitialization = null;
     });
     
-    return () => {
-      // Clean up auth listener
-      if (authCleanup) {
-        authCleanup();
-      }
-      
-      // Clean up timeout on unmount
-      if (authLoadTimeoutRef.current) {
-        clearTimeout(authLoadTimeoutRef.current);
-      }
-    };
+    return unsubscribe;
   }, []);
 
   // OPTIMIZED: Load user interaction states when posts are available
