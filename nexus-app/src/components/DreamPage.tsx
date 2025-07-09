@@ -142,13 +142,13 @@ export default function DreamPage({
   // Proper auth state management - reload when user changes
   useEffect(() => {
     if (isAuthenticated && user) {
-      // User just became authenticated - reload dream data
-      if (posts.length === 0 && !isLoading) {
+      // User just became authenticated - reload dream data (only once)
+      if (!isUserStatesLoaded && posts.length === 0 && !isLoading) {
         console.log('🔄 Auth completed, reloading dream data');
         loadDreamEntries(1, false);
       }
     }
-  }, [isAuthenticated, user, posts.length, isLoading]);
+  }, [isAuthenticated, user, posts.length, isLoading, isUserStatesLoaded]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {

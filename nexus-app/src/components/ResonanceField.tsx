@@ -131,13 +131,13 @@ export default function ResonanceField({
   // Proper auth state management - reload when user changes
   useEffect(() => {
     if (isAuthenticated && user) {
-      // User just became authenticated - reload resonance field data
-      if (posts.length === 0 && !isLoading) {
+      // User just became authenticated - reload resonance field data (only once)
+      if (!isUserStatesLoaded && posts.length === 0 && !isLoading) {
         console.log('🔄 Auth completed, reloading resonance field data');
         loadResonatedEntries(1, false);
       }
     }
-  }, [isAuthenticated, user, posts.length, isLoading]);
+  }, [isAuthenticated, user, posts.length, isLoading, isUserStatesLoaded]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {
