@@ -136,9 +136,8 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
       // Update user interaction service cache
       userInteractionService.updateUserInteractionState(currentUserId, entryId, 'resonance', isNowResonated);
       
-      // Verify the state was updated correctly
-      const verifyState = userInteractionStates.get(entryId);
-      console.log(`🔍 - Post-interaction state verification:`, verifyState);
+      // State update is async; log the expected new state to avoid 'undefined' confusion
+      console.log(`🔍 - Post-interaction state verification (expected):`, newState);
       
     } catch (error) {
       console.error('❌ Failed to resonate with entry:', error);
@@ -187,9 +186,8 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
       // Update user interaction service cache
       userInteractionService.updateUserInteractionState(currentUserId, entryId, 'amplification', isNowAmplified);
       
-      // Verify the state was updated correctly
-      const verifyState = userInteractionStates.get(entryId);
-      console.log(`🔍 - Post-interaction state verification:`, verifyState);
+      // State update is async; log the expected new state to avoid 'undefined' confusion
+      console.log(`🔍 - Post-interaction state verification (expected):`, newState);
       
     } catch (error) {
       console.error('❌ Failed to amplify entry:', error);
