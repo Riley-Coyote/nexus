@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User, StreamEntry, Post, AuthState } from '@/lib/types';
+import { User, StreamEntry, Post } from '@/lib/types';
 import PostList from './PostList';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 import { StreamEntryWithUserStates } from '@/lib/database/types';
 import { DatabaseFactory } from '@/lib/database/factory';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
 // @ts-ignore
 import FollowsModal from './FollowsModal';
 import NotificationBanner from './NotificationBanner';
@@ -63,6 +63,8 @@ export default function ProfileView({
   getFollowers,
   getFollowing,
 }: ProfileViewProps) {
+  const { user: currentUser, isAuthenticated } = useAuth();
+  
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -103,7 +105,7 @@ export default function ProfileView({
   const LOCATION_MAX_LENGTH = 30;
 
   // Convert StreamEntryWithUserStates to Post format (same as ResonanceField)
-  const streamEntryWithUserStatesToPost = (entry: StreamEntryWithUserStates): Post => {
+  const streamEntryWithUserStatesToPost = useCallback((entry: StreamEntryWithUserStates): Post => {
     const basePost = streamEntryToPost(entry);
     
     // Add user interaction states from the database query
@@ -121,13 +123,12 @@ export default function ProfileView({
         hasAmplified: entry.has_amplified || false
       }
     };
-  };
+  }, []);
 
   // OPTIMIZED: Load profile entries using the new get_entries_with_user_states function
-  const loadProfileEntries = async (requestedPage: number = 1, append: boolean = false) => {
+  const loadProfileEntries = useCallback(async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const currentUser = authService.getCurrentUser();
       const offset = (requestedPage - 1) * PAGE_SIZE;
       
       console.log(`📡 Loading profile entries for user ${user.id} (page ${requestedPage}) with optimized single query...`);
@@ -177,41 +178,78 @@ export default function ProfileView({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user.id, currentUser?.id, isOwnProfile, streamEntryWithUserStatesToPost]);
 
-  // Initial data load
+  // Reset posts when user changes to ensure clean transitions
   useEffect(() => {
-    if (activeTab === 'posts') {
-      loadProfileEntries(1, false);
-    }
-  }, []);
+    // Clear posts when user changes to prevent showing stale data
+    setPosts([]);
+    setIsUserStatesLoaded(false);
+    setPage(1);
+    setHasMore(true);
+  }, [user.id]); // Reset when user ID changes
 
-  // Reload when user or profile settings change
+  // Use provided userPosts if available (from useProfile hook)
   useEffect(() => {
-    if (activeTab === 'posts') {
-      console.log('🔄 User or profile settings changed, reloading profile data');
-      loadProfileEntries(1, false);
-    }
-  }, [user.id, isOwnProfile]);
-
-  // Auth state management - listen for auth changes (same pattern as ResonanceField)
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
-      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // User just became authenticated - reload profile data if needed
-        if (activeTab === 'posts' && !isUserStatesLoaded && !isLoading) {
-          console.log('🔄 Auth completed, reloading profile data');
-          loadProfileEntries(1, false);
+    if (userPosts !== undefined) {
+      // Validate that the posts belong to the current user
+      // If posts exist but don't match the current user, ignore them (stale data)
+      if (userPosts.length > 0) {
+        const firstPost = userPosts[0];
+        if (firstPost.username !== user.username) {
+          console.log(`⚠️ Ignoring stale posts for ${firstPost.username}, current user is ${user.username}`);
+          return; // Ignore stale data
         }
       }
-    });
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      
+      console.log(`📡 Using provided posts for ${user.username}: ${userPosts.length} posts`);
+      
+      if (userPosts.length > 0) {
+        // Convert StreamEntry to Post format
+        const convertedPosts = userPosts.map(entry => {
+          const post = streamEntryToPost(entry);
+          // Forward any user interaction states if present on the original entry
+          if ((entry as any).has_resonated !== undefined || (entry as any).has_amplified !== undefined) {
+            post.userInteractionStates = {
+              hasResonated: (entry as any).has_resonated || false,
+              hasAmplified: (entry as any).has_amplified || false,
+            };
+          } else if ((entry as any).userInteractionStates) {
+            // Already shaped as Post with userInteractionStates – just copy
+            post.userInteractionStates = (entry as any).userInteractionStates;
+          }
+          return post;
+        });
+        setPosts(convertedPosts);
+        // Enable pagination if the first batch equals page size
+        setHasMore(convertedPosts.length === PAGE_SIZE);
+      } else {
+        // Empty array provided - show empty state
+        setPosts([]);
+        setHasMore(false);
       }
-    };
-  }, [isUserStatesLoaded, activeTab]);
+      
+      setIsUserStatesLoaded(true);
+      setPage(1);
+    }
+  }, [userPosts, user.username]); // Re-add user.username to detect user changes
+
+  // Initial data load - only when activeTab is posts and we haven't loaded yet
+  // SKIP if userPosts are provided (managed by parent like useProfile)
+  useEffect(() => {
+    if (activeTab === 'posts' && !isUserStatesLoaded && posts.length === 0 && !userPosts) {
+      loadProfileEntries(1, false);
+    }
+  }, [activeTab, isUserStatesLoaded, posts.length, loadProfileEntries, userPosts]);
+
+  // Auth state management - only reload if we have no data and auth just completed
+  // SKIP if userPosts are provided (managed by parent like useProfile)
+  useEffect(() => {
+    if (isAuthenticated && currentUser && activeTab === 'posts' && !isUserStatesLoaded && posts.length === 0 && !isLoading && !userPosts) {
+      console.log('🔄 Auth completed, loading profile data');
+      loadProfileEntries(1, false);
+    }
+  }, [isAuthenticated, currentUser, activeTab, isUserStatesLoaded, posts.length, isLoading, loadProfileEntries, userPosts]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {
@@ -258,18 +296,52 @@ export default function ProfileView({
   const handleResonate = React.useCallback(async (entryId: string) => {
     if (onResonate) {
       await onResonate(entryId);
-      // Refresh profile posts to get updated interaction states
-      await loadProfileEntries(1, false);
-      setPage(1);
+      // Update local state optimistically instead of full refresh
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id === entryId) {
+          const currentlyResonated = post.userInteractionStates?.hasResonated || false;
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              resonances: currentlyResonated 
+                ? Math.max(0, post.interactions.resonances - 1)
+                : post.interactions.resonances + 1
+            },
+            userInteractionStates: {
+              hasResonated: !currentlyResonated,
+              hasAmplified: post.userInteractionStates?.hasAmplified || false
+            }
+          };
+        }
+        return post;
+      }));
     }
   }, [onResonate]);
 
   const handleAmplify = React.useCallback(async (entryId: string) => {
     if (onAmplify) {
       await onAmplify(entryId);
-      // Refresh profile posts to get updated interaction states
-      await loadProfileEntries(1, false);
-      setPage(1);
+      // Update local state optimistically instead of full refresh
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id === entryId) {
+          const currentlyAmplified = post.userInteractionStates?.hasAmplified || false;
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              amplifications: currentlyAmplified 
+                ? Math.max(0, post.interactions.amplifications - 1)
+                : post.interactions.amplifications + 1
+            },
+            userInteractionStates: {
+              hasResonated: post.userInteractionStates?.hasResonated || false,
+              hasAmplified: !currentlyAmplified
+            }
+          };
+        }
+        return post;
+      }));
     }
   }, [onAmplify]);
 

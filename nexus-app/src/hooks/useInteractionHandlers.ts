@@ -2,8 +2,10 @@
 
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useNexusData } from './useNexusData';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserInteractions } from '@/hooks/useUserInteractions';
 import { Post } from '@/lib/types';
+import { dataService } from '@/lib/services/dataService';
 
 /**
  * Central interaction handlers - single source of truth for all post interactions
@@ -11,37 +13,38 @@ import { Post } from '@/lib/types';
  */
 export const useInteractionHandlers = () => {
   const router = useRouter();
-  const nexusData = useNexusData();
+  const { user } = useAuth();
+  const { resonateWithEntry, amplifyEntry, createBranch, hasUserResonated, hasUserAmplified } = useUserInteractions(user?.id);
 
   // Branch creation - centralized logic
   const handleBranch = useCallback(async (parentId: string, content: string) => {
     try {
-      await nexusData.createBranch(parentId, content);
+      await createBranch(parentId, content);
       console.log('Branch created successfully');
     } catch (error) {
       console.error('Failed to create branch:', error);
     }
-  }, [nexusData]);
+  }, [createBranch]);
 
   // Resonate - centralized logic
   const handleResonate = useCallback(async (entryId: string) => {
     try {
-      await nexusData.resonateWithEntry(entryId);
+      await resonateWithEntry(entryId);
       console.log('Resonance updated successfully');
     } catch (error) {
       console.error('Failed to resonate:', error);
     }
-  }, [nexusData]);
+  }, [resonateWithEntry]);
 
   // Amplify - centralized logic
   const handleAmplify = useCallback(async (entryId: string) => {
     try {
-      await nexusData.amplifyEntry(entryId);
+      await amplifyEntry(entryId);
       console.log('Amplification updated successfully');
     } catch (error) {
       console.error('Failed to amplify:', error);
     }
-  }, [nexusData]);
+  }, [amplifyEntry]);
 
   // Share - centralized logic
   const handleShare = useCallback((postId: string) => {
@@ -67,26 +70,26 @@ export const useInteractionHandlers = () => {
     mode: 'logbook' | 'dream'
   ) => {
     try {
-      await nexusData.submitEntry(content, type, isPublic, mode);
+      await dataService.submitEntry(content, type, isPublic, mode);
       console.log('Entry submitted successfully');
     } catch (error) {
       console.error('Failed to submit entry:', error);
     }
-  }, [nexusData]);
+  }, []);
 
   // Post overlay interaction - centralized logic
   const handlePostInteraction = useCallback(async (action: string, postId: string) => {
     try {
       if (action === 'Resonate ◊' || action === 'resonate') {
-        await nexusData.resonateWithEntry(postId);
+        await resonateWithEntry(postId);
       } else if (action === 'Amplify ≋' || action === 'amplify') {
-        await nexusData.amplifyEntry(postId);
+        await amplifyEntry(postId);
       }
       console.log(`${action} interaction on post ${postId}`);
     } catch (error) {
       console.error('Failed to perform action:', error);
     }
-  }, [nexusData]);
+  }, [resonateWithEntry, amplifyEntry]);
 
   return {
     // Core interactions
@@ -99,8 +102,8 @@ export const useInteractionHandlers = () => {
     handleSubmitEntry,
     handlePostInteraction,
     
-    // User interaction state checks - pass through from nexusData
-    hasUserResonated: nexusData.hasUserResonated,
-    hasUserAmplified: nexusData.hasUserAmplified,
+    // User interaction state checks - pass through from focused hooks
+    hasUserResonated,
+    hasUserAmplified,
   };
 }; 

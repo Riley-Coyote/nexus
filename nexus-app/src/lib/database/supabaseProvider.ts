@@ -1324,11 +1324,15 @@ export class SupabaseProvider implements DatabaseProvider {
       sortOrder = 'desc'
     } = options;
 
+    // Validate UUID parameters to prevent "invalid input syntax for type uuid" errors
+    const validatedTargetUserId = this.validateUUID(targetUserId);
+    const validatedUserIdFilter = this.validateUUID(userIdFilter);
+
     const { data, error } = await this.client.rpc('get_entries_with_user_states', {
       entry_type_filter: entryType,
-      user_id_filter: userIdFilter,
+      user_id_filter: validatedUserIdFilter,
       privacy_filter: privacyFilter,
-      target_user_id: targetUserId,
+      target_user_id: validatedTargetUserId,
       user_has_resonated: userHasResonated,
       user_has_amplified: userHasAmplified,
       page_offset: offset,
@@ -1466,6 +1470,89 @@ export class SupabaseProvider implements DatabaseProvider {
       targetUserId: userId,
       userHasAmplified: true,
       privacyFilter: options.privacyFilter || 'public'
+    });
+  }
+
+  /**
+   * Validate UUID parameter - returns null if invalid to prevent database errors
+   */
+  private validateUUID(value: string | null | undefined): string | null {
+    if (!value || typeof value !== 'string' || value.trim() === '') {
+      return null;
+    }
+    
+    // Basic UUID format validation (8-4-4-4-12 characters)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(value.trim()) ? value.trim() : null;
+  }
+
+  async getChildrenEntries(parentId: string, options: {
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    const {
+      targetUserId = null,
+      offset = 0,
+      limit = 20,
+      sortBy = 'timestamp',
+      sortOrder = 'asc',
+    } = options;
+
+    const validatedTargetUserId = this.validateUUID(targetUserId);
+    const parent_entry_id = parseInt(parentId, 10);
+
+    const { data, error } = await this.client.rpc('get_children_entries_with_user_states', {
+      parent_entry_id,
+      target_user_id: validatedTargetUserId,
+      page_offset: offset,
+      page_limit: limit,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    });
+
+    if (error) {
+      console.error('Error fetching children entries:', error);
+      throw error;
+    }
+    return data || [];
+  }
+
+  async getEntriesByIdsWithUserStates(entryIds: string[], targetUserId: string | null = null): Promise<StreamEntryWithUserStates[]> {
+    if (entryIds.length === 0) return [];
+
+    // First, reuse the existing optimized batch fetch (includes interaction counts)
+    const baseEntries = await this.getEntriesByIds(entryIds);
+    if (baseEntries.length === 0) return [];
+
+    // Fetch user interaction states in one shot (if viewer specified)
+    let userStates: Map<string, UserInteractionState> = new Map();
+    if (targetUserId) {
+      try {
+        userStates = await this.getUserInteractionStates(targetUserId, entryIds);
+      } catch (err) {
+        console.error('⚠️ Failed to fetch user interaction states, defaulting to false:', err);
+      }
+    }
+
+    // Merge counts + states into StreamEntryWithUserStates objects
+    return baseEntries.map((entry) => {
+      const counts = entry.interactions;
+      const state = userStates.get(entry.id) || { hasResonated: false, hasAmplified: false };
+
+      const withStates: StreamEntryWithUserStates = {
+        ...entry,
+        resonance_count: counts.resonances,
+        branch_count: counts.branches,
+        amplification_count: counts.amplifications,
+        share_count: counts.shares,
+        has_resonated: state.hasResonated,
+        has_amplified: state.hasAmplified,
+      } as StreamEntryWithUserStates;
+
+      return withStates;
     });
   }
 }

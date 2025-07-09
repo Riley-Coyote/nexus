@@ -7,7 +7,7 @@ import { EntryComposerData, StreamEntry, Post } from '@/lib/types';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 
 interface MainContentProps {
-  entryComposer: EntryComposerData;
+  entryComposer?: EntryComposerData;
   stream: StreamEntry[];
   onSubmitEntry?: (content: string, type: string, isPublic: boolean) => Promise<void>;
   onResonate?: (id: string) => Promise<void>;
@@ -57,7 +57,7 @@ export default function MainContent({
 
   return (
     <main className="mode-logbook flex-1 h-full pt-8 pb-24 px-4 sm:px-8 md:px-10 flex flex-col gap-8 overflow-y-auto parallax-layer-3 atmosphere-layer-2">
-      {/* Entry Composer */}
+      {/* Entry Composer - conditionally render */}
       <EntryComposer 
         data={entryComposer}
         onSubmit={handleSubmitEntry}

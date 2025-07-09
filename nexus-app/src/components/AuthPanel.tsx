@@ -2,26 +2,22 @@
 
 import React, { useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { authService, AuthResult } from '../lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface AuthPanelProps {
-  onAuthSuccess: () => void | Promise<void>;
-  onLogin?: () => void; // Add optional onLogin prop
-  onSignup?: () => void; // Add optional onSignup prop
+  onAuthSuccess: () => void;
+  onLogin?: () => void;
+  onSignup?: () => void;
 }
 
 export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPanelProps) {
   const searchParams = useSearchParams();
+  const { signIn, signUp } = useAuth();
+  
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError]= useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
-  const [emailStatus, setEmailStatus] = useState<{
-    checking: boolean;
-    available: boolean | null;
-    error?: string;
-  }>({ checking: false, available: null });
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -32,15 +28,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
 
   // Add ref to track if component is mounted to prevent state updates after unmount
   const isMountedRef = useRef(true);
-  const emailCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      // Clear any pending email check timeout
-      if (emailCheckTimeoutRef.current) {
-        clearTimeout(emailCheckTimeoutRef.current);
-      }
     };
   }, []);
 
@@ -70,241 +61,62 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
     }
   };
 
-  // Debounced email availability check
-  const checkEmailAvailability = React.useCallback(async (email: string) => {
-    // Clear any existing timeout
-    if (emailCheckTimeoutRef.current) {
-      clearTimeout(emailCheckTimeoutRef.current);
-    }
-
-    // Don't check if email is empty or invalid format
-    if (!email || !validateEmail(email)) {
-      safeSetState(() => setEmailStatus({ checking: false, available: null }));
-      return;
-    }
-
-    // Set checking state immediately
-    safeSetState(() => setEmailStatus({ checking: true, available: null }));
-
-    // Debounce the actual API call
-    emailCheckTimeoutRef.current = setTimeout(async () => {
-      try {
-        const result = await authService.checkEmailAvailability(email);
-        
-        // Direct state update - React will handle if component is unmounted
-        const newStatus = {
-          checking: false,
-          available: result.available,
-          error: result.error
-        };
-        setEmailStatus(newStatus);
-      } catch (error) {
-        console.error('Email check error:', error);
-        
-        setEmailStatus({
-          checking: false,
-          available: null,
-          error: 'Failed to check email availability'
-        });
-      }
-    }, 800); // 800ms debounce
-  }, []);
-
-  // Clear username status when not in signup mode
-  React.useEffect(() => {
-    if (authMode !== 'signup') {
-      setEmailStatus({ checking: false, available: null });
-    }
-  }, [authMode]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear messages when user starts typing
-    if (error) setError(null);
-    if (successMessage) setSuccessMessage(null);
-    
-    // Real-time password validation for signup mode
-    if (name === 'password' && authMode === 'signup') {
-      const validation = validatePassword(value);
-      setPasswordErrors(validation.errors);
-    }
-    
-    // Clear password errors when not in signup or when password is empty
-    if (name === 'password' && (authMode !== 'signup' || value === '')) {
-      setPasswordErrors([]);
-    }
-  };
-
-  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    
-    // Check email availability on blur for signup mode
-    if (name === 'email' && authMode === 'signup' && value && validateEmail(value)) {
-      checkEmailAvailability(value);
-    }
-  };
-
+  // Simple validation helpers
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
-    const errors: string[] = [];
+  const validatePassword = (password: string) => {
+    const errors = [];
+    if (password.length < 8) errors.push('At least 8 characters');
+    if (!/[A-Z]/.test(password)) errors.push('One uppercase letter');
+    if (!/[a-z]/.test(password)) errors.push('One lowercase letter');
+    if (!/[0-9]/.test(password)) errors.push('One number');
     
-    if (password.length < 12) {
-      errors.push('Password must be at least 12 characters long');
-    }
-    
-    if (password.length > 25) {
-      errors.push('Password must be no more than 25 characters long');
-    }
-    
-    if (!/(?=.*[0-9])/.test(password)) {
-      errors.push('Password must contain at least one number');
-    }
-    
-    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
-      errors.push('Password must contain at least one special character');
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  };
-
-  // Add timeout wrapper for auth operations
-  const withTimeout = async (promise: Promise<AuthResult>, timeoutMs: number = 30000): Promise<AuthResult> => {
-    return Promise.race([
-      promise,
-      new Promise<AuthResult>((_, reject) => {
-        setTimeout(() => reject(new Error('Operation timed out. Please check your connection and try again.')), timeoutMs);
-      })
-    ]);
+    return { isValid: errors.length === 0, errors };
   };
 
   // Check if submit should be disabled based on form validation
   const getSubmitDisabled = (): boolean => {
-    // Always disabled if loading
     if (isLoading) return true;
 
-    // For login and reset, only need username (can be username or email) and password
     if (authMode === 'login') {
-      if (!formData.username || !formData.password) return true;
-      return false;
+      return !formData.username || !formData.password;
     }
     
     if (authMode === 'reset') {
-      if (!formData.username) return true;
-      if (!validateEmail(formData.username)) return true;
-      return false;
+      return !formData.username || !validateEmail(formData.username);
     }
 
-    // For signup mode, check all required fields
     if (authMode === 'signup') {
-      if (!formData.username) return true;
-      if (!formData.email) return true;
-      if (!formData.name) return true;
-      if (!formData.password) return true;
-      if (!formData.confirmPassword) return true;
+      if (!formData.username || !formData.email || !formData.name || 
+          !formData.password || !formData.confirmPassword) {
+        return true;
+      }
 
-      // Check email format
       if (!validateEmail(formData.email)) return true;
       
-      // Check if email is still being checked
-      if (emailStatus.checking) return true;
-      
-      // Check if email is unavailable
-      if (emailStatus.available === false) return true;
-      
-      // Check password requirements
       const passwordValidation = validatePassword(formData.password);
       if (!passwordValidation.isValid) return true;
       
-      // Check if passwords match
       if (formData.password !== formData.confirmPassword) return true;
     }
 
     return false;
   };
 
-  // Get the reason why submit is disabled
-  const getSubmitDisabledReason = (): string => {
-    if (authMode === 'reset') {
-      if (!formData.username) return 'Please enter your email address';
-      if (!validateEmail(formData.username)) return 'Please enter a valid email address';
-      return 'Please enter your email address';
-    }
-    
-    if (!formData.username) return 'Please enter your username';
-    
-    if (authMode === 'login') {
-      if (!formData.password) return 'Please enter your password';
-      return 'Please complete all fields';
-    }
-    
-    if (authMode === 'signup') {
-      if (!formData.email) return 'Please enter your email';
-      if (!formData.name) return 'Please enter your name';
-      if (!formData.password) return 'Please enter your password';
-      if (!formData.confirmPassword) return 'Please confirm your password';
-      
-      if (!validateEmail(formData.email)) return 'Please enter a valid email address';
-      
-      if (emailStatus.checking) return 'Checking email availability...';
-      if (emailStatus.available === false) return 'This email is already registered';
-      
-      const passwordValidation = validatePassword(formData.password);
-      if (!passwordValidation.isValid) {
-        return `Password requirements: ${passwordValidation.errors[0]}`;
-      }
-      
-      if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
-    }
-    
-    return 'Please complete all required fields';
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prevent multiple simultaneous submissions
-    if (isLoading) return;
+    if (getSubmitDisabled()) return;
     
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      if (authMode === 'reset') {
-        // Validation for reset
-        if (!validateEmail(formData.username)) {
-          setError('Please enter a valid email address');
-          setIsLoading(false);
-          return;
-        }
-
-        const result = await withTimeout(authService.resetPassword(formData.username));
-        
-        // Set success/error state immediately, synchronously
-        if (result.success) {
-          setSuccessMessage('If this email address is registered with NEXUS, you\'ll receive a password reset link shortly. Please check your inbox and spam folder.');
-          setError(null);
-          // Don't automatically switch to login mode - let the user do it manually
-          // This prevents the success message from being cleared immediately
-        } else {
-          setError(result.error || 'Failed to send password reset email');
-          setSuccessMessage(null);
-        }
-        
-        // Reset loading state immediately after API call
-        setIsLoading(false);
-        return;
-        
-      } else if (authMode === 'login') {
+      if (authMode === 'login') {
         // Validation for login
         if (!formData.username) {
           setError('Please enter your username or email');
@@ -318,34 +130,26 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           return;
         }
 
-        const result = await withTimeout(authService.signIn(formData.username, formData.password));
+        const result = await signIn(formData.username, formData.password);
         
         if (!isMountedRef.current) return;
         
         if (result.success) {
-          // Success - component may unmount, so don't update state after this
           try {
             await onAuthSuccess();
           } catch (error) {
             console.error('Auth success callback failed:', error);
           }
           if (onLogin) onLogin();
-        } else if (result.needsVerification) {
-          safeSetState(() => setSuccessMessage('Please check your email and verify your account before signing in.'));
         } else {
           safeSetState(() => setError(result.error || 'Login failed'));
         }
         
-      } else {
-        // Signup validation
-        if (!formData.username) {
-          setError('Please enter a username');
-          setIsLoading(false);
-          return;
-        }
-
-        if (!formData.email) {
-          setError('Please enter your email');
+      } else if (authMode === 'signup') {
+        // Validation for signup
+        if (!formData.username || !formData.email || !formData.name || 
+            !formData.password || !formData.confirmPassword) {
+          setError('Please fill in all fields');
           setIsLoading(false);
           return;
         }
@@ -356,15 +160,9 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           return;
         }
 
-        if (!formData.name) {
-          setError('Please enter your name');
-          setIsLoading(false);
-          return;
-        }
-
         const passwordValidation = validatePassword(formData.password);
         if (!passwordValidation.isValid) {
-          setError(passwordValidation.errors.join('. '));
+          setError(`Password must have: ${passwordValidation.errors.join(', ')}`);
           setIsLoading(false);
           return;
         }
@@ -375,25 +173,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           return;
         }
 
-        // Check email availability before proceeding
-        if (emailStatus.available === false) {
-          setError('This email is already registered. Please sign in instead.');
-          setIsLoading(false);
-          return;
-        }
-
-        // If we're still checking email availability, wait a moment
-        if (emailStatus.checking) {
-          setError('Still checking email availability. Please wait a moment.');
-          setIsLoading(false);
-          return;
-        }
-        
-        const result = await withTimeout(authService.signUp(
-          formData.email, 
-          formData.password,
-          { name: formData.name, username: formData.username }
-        ));
+        const result = await signUp(formData.email, formData.password, {
+          name: formData.name,
+          username: formData.username
+        });
         
         if (!isMountedRef.current) return;
         
@@ -404,7 +187,6 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               setAuthMode('login');
             });
           } else {
-            // Success - component may unmount, so don't update state after this
             try {
               await onAuthSuccess();
             } catch (error) {
@@ -415,6 +197,9 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
         } else {
           safeSetState(() => setError(result.error || 'Signup failed'));
         }
+      } else if (authMode === 'reset') {
+        // Reset password functionality would go here
+        safeSetState(() => setError('Password reset not yet implemented'));
       }
     } catch (err) {
       console.error('Auth error:', err);
@@ -423,26 +208,16 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       safeSetState(() => setError(errorMessage));
     } finally {
-      // Always reset loading state immediately - this is critical for UI responsiveness
       setIsLoading(false);
     }
   };
 
   const switchAuthMode = (mode: 'login' | 'signup' | 'reset') => {
-    // Prevent mode switching while loading
     if (isLoading) return;
-    
-    // Clear any pending email check
-    if (emailCheckTimeoutRef.current) {
-      clearTimeout(emailCheckTimeoutRef.current);
-      emailCheckTimeoutRef.current = null;
-    }
     
     setAuthMode(mode);
     setError(null);
     setSuccessMessage(null);
-    setPasswordErrors([]);
-    setEmailStatus({ checking: false, available: null });
     setFormData({
       username: '',
       email: '',
@@ -452,36 +227,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
     });
   };
 
-  const resendVerification = async () => {
-    if (!formData.username) {
-      setError('Please enter your username');
-      return;
-    }
-
-    if (isLoading) return; // Prevent multiple simultaneous requests
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const result = await withTimeout(authService.resendVerification(formData.username));
-      
-      if (!isMountedRef.current) return;
-
-      if (result.success) {
-        safeSetState(() => setSuccessMessage('Verification email resent! Please check your inbox.'));
-      } else {
-        safeSetState(() => setError(result.error || 'Failed to resend verification email'));
-      }
-    } catch (err) {
-      console.error('Resend verification error:', err);
-      if (!isMountedRef.current) return;
-      
-      const errorMessage = err instanceof Error ? err.message : 'Failed to resend verification email';
-      safeSetState(() => setError(errorMessage));
-    } finally {
-      safeSetState(() => setIsLoading(false));
-    }
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (error) setError(null);
+    if (successMessage) setSuccessMessage(null);
   };
 
   return (
@@ -537,6 +286,20 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
           </div>
         )}
 
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <p className="text-sm text-emerald-400">{successMessage}</p>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Name (signup only) */}
@@ -548,34 +311,28 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <input
                 type="text"
                 id="name"
-                name="name"
                 value={formData.name}
-                onChange={handleInputChange}
+                onChange={(e) => handleInputChange('name', e.target.value)}
                 className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                 placeholder="Enter your full name"
-                required
                 disabled={isLoading}
-                maxLength={25}
               />
             </div>
           )}
 
-          {/* Username */}
+          {/* Username/Email for login and reset */}
           <div className="space-y-2">
             <label htmlFor="username" className="block text-sm font-medium text-gray-300">
-              {authMode === 'reset' ? 'Email Address' : 'Username'}
+              {authMode === 'reset' ? 'Email Address' : authMode === 'signup' ? 'Username' : 'Email or Username'}
             </label>
             <input
               type={authMode === 'reset' ? 'email' : 'text'}
               id="username"
-              name="username"
               value={formData.username}
-              onChange={handleInputChange}
+              onChange={(e) => handleInputChange('username', e.target.value)}
               className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
               placeholder={authMode === 'signup' ? 'Choose a unique username' : authMode === 'reset' ? 'Enter your email address' : 'Enter your username or email'}
-              required
               disabled={isLoading}
-              maxLength={25}
             />
           </div>
 
@@ -585,68 +342,15 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email
               </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onBlur={handleInputBlur}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-black/20 border rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200 ${
-                    emailStatus.available === false
-                      ? 'border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50'
-                      : emailStatus.available === true
-                      ? 'border-emerald-500/50'
-                      : 'border-white/10'
-                  }`}
-                  placeholder="Enter your email address"
-                  required
-                  disabled={isLoading}
-                />
-                {/* Email availability icon */}
-                {formData.email && validateEmail(formData.email) && (
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    {emailStatus.checking ? (
-                      <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-400 rounded-full animate-spin"></div>
-                    ) : emailStatus.available === true ? (
-                      <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : emailStatus.available === false ? (
-                      <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-              
-              {/* Email availability message */}
-              {formData.email && validateEmail(formData.email) && (
-                <div className="text-xs">
-                  {emailStatus.checking ? (
-                    <p className="text-gray-400 flex items-center space-x-1">
-                      <span>Checking availability...</span>
-                    </p>
-                  ) : emailStatus.available === true ? (
-                    <p className="text-emerald-400 flex items-center space-x-1">
-                      <span>✓</span>
-                      <span>Email is available</span>
-                    </p>
-                  ) : emailStatus.available === false ? (
-                    <p className="text-red-400 flex items-center space-x-1">
-                      <span>✗</span>
-                      <span>This email is already registered. Please sign in instead.</span>
-                    </p>
-                  ) : emailStatus.error ? (
-                    <p className="text-yellow-400 flex items-center space-x-1">
-                      <span>⚠</span>
-                      <span>{emailStatus.error}</span>
-                    </p>
-                  ) : null}
-                </div>
-              )}
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
+                placeholder="Enter your email address"
+                disabled={isLoading}
+              />
             </div>
           )}
 
@@ -659,43 +363,12 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <input
                 type="password"
                 id="password"
-                name="password"
                 value={formData.password}
-                onChange={handleInputChange}
+                onChange={(e) => handleInputChange('password', e.target.value)}
                 className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
-                placeholder={authMode === 'signup' ? 'Create a strong password (12-25 characters)' : 'Enter your password'}
-                required
+                placeholder={authMode === 'signup' ? 'Create a strong password' : 'Enter your password'}
                 disabled={isLoading}
-                minLength={authMode === 'signup' ? 12 : 6}
-                maxLength={25}
               />
-              
-              {/* Password Requirements (signup only) */}
-              {authMode === 'signup' && (
-                <div className="text-xs space-y-1">
-                  <p className="text-gray-400 font-medium">Password Requirements:</p>
-                  <ul className="space-y-1">
-                    <li className={`flex items-center space-x-2 ${
-                      formData.password.length >= 12 && formData.password.length <= 25 ? 'text-emerald-400' : 'text-gray-500'
-                    }`}>
-                      <span>{formData.password.length >= 12 && formData.password.length <= 25 ? '✓' : '•'}</span>
-                      <span>12-25 characters</span>
-                    </li>
-                    <li className={`flex items-center space-x-2 ${
-                      /(?=.*[0-9])/.test(formData.password) ? 'text-emerald-400' : 'text-gray-500'
-                    }`}>
-                      <span>{/(?=.*[0-9])/.test(formData.password) ? '✓' : '•'}</span>
-                      <span>At least one number</span>
-                    </li>
-                    <li className={`flex items-center space-x-2 ${
-                      /(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(formData.password) ? 'text-emerald-400' : 'text-gray-500'
-                    }`}>
-                      <span>{/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(formData.password) ? '✓' : '•'}</span>
-                      <span>At least one special character (!@#$%^&* etc.)</span>
-                    </li>
-                  </ul>
-                </div>
-              )}
             </div>
           )}
 
@@ -708,47 +381,19 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               <input
                 type="password"
                 id="confirmPassword"
-                name="confirmPassword"
                 value={formData.confirmPassword}
-                onChange={handleInputChange}
+                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                 className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                 placeholder="Confirm your password"
-                required
                 disabled={isLoading}
-                minLength={6}
-                maxLength={25}
               />
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-sm text-red-400">{error}</p>
-              {error.includes('verify') && (
-                <button
-                  type="button"
-                  onClick={resendVerification}
-                  disabled={isLoading}
-                  className="mt-2 text-xs text-emerald-400 hover:text-emerald-300 underline disabled:opacity-50"
-                >
-                  Resend verification email
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-              <p className="text-sm text-emerald-400">{successMessage}</p>
             </div>
           )}
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading || getSubmitDisabled()}
+            disabled={getSubmitDisabled()}
             className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500/20 to-purple-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg font-medium transition-all duration-300 hover:from-emerald-500/30 hover:to-purple-500/30 hover:border-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
           >
             {isLoading ? (
@@ -762,17 +407,10 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
               authMode === 'reset' ? 'Send Reset Link' : authMode === 'login' ? 'Sign In' : 'Create Account'
             )}
           </button>
-          
-          {/* Submit Button Helper Text */}
-          {getSubmitDisabled() && !isLoading && (
-            <div className="text-xs text-gray-400 text-center">
-              {getSubmitDisabledReason()}
-            </div>
-          )}
 
           {/* Footer Links */}
           {authMode === 'login' && (
-            <div className="text-center space-y-2">
+            <div className="text-center">
               <button
                 type="button"
                 onClick={() => switchAuthMode('reset')}

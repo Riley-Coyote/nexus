@@ -5,7 +5,7 @@ import { Post, ViewMode } from '@/lib/types';
 import PostDetailClient from '@/components/PostDetailClient';
 import Header from '@/components/Header';
 import AuthPanel from '@/components/AuthPanel';
-import { useNexusData } from '@/hooks/useNexusData';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import UserProfile from '@/components/UserProfile';
 
@@ -17,8 +17,7 @@ interface PrivatePostPageClientProps {
 }
 
 export default function PrivatePostPageClient({ post, parent, childPosts, isDeepDive = false }: PrivatePostPageClientProps) {
-  const nexusData = useNexusData();
-  const currentUser = nexusData.currentUser;
+  const { user: currentUser, signOut, isLoading } = useAuth();
   const isOwner = currentUser?.id === post.userId;
   const router = useRouter();
 
@@ -30,7 +29,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
   };
 
   const handleLogout = () => {
-    nexusData.logout();
+    signOut();
     setIsProfileModalOpen(false);
     router.push('/');
   };
@@ -82,7 +81,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
   // Auth is now handled at root level - no need for checks here
 
   // Show loading state while auth is initializing
-  if (nexusData.isLoading) {
+  if (isLoading) {
     return (
       <div className="liminal-logbook min-h-screen flex flex-col bg-app-background">
         <Header {...getHeaderProps()} />

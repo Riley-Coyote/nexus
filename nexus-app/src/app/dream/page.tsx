@@ -7,15 +7,22 @@ import DreamLeftSidebar from '@/components/DreamLeftSidebar';
 import DreamPage from '@/components/DreamPage';
 import DreamRightSidebar from '@/components/DreamRightSidebar';
 import PostOverlay from '@/components/PostOverlay';
-
 import NotificationBanner from '@/components/NotificationBanner';
 import { Post, StreamEntry, JournalMode, ViewMode } from '@/lib/types';
-import { useNexusData } from '@/hooks/useNexusData';
+import { useAuth } from '@/hooks/useAuth';
+import { useLogbook } from '@/hooks/useLogbook';
+import { useUserInteractions } from '@/hooks/useUserInteractions';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
+import { dataService } from '@/lib/services/dataService';
 
 export default function DreamPageWrapper() {
   const router = useRouter();
-  const nexusData = useNexusData();
+  const { user } = useAuth();
+  const { logbookState, networkStatus, logbookField, systemVitals, activeAgents } = useLogbook();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
+  
+  // Get dream-specific entry composer
+  const dreamComposer = dataService.getEntryComposer('dream');
   
   // State management
   const [journalMode] = useState<JournalMode>('dream');
@@ -46,11 +53,11 @@ export default function DreamPageWrapper() {
 
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
-      // Handle post interactions using the data service
+      // Handle post interactions using the focused hooks
       if (action === 'Resonate ◊' || action === 'resonate') {
-        await nexusData.resonateWithEntry(postId);
+        await resonateWithEntry(postId);
       } else if (action === 'Amplify ≋' || action === 'amplify') {
-        await nexusData.amplifyEntry(postId);
+        await amplifyEntry(postId);
       }
       console.log(`${action} interaction on post ${postId}`);
     } catch (error) {
@@ -73,8 +80,8 @@ export default function DreamPageWrapper() {
 
   const handleViewChange = (view: ViewMode) => {
     if (view === 'profile') {
-      if (nexusData.currentUser) {
-        router.push(`/profile/${nexusData.currentUser.username}`);
+      if (user) {
+        router.push(`/profile/${user.username}`);
       }
     } else if (view === 'resonance-field') {
       router.push('/resonance-field');
@@ -83,11 +90,9 @@ export default function DreamPageWrapper() {
     }
   };
 
-
-
   const handleProfileClick = () => {
-    if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+    if (user) {
+      router.push(`/profile/${user.username}`);
     }
   };
 
@@ -103,6 +108,25 @@ export default function DreamPageWrapper() {
     router.push(`/${post.username}/entry/${post.id}`);
   };
 
+  // Fallback implementations for PostOverlay
+  const getDirectChildren = async (postId: string) => {
+    try {
+      return await dataService.getDirectChildren(postId);
+    } catch (error) {
+      console.error('Failed to get direct children:', error);
+      return [];
+    }
+  };
+
+  const getParentPost = async (postId: string) => {
+    try {
+      return await dataService.getParentPost(postId);
+    } catch (error) {
+      console.error('Failed to get parent post:', error);
+      return null;
+    }
+  };
+
   // Auth is now handled at root level - no need for checks here
 
   // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
@@ -113,7 +137,7 @@ export default function DreamPageWrapper() {
         <Header 
           currentMode={journalMode}
           currentView={viewMode}
-          currentUser={nexusData.currentUser}
+          currentUser={user}
           onModeChange={handleModeChange}
           onViewChange={handleViewChange}
           onProfileClick={handleProfileClick}
@@ -123,16 +147,16 @@ export default function DreamPageWrapper() {
           {/* Left Sidebar - Using fallback data or loading state */}
           <div className="w-80 hidden lg:block">
             <DreamLeftSidebar 
-              dreamStateMetrics={nexusData.dreamStateMetrics || {
+              dreamStateMetrics={{
                 dreamFrequency: 0.0,
                 emotionalDepth: 0.0,
                 symbolIntegration: 0.0,
                 creativeEmergence: 0.0
               }}
-              activeDreamers={nexusData.activeDreamers || [
+              activeDreamers={[
                 { name: 'Loading...', state: 'DEEP' as const, color: 'grey' as const }
               ]}
-              dreamPatterns={nexusData.dreamPatterns || {
+              dreamPatterns={{
                 id: 'dream-patterns',
                 rows: 8,
                 columns: 32,
@@ -144,19 +168,19 @@ export default function DreamPageWrapper() {
           {/* Main Content - Optimized DreamPage handles its own data loading */}
           <DreamPage
             onPostClick={handleOpenPost}
-            entryComposer={nexusData.dreamComposer}
+            entryComposer={dreamComposer}
           />
 
           {/* Right Sidebar - Using fallback data or loading state */}
           <div className="w-80 hidden lg:block">
             <DreamRightSidebar 
-              dreamAnalytics={nexusData.dreamAnalytics || {
+              dreamAnalytics={{
                 totalDreams: 0,
                 avgResonance: 0.0,
                 symbolDiversity: 0,
                 responseRate: "0%"
               }}
-              emergingSymbols={nexusData.emergingSymbols || ['Loading...']}
+              emergingSymbols={['Loading...']}
               onReverieClick={handleReverieClick}
             />
           </div>
@@ -170,8 +194,8 @@ export default function DreamPageWrapper() {
           isOpen={isOverlayOpen}
           onClose={handleCloseOverlay}
           onInteraction={handlePostInteraction}
-          getDirectChildren={nexusData.getDirectChildren}
-          getParentPost={nexusData.getParentPost}
+          getDirectChildren={getDirectChildren}
+          getParentPost={getParentPost}
           onChildClick={handleOpenPost}
         />
       )}

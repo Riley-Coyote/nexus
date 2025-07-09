@@ -24,6 +24,9 @@
     "supabase:db:push": "supabase db push"
   },
   "dependencies": {
+    "@next-auth/supabase-adapter": "^0.2.1",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.50.2",
     "@tiptap/extension-strike": "^2.24.2",
     "@tiptap/extension-underline": "^2.24.2",

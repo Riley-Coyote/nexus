@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/types';
 
 interface UserProfileProps {
@@ -13,6 +14,7 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onClose }: UserProfileProps) {
+  const { signOut } = useAuth();
   const modalRef = useRef<HTMLDivElement>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'account'>('profile');
@@ -114,12 +116,12 @@ export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onC
     setIsUpdatingPassword(true);
     
     try {
-      const result = await authService.updatePasswordSecure(
-        passwordData.currentPassword,
-        passwordData.newPassword
-      );
+      // Update password using Supabase directly
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
       
-      if (result.success) {
+      if (!error) {
         setPasswordMessage({ type: 'success', text: 'Password updated successfully!' });
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setPasswordErrors([]);
@@ -127,7 +129,7 @@ export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onC
         // Auto-close success message after 3 seconds
         setTimeout(() => setPasswordMessage(null), 3000);
       } else {
-        setPasswordMessage({ type: 'error', text: result.error || 'Failed to update password' });
+        setPasswordMessage({ type: 'error', text: error.message || 'Failed to update password' });
       }
     } catch (error) {
       console.error('Password update error:', error);
@@ -138,7 +140,7 @@ export default function UserProfile({ user, onLogout, onViewProfile, isOpen, onC
   };
 
   const handleLogout = () => {
-    authService.signOut();
+    signOut();
     onLogout();
     onClose();
   };

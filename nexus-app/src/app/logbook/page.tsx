@@ -7,15 +7,19 @@ import LeftSidebar from '@/components/LeftSidebar';
 import LogbookPage from '@/components/LogbookPage';
 import RightSidebar from '@/components/RightSidebar';
 import PostOverlay from '@/components/PostOverlay';
-
 import NotificationBanner from '@/components/NotificationBanner';
 import { Post, StreamEntry, JournalMode, ViewMode } from '@/lib/types';
-import { useNexusData } from '@/hooks/useNexusData';
+import { useAuth } from '@/hooks/useAuth';
+import { useLogbook } from '@/hooks/useLogbook';
+import { useUserInteractions } from '@/hooks/useUserInteractions';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
+import { dataService } from '@/lib/services/dataService';
 
 export default function LogbookPageWrapper() {
   const router = useRouter();
-  const nexusData = useNexusData();
+  const { user } = useAuth();
+  const { logbookState, networkStatus, logbookField, entryComposer, systemVitals, activeAgents } = useLogbook();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
   
   // State management
   const [journalMode] = useState<JournalMode>('logbook');
@@ -46,11 +50,11 @@ export default function LogbookPageWrapper() {
 
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
-      // Handle post interactions using the data service
+      // Handle post interactions using the focused hooks
       if (action === 'Resonate ◊' || action === 'resonate') {
-        await nexusData.resonateWithEntry(postId);
+        await resonateWithEntry(postId);
       } else if (action === 'Amplify ≋' || action === 'amplify') {
-        await nexusData.amplifyEntry(postId);
+        await amplifyEntry(postId);
       }
       console.log(`${action} interaction on post ${postId}`);
     } catch (error) {
@@ -73,8 +77,8 @@ export default function LogbookPageWrapper() {
 
   const handleViewChange = (view: ViewMode) => {
     if (view === 'profile') {
-      if (nexusData.currentUser) {
-        router.push(`/profile/${nexusData.currentUser.username}`);
+      if (user) {
+        router.push(`/profile/${user.username}`);
       }
     } else if (view === 'resonance-field') {
       router.push('/resonance-field');
@@ -83,11 +87,9 @@ export default function LogbookPageWrapper() {
     }
   };
 
-
-
   const handleProfileClick = () => {
-    if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+    if (user) {
+      router.push(`/profile/${user.username}`);
     }
   };
 
@@ -103,6 +105,25 @@ export default function LogbookPageWrapper() {
     router.push(`/${post.username}/entry/${post.id}`);
   };
 
+  // Fallback implementations for PostOverlay
+  const getDirectChildren = async (postId: string) => {
+    try {
+      return await dataService.getDirectChildren(postId);
+    } catch (error) {
+      console.error('Failed to get direct children:', error);
+      return [];
+    }
+  };
+
+  const getParentPost = async (postId: string) => {
+    try {
+      return await dataService.getParentPost(postId);
+    } catch (error) {
+      console.error('Failed to get parent post:', error);
+      return null;
+    }
+  };
+
   // Auth is now handled at root level - no need for checks here
 
   // NEW OPTIMIZED PATTERN: No more waiting for pre-loaded data
@@ -113,7 +134,7 @@ export default function LogbookPageWrapper() {
         <Header 
           currentMode={journalMode}
           currentView={viewMode}
-          currentUser={nexusData.currentUser}
+          currentUser={user}
           onModeChange={handleModeChange}
           onViewChange={handleViewChange}
           onProfileClick={handleProfileClick}
@@ -123,18 +144,18 @@ export default function LogbookPageWrapper() {
           {/* Left Sidebar - Using fallback data or loading state */}
           <div className="w-80 hidden lg:block">
             <LeftSidebar 
-              logbookState={nexusData.logbookState || {
+              logbookState={logbookState || {
                 awarenessLevel: 0.85,
                 reflectionDepth: 0.92,
                 fieldResonance: 0.78
               }}
-              networkStatus={nexusData.networkStatus || {
+              networkStatus={networkStatus || {
                 nodes: "Loading...",
                 activeMessages: 0,
                 dreamEntries: 0,
                 entropy: 0.0
               }}
-              consciousnessField={nexusData.logbookField || {
+              consciousnessField={logbookField || {
                 id: 'logbook-field',
                 rows: 8,
                 columns: 32,
@@ -146,16 +167,16 @@ export default function LogbookPageWrapper() {
           {/* Main Content - Optimized LogbookPage handles its own data loading */}
           <LogbookPage
             onPostClick={handleOpenPost}
-            entryComposer={nexusData.entryComposer}
+            entryComposer={entryComposer}
           />
 
           {/* Right Sidebar - Using fallback data or loading state */}
           <div className="w-80 hidden lg:block">
             <RightSidebar 
-              systemVitals={nexusData.systemVitals || [
+              systemVitals={systemVitals || [
                 { name: 'Loading...', value: 0.0 }
               ]}
-              activeAgents={nexusData.activeAgents || [
+              activeAgents={activeAgents || [
                 { name: 'Loading...', connection: 0.0, specialty: 'Initializing', status: 'grey' as const }
               ]}
               onReverieClick={handleReverieClick}
@@ -171,8 +192,8 @@ export default function LogbookPageWrapper() {
           isOpen={isOverlayOpen}
           onClose={handleCloseOverlay}
           onInteraction={handlePostInteraction}
-          getDirectChildren={nexusData.getDirectChildren}
-          getParentPost={nexusData.getParentPost}
+          getDirectChildren={getDirectChildren}
+          getParentPost={getParentPost}
           onChildClick={handleOpenPost}
         />
       )}

@@ -1,102 +1,95 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import AuthPanel from '@/components/AuthPanel';
-import { useNexusData } from '@/hooks/useNexusData';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth/AuthContext';
+import AuthPanel from './AuthPanel';
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
 export default function AuthProvider({ children }: AuthProviderProps) {
-  const nexusData = useNexusData();
-  const [showStuckStateRecovery, setShowStuckStateRecovery] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const componentMountedRef = useRef(true);
+  const { isLoading, isAuthenticated, error, refreshAuth } = useAuth();
+  const [showDebugOptions, setShowDebugOptions] = useState(false);
 
-  // Cleanup on unmount
+  // Show debug options after 5 seconds of loading
   useEffect(() => {
-    return () => {
-      componentMountedRef.current = false;
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Recovery mechanism for stuck auth states
-  useEffect(() => {
-    if (nexusData.authState.isAuthLoading) {
-      // Clear any existing timeout
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setShowDebugOptions(true);
+      }, 5000);
       
-      // Set a timeout to detect stuck loading states
-      loadingTimeoutRef.current = setTimeout(() => {
-        if (componentMountedRef.current) {
-          setShowStuckStateRecovery(true);
-        }
-      }, 10000); // Reduced to 10 seconds for better UX
+      return () => clearTimeout(timer);
     } else {
-      // Clear timeout if loading completes
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-      if (componentMountedRef.current) {
-        setShowStuckStateRecovery(false);
-      }
+      setShowDebugOptions(false);
     }
-  }, [nexusData.authState.isAuthLoading]);
+  }, [isLoading]);
 
-  const handleRecoveryRefresh = async () => {
-    setIsRecovering(true);
-    try {
-      await nexusData.forceAuthRefresh();
-    } catch (error) {
-      console.error('Recovery refresh failed:', error);
-    } finally {
-      if (componentMountedRef.current) {
-        setIsRecovering(false);
-      }
-    }
-  };
-
-  // Show loading state while auth is being determined
-  if (nexusData.authState.isAuthLoading) {
+  // Show loading state
+  if (isLoading) {
     return (
-      <div className="liminal-logbook loading-state">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="text-text-secondary mb-4">Authenticating...</div>
-            
-            {/* Show recovery options after timeout */}
-            {showStuckStateRecovery && (
-              <div className="mt-6 p-4 bg-red-900/20 rounded border border-red-700/30">
-                <div className="text-red-400 text-sm mb-3">
-                  Authentication is taking longer than expected.
-                </div>
-                
-                <div className="flex gap-2 justify-center">
-                  <button
-                    onClick={handleRecoveryRefresh}
-                    disabled={isRecovering}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm rounded transition-colors"
-                  >
-                    {isRecovering ? 'Refreshing...' : 'Retry'}
-                  </button>
-                  
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded transition-colors"
-                  >
-                    Refresh Page
-                  </button>
-                </div>
+      <div className="flex items-center justify-center h-screen bg-deep-void">
+        <div className="text-center">
+          <div className="text-text-secondary mb-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto"></div>
+          </div>
+          <div className="text-text-secondary text-sm mb-4">
+            Authenticating...
+          </div>
+          <div className="text-text-tertiary text-xs mb-4">
+            This should only take a few seconds
+          </div>
+          
+          {showDebugOptions && (
+            <div className="mt-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+              <div className="text-yellow-400 text-sm mb-3">Taking longer than expected?</div>
+              <div className="space-y-2">
+                <button
+                  onClick={() => refreshAuth()}
+                  className="w-full px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                >
+                  Force Refresh Auth
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full px-3 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+                >
+                  Reload Page
+                </button>
               </div>
-            )}
+              <div className="text-text-tertiary text-xs mt-2">
+                Check console for debug info
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-deep-void">
+        <div className="text-center max-w-md p-6">
+          <div className="text-red-400 mb-4 text-lg">Authentication Error</div>
+          <div className="text-text-secondary text-sm mb-6">{error}</div>
+          <div className="space-y-3">
+            <button
+              onClick={() => refreshAuth()}
+              className="w-full px-4 py-2 bg-accent-primary text-white rounded-md hover:bg-accent-primary/80 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+          <div className="text-text-tertiary text-xs mt-4">
+            If this problem persists, try clearing your browser cache
           </div>
         </div>
       </div>
@@ -104,8 +97,8 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Show authentication panel if not authenticated
-  if (!nexusData.authState.isAuthenticated) {
-    return <AuthPanel onAuthSuccess={nexusData.forceAuthRefresh} />;
+  if (!isAuthenticated) {
+    return <AuthPanel onAuthSuccess={() => {}} />;
   }
 
   // Render the app if authenticated

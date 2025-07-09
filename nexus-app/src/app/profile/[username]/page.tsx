@@ -1,23 +1,40 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
-
 import { StreamEntry, Post } from '@/lib/types';
 import { StreamEntryData } from '@/lib/types';
-import { useNexusData } from '@/hooks/useNexusData';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserInteractions } from '@/hooks/useUserInteractions';
+import { useProfile } from '@/hooks/useProfile';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
+import { dataService } from '@/lib/services/dataService';
 
 export default function UserProfilePage() {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const username = params.username as string;
-  const nexusData = useNexusData();
+  const { user: currentUser, signOut } = useAuth();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(currentUser?.id);
+  const { 
+    updateUserProfile, 
+    getFollowers, 
+    getFollowing, 
+    followUser, 
+    unfollowUser, 
+    isFollowing, 
+    getCurrentProfileUser, 
+    viewUserProfile, 
+    viewSelfProfile,
+    profileViewState,
+    profileUserPosts,
+    isLoading: isProfileLoading 
+  } = useProfile(currentUser);
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
@@ -26,6 +43,9 @@ export default function UserProfilePage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Track current loaded username to prevent duplicate loads
+  const loadedUsernameRef = useRef<string | null>(null);
+
   // Determine mode from pathname
   const isDreamPath = pathname.startsWith('/dream');
   const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
@@ -33,18 +53,24 @@ export default function UserProfilePage() {
 
   // Load the user profile when the component mounts or username changes
   useEffect(() => {
-    if (username && nexusData.authState.isAuthenticated) {
+    if (username && currentUser && loadedUsernameRef.current !== username) {
+      loadedUsernameRef.current = username; // Mark as loading this username
+      
       // If viewing own username, switch to self profile mode
-      if (nexusData.currentUser && username === nexusData.currentUser.username) {
-        nexusData.viewSelfProfile();
+      if (currentUser && username === currentUser.username) {
+        viewSelfProfile().catch((error) => {
+          console.error('Failed to load self profile:', error);
+          loadedUsernameRef.current = null; // Reset on error
+        });
       } else {
-        nexusData.viewUserProfile(username).catch((error) => {
+        viewUserProfile(username).catch((error) => {
           console.error('Failed to load user profile:', error);
+          loadedUsernameRef.current = null; // Reset on error
           // Leave in loading state so fallback shows "User not found"
         });
       }
     }
-  }, [username, nexusData.authState.isAuthenticated, nexusData.currentUser, nexusData.viewSelfProfile, nexusData.viewUserProfile]);
+  }, [username, currentUser, viewSelfProfile, viewUserProfile]);
 
   const handleOpenPost = (post: Post) => {
     // Convert Post to StreamEntry for the overlay
@@ -62,21 +88,13 @@ export default function UserProfilePage() {
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
       if (action === 'Resonate ◊') {
-        await nexusData.resonateWithEntry(postId);
+        await resonateWithEntry(postId);
       } else if (action === 'Amplify ≋') {
-        await nexusData.amplifyEntry(postId);
+        await amplifyEntry(postId);
       }
       console.log(`${action} interaction on post ${postId}`);
     } catch (error) {
       console.error('Failed to perform action:', error);
-    }
-  };
-
-  const handleAuthSuccess = async () => {
-    try {
-      await nexusData.forceAuthRefresh();
-    } catch (error) {
-      console.error('Failed to refresh auth state:', error);
     }
   };
 
@@ -85,7 +103,7 @@ export default function UserProfilePage() {
   };
 
   const handleLogout = () => {
-    nexusData.logout();
+    signOut();
     setIsProfileModalOpen(false);
     router.push('/');
   };
@@ -93,15 +111,15 @@ export default function UserProfilePage() {
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
     // Navigate to current user's profile by username
-    if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+    if (currentUser) {
+      router.push(`/profile/${currentUser.username}`);
     }
   };
 
   const handleReturnToOwnProfile = () => {
     // Navigate to current user's profile by username
-    if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+    if (currentUser) {
+      router.push(`/profile/${currentUser.username}`);
     }
   };
 
@@ -139,16 +157,33 @@ export default function UserProfilePage() {
     router.push(`/${mode}`);
   };
 
-  // Auth is now handled at root level - no need for checks here
+  // Fallback implementations for PostOverlay
+  const getDirectChildren = async (postId: string) => {
+    try {
+      return await dataService.getDirectChildren(postId);
+    } catch (error) {
+      console.error('Failed to get direct children:', error);
+      return [];
+    }
+  };
+
+  const getParentPost = async (postId: string) => {
+    try {
+      return await dataService.getParentPost(postId);
+    } catch (error) {
+      console.error('Failed to get parent post:', error);
+      return null;
+    }
+  };
 
   // Get the profile user (either the viewed user or current user)
-  const profileUser = nexusData.getCurrentProfileUser();
+  const profileUser = getCurrentProfileUser();
   
   // Show "User not found" page only **after** loading completes
   // Prevents a brief flash of the fallback while the profile is still loading
   if (
-    nexusData.profileViewState.mode === 'other' &&
-    !nexusData.isLoading &&
+    profileViewState.mode === 'other' &&
+    !isProfileLoading &&
     !profileUser
   ) {
     return (
@@ -164,7 +199,7 @@ export default function UserProfilePage() {
               else if (view === 'resonance-field') handleNavigateToResonanceField();
               else if (view === 'profile') handleReturnToOwnProfile();
             }}
-            currentUser={nexusData.currentUser}
+            currentUser={currentUser}
             onProfileClick={handleProfileClick}
           />
           
@@ -227,7 +262,7 @@ export default function UserProfilePage() {
             else if (view === 'resonance-field') handleNavigateToResonanceField();
             else if (view === 'profile') handleReturnToOwnProfile();
           }}
-          currentUser={nexusData.currentUser}
+          currentUser={currentUser}
           onProfileClick={handleProfileClick}
         />
         
@@ -235,23 +270,23 @@ export default function UserProfilePage() {
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
           <ProfileView 
             user={profileUser}
+            userPosts={profileUserPosts}
             onPostClick={handleOpenPost}
             onUserClick={handleUserClick}
-            onResonate={nexusData.resonateWithEntry}
-            onAmplify={nexusData.amplifyEntry}
-            onBranch={nexusData.createBranch}
+            onResonate={resonateWithEntry}
+            onAmplify={amplifyEntry}
+            onBranch={createBranch}
             onDeepDive={handleDeepDive}
             onShare={handleShare}
-            onLogout={nexusData.logout}
-            onUpdateProfile={nexusData.updateUserProfile}
-            isOwnProfile={nexusData.profileViewState.mode === 'self'}
-            followUser={nexusData.followUser}
-            unfollowUser={nexusData.unfollowUser}
-            isFollowing={nexusData.isFollowing}
-            currentUserId={nexusData.currentUser?.id}
-            getFollowers={nexusData.getFollowers}
-            getFollowing={nexusData.getFollowing}
-            onReturnToOwnProfile={handleReturnToOwnProfile}
+            onLogout={signOut}
+            onUpdateProfile={updateUserProfile}
+            isOwnProfile={profileViewState.mode === 'self'}
+            followUser={followUser}
+            unfollowUser={unfollowUser}
+            isFollowing={isFollowing}
+            currentUserId={currentUser?.id}
+            getFollowers={getFollowers}
+            getFollowing={getFollowing}
           />
         </div>
       </div>
@@ -262,15 +297,15 @@ export default function UserProfilePage() {
         isOpen={isOverlayOpen}
         onClose={handleCloseOverlay}
         onInteraction={handlePostInteraction}
-        getDirectChildren={nexusData.getDirectChildren}
-        getParentPost={nexusData.getParentPost}
+        getDirectChildren={getDirectChildren}
+        getParentPost={getParentPost}
         onChildClick={handleOpenPost}
       />
 
       {/* User Profile Modal */}
-      {nexusData.currentUser && (
+      {currentUser && (
         <UserProfile
-          user={nexusData.currentUser}
+          user={currentUser}
           onLogout={handleLogout}
           onViewProfile={handleViewProfile}
           isOpen={isProfileModalOpen}
@@ -279,4 +314,4 @@ export default function UserProfilePage() {
       )}
     </div>
   );
-}
+} 

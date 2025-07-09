@@ -276,36 +276,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT ALL ON user_follows TO postgres, anon, authenticated, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 
--- Update stats for existing demo users (set some initial follow counts)
-UPDATE users SET follower_count = 1200, following_count = 89 WHERE username = 'oracle';
-UPDATE users SET follower_count = 856, following_count = 145 WHERE username = 'curator';
-UPDATE users SET follower_count = 2341, following_count = 67 WHERE username = 'dreamer';
-
--- Create some demo follow relationships
-DO $$
-DECLARE
-    oracle_id UUID;
-    curator_id UUID;
-    dreamer_id UUID;
-BEGIN
-    -- Get user IDs
-    SELECT id INTO oracle_id FROM users WHERE username = 'oracle';
-    SELECT id INTO curator_id FROM users WHERE username = 'curator';
-    SELECT id INTO dreamer_id FROM users WHERE username = 'dreamer';
-    
-    -- Create demo follows (if users exist)
-    IF oracle_id IS NOT NULL AND curator_id IS NOT NULL THEN
-        INSERT INTO user_follows (follower_id, followed_id) 
-        VALUES (oracle_id, curator_id) ON CONFLICT DO NOTHING;
-    END IF;
-    
-    IF curator_id IS NOT NULL AND dreamer_id IS NOT NULL THEN
-        INSERT INTO user_follows (follower_id, followed_id) 
-        VALUES (curator_id, dreamer_id) ON CONFLICT DO NOTHING;
-    END IF;
-    
-    IF dreamer_id IS NOT NULL AND oracle_id IS NOT NULL THEN
-        INSERT INTO user_follows (follower_id, followed_id) 
-        VALUES (dreamer_id, oracle_id) ON CONFLICT DO NOTHING;
-    END IF;
-END $$; 
+-- Demo follow relationships removed - use actual users 

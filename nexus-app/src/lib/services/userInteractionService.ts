@@ -1,4 +1,4 @@
-import { authService } from './supabaseAuthService';
+import { getCurrentUser } from '../auth/AuthContext';
 import { supabase } from '../supabase';
 
 export interface UserInteractionState {

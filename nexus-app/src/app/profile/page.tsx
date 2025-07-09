@@ -1,31 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
 import PostOverlay from '@/components/PostOverlay';
-import UserProfile from '@/components/UserProfile';
-
 import { Post, StreamEntry } from '@/lib/types';
-import { useNexusData } from '@/hooks/useNexusData';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserInteractions } from '@/hooks/useUserInteractions';
+import { useProfile } from '@/hooks/useProfile';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
+import { dataService } from '@/lib/services/dataService';
 
 export default function ProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
-  const nexusData = useNexusData();
+  const { user, signOut } = useAuth();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
+  const { updateUserProfile, getFollowers, getFollowing } = useProfile(user);
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  
-  // Profile modal state
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const handleOpenPost = (post: Post) => {
-    // Convert Post to StreamEntry for the overlay
-    const streamEntry: StreamEntry = postToStreamEntry(post);
+  // Determine mode from the pathname
+  const isDreamPath = pathname.startsWith('/dream');
+  const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
+
+  const handleOpenPost = (post: Post | StreamEntry) => {
+    // Convert Post to StreamEntry if needed
+    const streamEntry: StreamEntry = 'children' in post && 'actions' in post && 'threads' in post ? 
+      post as StreamEntry : 
+      postToStreamEntry(post as Post);
     
     setOverlayPost(streamEntry);
     setIsOverlayOpen(true);
@@ -39,14 +45,18 @@ export default function ProfilePage() {
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
       if (action === 'Resonate ◊' || action === 'resonate') {
-        await nexusData.resonateWithEntry(postId);
+        await resonateWithEntry(postId);
       } else if (action === 'Amplify ≋' || action === 'amplify') {
-        await nexusData.amplifyEntry(postId);
+        await amplifyEntry(postId);
       }
-      console.log(`${action} interaction on post ${postId}`);
     } catch (error) {
       console.error('Failed to perform action:', error);
     }
+  };
+
+  const handleShare = (postId: string) => {
+    // The share functionality is now handled natively in the PostDisplay component
+    console.log(`Share interaction on post ${postId}`);
   };
 
   const handleModeChange = (mode: 'logbook' | 'dream') => {
@@ -62,17 +72,10 @@ export default function ProfilePage() {
   };
 
   const handleProfileClick = () => {
-    setIsProfileModalOpen(true);
-  };
-
-  const handleLogout = () => {
-    nexusData.logout();
-    setIsProfileModalOpen(false);
-    router.push('/');
-  };
-
-  const handleViewProfile = () => {
-    setIsProfileModalOpen(false);
+    // For own profile page, redirect to username-based profile
+    if (user) {
+      router.push(`/profile/${user.username}`);
+    }
   };
 
   const handleUserClick = (username: string) => {
@@ -83,27 +86,31 @@ export default function ProfilePage() {
     router.push(`/${username}/entry/${postId}`);
   };
 
-  const handleShare = (postId: string) => {
-    // Implement share functionality
-    console.log('Share post:', postId);
+  const handleLogout = () => {
+    signOut();
+    router.push('/');
   };
 
-  // Auth is now handled at root level - no need for checks here
-  
-  // Show loading state while data is being fetched
-  if (nexusData.isLoading || !nexusData.currentUser) {
-    return (
-      <div className="liminal-logbook loading-state">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-text-secondary">Loading Profile...</div>
-        </div>
-      </div>
-    );
-  }
+  // Fallback implementations for PostOverlay
+  const getDirectChildren = async (postId: string) => {
+    try {
+      return await dataService.getDirectChildren(postId);
+    } catch (error) {
+      console.error('Failed to get direct children:', error);
+      return [];
+    }
+  };
 
-  // Determine modeClass based on pathname for styling
-  const isDreamPath = pathname.startsWith('/dream');
-  const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
+  const getParentPost = async (postId: string) => {
+    try {
+      return await dataService.getParentPost(postId);
+    } catch (error) {
+      console.error('Failed to get parent post:', error);
+      return null;
+    }
+  };
+
+  // Auth is now handled by middleware - no need for early auth checks
 
   return (
     <div className={`liminal-logbook ${modeClass}`}>
@@ -117,28 +124,30 @@ export default function ProfilePage() {
             if (view === 'feed') handleNavigateToFeed();
             else if (view === 'resonance-field') handleNavigateToResonanceField();
           }}
-          currentUser={nexusData.currentUser}
+          currentUser={user}
           onProfileClick={handleProfileClick}
         />
         
         {/* Profile Content */}
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
-          <ProfileView 
-            user={nexusData.currentUser}
-            onPostClick={handleOpenPost}
-            onUserClick={handleUserClick}
-            onResonate={nexusData.resonateWithEntry}
-            onAmplify={nexusData.amplifyEntry}
-            onBranch={nexusData.createBranch}
-            onDeepDive={handleDeepDive}
-            onShare={handleShare}
-            onLogout={handleLogout}
-            onUpdateProfile={nexusData.updateUserProfile}
-            isOwnProfile={true}
-            currentUserId={nexusData.currentUser.id}
-            getFollowers={nexusData.getFollowers}
-            getFollowing={nexusData.getFollowing}
-          />
+          {user && (
+            <ProfileView 
+              user={user}
+              onPostClick={handleOpenPost}
+              onUserClick={handleUserClick}
+              onResonate={resonateWithEntry}
+              onAmplify={amplifyEntry}
+              onBranch={createBranch}
+              onDeepDive={handleDeepDive}
+              onShare={handleShare}
+              onLogout={handleLogout}
+              onUpdateProfile={updateUserProfile}
+              isOwnProfile={true}
+              currentUserId={user.id}
+              getFollowers={getFollowers}
+              getFollowing={getFollowing}
+            />
+          )}
         </div>
       </div>
       
@@ -148,21 +157,10 @@ export default function ProfilePage() {
         isOpen={isOverlayOpen}
         onClose={handleCloseOverlay}
         onInteraction={handlePostInteraction}
-        getDirectChildren={nexusData.getDirectChildren}
-        getParentPost={nexusData.getParentPost}
+        getDirectChildren={getDirectChildren}
+        getParentPost={getParentPost}
         onChildClick={handleOpenPost}
       />
-
-      {/* User Profile Modal */}
-      {nexusData.currentUser && (
-        <UserProfile
-          user={nexusData.currentUser}
-          onLogout={handleLogout}
-          onViewProfile={handleViewProfile}
-          isOpen={isProfileModalOpen}
-          onClose={() => setIsProfileModalOpen(false)}
-        />
-      )}
     </div>
   );
 } 

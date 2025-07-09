@@ -13,7 +13,7 @@ import {
   User,
   JournalMode
 } from '../types';
-import { authService } from './supabaseAuthService';
+import { getCurrentUser } from '../auth/AuthContext';
 import { userInteractionService } from './userInteractionService';
 import { supabase } from '../supabase';
 import { StreamEntryData } from '../types';
@@ -821,7 +821,7 @@ export class DataService {
     await this.initializeData();
     
     // Ensure we have the authenticated user
-    let currentUser = authService.getCurrentUser();
+    let currentUser = getCurrentUser();
     if (!currentUser) {
       // Attempt to rehydrate from Supabase session
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -848,8 +848,8 @@ export class DataService {
       children: [],
       depth: 0,
       type: type,
-      agent: currentUser.username,
-      username: currentUser.username,
+      agent: currentUser.username ?? currentUser.email ?? currentUser.id,
+      username: currentUser.username ?? currentUser.email ?? currentUser.id,
       connections: 0,
       metrics: { c: 0.5, r: 0.5, x: 0.5 },
       timestamp: formatTimestamp(),
@@ -875,7 +875,8 @@ export class DataService {
     try {
       // Use database
       const newEntry = await this.database.createEntry(entryData);
-      authService.updateUserStats(mode === 'logbook' ? 'entries' : 'dreams');
+      
+      // User stats are automatically updated by the `update_user_stats_trigger` in the database.
       
       // Clear cache to force refresh on next fetch
       this.lastCacheUpdate = 0;
@@ -896,7 +897,7 @@ export class DataService {
 
     try {
       console.log(`⚡ OPTIMIZED: Resonating with entry ${entryId} (granular cache update)`);
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
       const newState = await this.database.toggleUserResonance(currentUser.id, entryId);
@@ -926,7 +927,7 @@ export class DataService {
 
     try {
       console.log(`⚡ OPTIMIZED: Amplifying entry ${entryId} (granular cache update)`);
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
       const newState = await this.database.toggleUserAmplification(currentUser.id, entryId);
@@ -956,7 +957,7 @@ export class DataService {
 
     try {
       console.log(`⚡ OPTIMIZED: Creating branch for entry ${parentId} (granular cache update)`);
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
       // Get parent entry to inherit privacy and entry_type
@@ -971,8 +972,8 @@ export class DataService {
         type: parentEntry.type || 'Branch', // Inherit the specific type from parent (e.g., "Deep Reflection")
         title: '',
         content,
-        agent: currentUser.username || currentUser.email,
-        username: currentUser.username || currentUser.email,
+        agent: currentUser.username ?? currentUser.email ?? currentUser.id,
+        username: currentUser.username ?? currentUser.email ?? currentUser.id,
         userId: currentUser.id,
         timestamp: new Date().toISOString(),
         privacy: parentEntry.privacy || 'private', // Inherit privacy from parent
@@ -1062,32 +1063,36 @@ export class DataService {
     
     // ---------------- PRODUCTION (SUPABASE) ----------------
     try {
-      // 1) Prefer fetching children via the dedicated entry_branches table (new system)
-      const childIds = await this.database.getBranchChildren(parentId);
       let children: StreamEntry[] = [];
 
-      if (childIds.length > 0) {
-        // OPTIMIZATION: Batch fetch all children using new method instead of individual calls
-        children = await this.batchFetchEntries(childIds);
+      // 0) Try the dedicated optimized RPC (fast path)
+      if (this.database.getChildrenEntries) {
+        const rpcChildren = await this.database.getChildrenEntries(parentId, {
+          targetUserId: getCurrentUser()?.id ?? undefined,
+          limit: 100,
+          sortBy: 'timestamp',
+          sortOrder: 'asc',
+        });
+        if (rpcChildren.length > 0) {
+          children = rpcChildren;
+        }
       }
 
-      // 2) Fallback: legacy check using parentId column for data created before entry_branches existed
+      // 1) If RPC returned nothing (likely legacy data), fall back to branch table
       if (children.length === 0) {
-        const [logbookEntries, dreamEntries] = await Promise.all([
-          this.database.getEntries('logbook', { page: 1, limit: 1000 }),
-          this.database.getEntries('dream', { page: 1, limit: 1000 })
-        ]);
-        const allEntries = [...logbookEntries, ...dreamEntries];
-        children = allEntries.filter(entry => entry.parentId === parentId);
+        const childIds = await this.database.getBranchChildren(parentId);
+        if (childIds.length > 0) {
+          children = await this.batchFetchEntries(childIds);
+        }
       }
 
       // Sort by timestamp (oldest first for conversation flow)
-      children.sort((a, b) => 
+      children.sort((a: StreamEntry, b: StreamEntry) => 
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
       
       // Enrich with interaction data
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       const enriched = await this.enrichEntriesWithInteractions(children, currentUser?.id);
       return await this.enrichEntriesWithUserContext(enriched, currentUser?.id);
     } catch (error) {
@@ -1114,7 +1119,7 @@ export class DataService {
   async updateUserProfile(updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string }): Promise<User> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       throw new Error('User not authenticated. Cannot update profile.');
     }
@@ -1182,7 +1187,7 @@ export class DataService {
   async followUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.error('Authentication error: Cannot follow user without being logged in.');
       return false;
@@ -1203,7 +1208,7 @@ export class DataService {
   async unfollowUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.error('Authentication error: Cannot unfollow user without being logged in.');
       return false;
@@ -1220,7 +1225,7 @@ export class DataService {
   async isFollowing(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) return false;
 
     if (!this.database || !this.database.isFollowing) {
@@ -1248,7 +1253,7 @@ export class DataService {
 
   async getMutualFollows(userId: string, limit: number = 50) {
     await this.initializeData();
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) return [];
 
     if (!this.database || !this.database.getMutualFollows) {
@@ -1261,7 +1266,7 @@ export class DataService {
 
   async getFollowSuggestions(limit: number = 10) {
     await this.initializeData();
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.warn("Cannot get follow suggestions for a logged-out user.");
       return [];
@@ -1275,7 +1280,7 @@ export class DataService {
 
   async bulkCheckFollowing(userIds: string[]): Promise<Map<string, boolean>> {
     await this.initializeData();
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       return new Map(userIds.map(id => [id, false]));
     }
@@ -1359,8 +1364,8 @@ export class DataService {
     children: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean })[];
   }> {
     await this.initializeData();
-    
-    const currentUser = authService.getCurrentUser();
+
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       throw new Error('User must be authenticated to view entry details');
     }
@@ -1369,56 +1374,71 @@ export class DataService {
       throw new Error('Database not initialized');
     }
 
-    try {
-      // Database mode - make efficient queries
-      const currentEntry = await this.database.getEntryById(entryId);
-      if (!currentEntry) {
-        throw new Error('Entry not found');
-      }
+    // ---- Fetch current entry (and discover parentId) ----
+    const [currentEntryWithStates] = await (this.database.getEntriesByIdsWithUserStates
+      ? await this.database.getEntriesByIdsWithUserStates([entryId], currentUser.id)
+      : []);
 
-      // Get parent and children in parallel
-      const [parentEntry, childEntries] = await Promise.all([
-        currentEntry.parentId ? this.database.getEntryById(currentEntry.parentId) : Promise.resolve(null),
-        this.getDirectChildren(entryId)
-      ]);
-
-      // Collect all entry IDs for batch interaction state lookup
-      const allEntries = [currentEntry, ...(parentEntry ? [parentEntry] : []), ...childEntries];
-      const allEntryIds = allEntries.map(e => e.id);
-
-      // Batch fetch interaction counts and user states in parallel
-      const [interactionCounts, userInteractionStates] = await Promise.all([
-        this.database.getInteractionCounts(allEntryIds),
-        this.database.getUserInteractionStates(currentUser.id, allEntryIds)
-      ]);
-
-      // Enrich entries with fresh data
-      const enrichEntry = (entry: StreamEntry) => {
-        const counts = interactionCounts.get(entry.id);
-        const userStates = userInteractionStates.get(entry.id);
-        
-        return {
-          ...entry,
-          interactions: counts ? {
-            resonances: counts.resonanceCount,
-            branches: counts.branchCount,
-            amplifications: counts.amplificationCount,
-            shares: counts.shareCount
-          } : entry.interactions,
-          userHasResonated: userStates?.hasResonated || false,
-          userHasAmplified: userStates?.hasAmplified || false
-        };
-      };
-
-      return {
-        current: enrichEntry(currentEntry),
-        parent: parentEntry ? enrichEntry(parentEntry) : null,
-        children: childEntries.map(enrichEntry)
-      };
-    } catch (error) {
-      console.error('❌ Error fetching entry details with context:', error);
-      throw error;
+    if (!currentEntryWithStates) {
+      throw new Error('Entry not found');
     }
+
+    // Helper to convert StreamEntryWithUserStates -> StreamEntry (+ camelCase flags)
+    const convert = (entry: any) => {
+      const {
+        resonance_count,
+        branch_count,
+        amplification_count,
+        share_count,
+        has_resonated,
+        has_amplified,
+        ...rest
+      } = entry;
+      return {
+        ...rest,
+        interactions: {
+          resonances: resonance_count,
+          branches: branch_count,
+          amplifications: amplification_count,
+          shares: share_count,
+        },
+        userHasResonated: has_resonated,
+        userHasAmplified: has_amplified,
+      } as StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean };
+    };
+
+    // ---- Fetch parent (if any) ----
+    let parent: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean }) | null = null;
+    if (currentEntryWithStates.parentId) {
+      const [parentWithStates] = await (this.database.getEntriesByIdsWithUserStates
+        ? await this.database.getEntriesByIdsWithUserStates([currentEntryWithStates.parentId], currentUser.id)
+        : []);
+      if (parentWithStates) {
+        parent = convert(parentWithStates);
+      }
+    }
+
+    // ---- Fetch children via dedicated RPC ----
+    let children: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean })[] = [];
+    if (this.database.getChildrenEntries) {
+      try {
+        const childEntries = await this.database.getChildrenEntries(entryId, {
+          targetUserId: currentUser.id,
+          limit: 100,
+          sortBy: 'timestamp',
+          sortOrder: 'asc',
+        });
+        children = childEntries.map(convert);
+      } catch (err) {
+        console.error('Error fetching children entries with user states:', err);
+      }
+    }
+
+    return {
+      current: convert(currentEntryWithStates),
+      parent,
+      children,
+    };
   }
 
   // ========== UNIFIED PAGINATION API ==========
@@ -1464,7 +1484,7 @@ export class DataService {
     }
 
     try {
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
 
       let entries: StreamEntry[] = [];
   
