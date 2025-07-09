@@ -32,6 +32,7 @@ export default function UserProfilePage() {
     viewUserProfile, 
     viewSelfProfile,
     profileViewState,
+    profileUserPosts,
     isLoading: isProfileLoading 
   } = useProfile(currentUser);
   
@@ -52,7 +53,9 @@ export default function UserProfilePage() {
     if (username && currentUser) {
       // If viewing own username, switch to self profile mode
       if (currentUser && username === currentUser.username) {
-        viewSelfProfile();
+        viewSelfProfile().catch((error) => {
+          console.error('Failed to load self profile:', error);
+        });
       } else {
         viewUserProfile(username).catch((error) => {
           console.error('Failed to load user profile:', error);
@@ -260,6 +263,7 @@ export default function UserProfilePage() {
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
           <ProfileView 
             user={profileUser}
+            userPosts={profileUserPosts}
             onPostClick={handleOpenPost}
             onUserClick={handleUserClick}
             onResonate={resonateWithEntry}
