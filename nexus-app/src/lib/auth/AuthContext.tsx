@@ -148,13 +148,23 @@ class SessionCache {
 
 async function fetchUserProfile(supabaseUser: any): Promise<User> {
   try {
-    const { data: profile, error } = await supabase
+    console.log('🔄 AuthContext: Fetching user profile for:', supabaseUser.email);
+
+    // Add timeout to the database query
+    const profileQueryPromise = supabase
       .from('users')
       .select('*')
       .eq('id', supabaseUser.id)
       .single();
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Profile query timeout')), 8000); // 8 second timeout
+    });
+
+    const { data: profile, error } = await Promise.race([profileQueryPromise, timeoutPromise]);
 
     if (profile && !error) {
+      console.log('✅ AuthContext: Successfully fetched profile for:', profile.username);
       return {
         id: profile.id,
         username: profile.username,
@@ -178,6 +188,7 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       };
     }
 
+    console.log('⚠️ AuthContext: No profile found, using fallback user');
     // Fallback user if profile doesn't exist
     return {
       id: supabaseUser.id,
@@ -193,7 +204,26 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       createdAt: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('❌ AuthContext: Error fetching user profile:', error);
+    
+    // If it's a timeout or network error, still return a fallback user
+    if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('network'))) {
+      console.log('⚠️ AuthContext: Using fallback user due to timeout/network error');
+      return {
+        id: supabaseUser.id,
+        username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'user',
+        email: supabaseUser.email || '',
+        name: supabaseUser.user_metadata?.name || 'User',
+        userType: 'human',
+        role: 'Explorer',
+        avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
+        bio: '',
+        location: '',
+        stats: { entries: 0, dreams: 0, connections: 0 },
+        createdAt: new Date().toISOString(),
+      };
+    }
+    
     throw error;
   }
 }
@@ -241,7 +271,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Step 2: Check Supabase session with timeout
       const sessionPromise = supabase.auth.getSession();
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Session check timeout')), 10000);
+        setTimeout(() => reject(new Error('Session check timeout')), 8000); // Reduced to 8 seconds
       });
 
       const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
@@ -260,7 +290,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         console.log('✅ AuthContext: Found Supabase session for user:', session.user.email);
         try {
-          const user = await fetchUserProfile(session.user);
+          // Add timeout wrapper for the entire profile fetch operation
+          const profilePromise = fetchUserProfile(session.user);
+          const profileTimeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Profile fetch operation timeout')), 10000);
+          });
+
+          const user = await Promise.race([profilePromise, profileTimeoutPromise]);
           SessionCache.set(user, session.access_token);
           
           console.log('✅ AuthContext: Successfully loaded user profile:', user.username);
@@ -272,12 +308,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         } catch (profileError) {
           console.error('❌ AuthContext: Failed to fetch user profile:', profileError);
-          // Still set as authenticated but with basic user info
+          
+          // Create a more robust fallback user
           const fallbackUser: User = {
             id: session.user.id,
-            username: session.user.email?.split('@')[0] || 'user',
+            username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'user',
             email: session.user.email || '',
-            name: session.user.user_metadata?.name || 'User',
+            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || 'User',
             userType: 'human',
             role: 'Explorer',
             avatar: (session.user.email?.slice(0, 2) || 'US').toUpperCase(),
@@ -287,11 +324,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             createdAt: new Date().toISOString(),
           };
           
+          console.log('⚠️ AuthContext: Using fallback user due to profile fetch error');
           setState({
             isLoading: false,
             isAuthenticated: true,
             user: fallbackUser,
-            error: null,
+            error: null, // Don't show error to user since we have a fallback
           });
         }
       } else {
@@ -442,10 +480,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState(prev => ({ 
         ...prev, 
         isLoading: false,
-        error: prev.error || 'Authentication timeout - please refresh' 
+        error: prev.error || 'Authentication took too long. Please check your connection and try refreshing.' 
       }));
       initializingRef.current = false;
-    }, 15000); // 15 second timeout
+    }, 12000); // Reduced to 12 second timeout
 
     // Initialize auth on mount
     if (!initializingRef.current) {
