@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User, StreamEntry, Post, AuthState } from '@/lib/types';
+import { User, StreamEntry, Post } from '@/lib/types';
 import PostList from './PostList';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 import { StreamEntryWithUserStates } from '@/lib/database/types';
 import { DatabaseFactory } from '@/lib/database/factory';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
 // @ts-ignore
 import FollowsModal from './FollowsModal';
 import NotificationBanner from './NotificationBanner';
@@ -63,6 +63,8 @@ export default function ProfileView({
   getFollowers,
   getFollowing,
 }: ProfileViewProps) {
+  const { user: currentUser, isAuthenticated } = useAuth();
+  
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditing, setIsEditing] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -127,7 +129,6 @@ export default function ProfileView({
   const loadProfileEntries = async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const currentUser = authService.getCurrentUser();
       const offset = (requestedPage - 1) * PAGE_SIZE;
       
       console.log(`📡 Loading profile entries for user ${user.id} (page ${requestedPage}) with optimized single query...`);
@@ -194,24 +195,16 @@ export default function ProfileView({
     }
   }, [user.id, isOwnProfile]);
 
-  // Auth state management - listen for auth changes (same pattern as ResonanceField)
+  // Auth state management - reload when user changes
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
-      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // User just became authenticated - reload profile data if needed
-        if (activeTab === 'posts' && !isUserStatesLoaded && !isLoading) {
-          console.log('🔄 Auth completed, reloading profile data');
-          loadProfileEntries(1, false);
-        }
+    if (isAuthenticated && currentUser) {
+      // User just became authenticated - reload profile data if needed
+      if (activeTab === 'posts' && !isUserStatesLoaded && !isLoading) {
+        console.log('🔄 Auth completed, reloading profile data');
+        loadProfileEntries(1, false);
       }
-    });
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [isUserStatesLoaded, activeTab]);
+    }
+  }, [isAuthenticated, currentUser, isUserStatesLoaded, activeTab]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {

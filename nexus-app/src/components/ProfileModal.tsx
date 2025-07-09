@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { supabase } from '@/lib/supabase';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -84,14 +84,13 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
         return;
       }
 
-      // Update password
-      const result = await authService.updatePasswordSecure(
-        passwordForm.oldPassword,
-        passwordForm.newPassword
-      );
+      // Update password using Supabase client
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
+      });
 
-      if (!result.success) {
-        setError(result.error || 'Failed to update password');
+      if (updateError) {
+        setError(updateError.message || 'Failed to update password');
         return;
       }
 

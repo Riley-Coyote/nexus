@@ -3,11 +3,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import PostList from './PostList';
 import EntryComposer from './EntryComposer';
-import { Post, AuthState, EntryComposerData } from '@/lib/types';
+import { Post, EntryComposerData } from '@/lib/types';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 import { StreamEntryWithUserStates } from '@/lib/database/types';
 import { DatabaseFactory } from '@/lib/database/factory';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { useInteractionHandlers } from '@/hooks/useInteractionHandlers';
 
 /**
@@ -27,6 +27,8 @@ export default function LogbookPage({
   onPostClick,
   entryComposer
 }: LogbookPageProps) {
+  const { user, isAuthenticated } = useAuth();
+  
   // Use centralized interaction handlers - single source of truth!
   const {
     handleBranch,
@@ -39,6 +41,7 @@ export default function LogbookPage({
     hasUserResonated,
     hasUserAmplified
   } = useInteractionHandlers();
+  
   // Local state management (same pattern as ResonanceField)
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,10 +75,8 @@ export default function LogbookPage({
   const loadLogbookEntries = async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const currentUser = authService.getCurrentUser();
-      
       // AuthProvider already ensures user is authenticated - no need to check here
-      // Just proceed with loading data, passing currentUser?.id to the database
+      // Just proceed with loading data, passing user?.id to the database
       const offset = (requestedPage - 1) * PAGE_SIZE;
       
       console.log(`📡 Loading logbook entries (page ${requestedPage}) with optimized single query...`);
@@ -83,17 +84,17 @@ export default function LogbookPage({
       // Use the optimized database function that gets entries with user states in a single query
       const database = DatabaseFactory.getInstance();
       
-      // Handle edge case where currentUser might be undefined
-      if (!currentUser?.id) {
+      // Handle edge case where user might be undefined
+      if (!user?.id) {
         console.warn('⚠️ No user ID available, showing empty logbook');
         setHasMore(false);
         setIsUserStatesLoaded(true);
         return;
       }
       
-      const entriesWithUserStates = await database.getLogbookEntries?.(currentUser.id, {
+      const entriesWithUserStates = await database.getLogbookEntries?.(user.id, {
         privacyFilter: null, // Show both public and private for own logbook
-        targetUserId: currentUser.id,
+        targetUserId: user.id,
         offset,
         limit: PAGE_SIZE,
         sortBy: 'timestamp',
@@ -139,25 +140,16 @@ export default function LogbookPage({
     loadLogbookEntries(1, false);
   }, []);
 
-  // Proper auth state management - listen for auth changes like useNexusData does
+  // Proper auth state management - reload when user changes
   useEffect(() => {
-    // Listen for auth state changes
-    const unsubscribe = authService.onAuthStateChange((newAuthState: AuthState) => {
-      if (newAuthState.isAuthenticated && newAuthState.currentUser) {
-        // User just became authenticated - reload logbook data
-        if (posts.length === 0 && !isLoading) {
-          console.log('🔄 Auth completed, reloading logbook data');
-          loadLogbookEntries(1, false);
-        }
+    if (isAuthenticated && user) {
+      // User just became authenticated - reload logbook data
+      if (posts.length === 0 && !isLoading) {
+        console.log('🔄 Auth completed, reloading logbook data');
+        loadLogbookEntries(1, false);
       }
-    });
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [posts.length, isLoading]);
+    }
+  }, [isAuthenticated, user, posts.length, isLoading]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {

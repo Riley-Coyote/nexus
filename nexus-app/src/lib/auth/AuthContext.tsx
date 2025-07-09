@@ -150,7 +150,7 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
   try {
     console.log('🔄 AuthContext: Fetching user profile for:', supabaseUser.email);
 
-    // Add timeout to the database query
+    // First, try to get existing profile with shorter timeout
     const profileQueryPromise = supabase
       .from('users')
       .select('*')
@@ -158,13 +158,13 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       .single();
     
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Profile query timeout')), 8000); // 8 second timeout
+      setTimeout(() => reject(new Error('Profile query timeout')), 5000); // Reduced timeout
     });
 
     const { data: profile, error } = await Promise.race([profileQueryPromise, timeoutPromise]);
 
     if (profile && !error) {
-      console.log('✅ AuthContext: Successfully fetched profile for:', profile.username);
+      console.log('✅ AuthContext: Successfully fetched existing profile for:', profile.username);
       return {
         id: profile.id,
         username: profile.username,
@@ -188,13 +188,66 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       };
     }
 
-    console.log('⚠️ AuthContext: No profile found, using fallback user');
-    // Fallback user if profile doesn't exist
+    // If profile doesn't exist or query failed, try to create one
+    console.log('⚠️ AuthContext: No profile found, creating new profile for user:', supabaseUser.email);
+    
+    const username = supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'user';
+    const name = supabaseUser.user_metadata?.name || supabaseUser.user_metadata?.full_name || username;
+    
+    try {
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: supabaseUser.id,
+          username: username,
+          email: supabaseUser.email,
+          name: name,
+          bio: 'New to the Nexus. Exploring the liminal spaces.',
+          location: 'The Digital Realm',
+          avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
+          role: 'Explorer',
+          stats: { entries: 0, dreams: 0, connections: 0 },
+          follower_count: 0,
+          following_count: 0
+        })
+        .select()
+        .single();
+
+      if (newProfile && !createError) {
+        console.log('✅ AuthContext: Successfully created new profile for:', newProfile.username);
+        return {
+          id: newProfile.id,
+          username: newProfile.username,
+          email: newProfile.email,
+          name: newProfile.name || newProfile.username,
+          userType: newProfile.user_type || 'human',
+          role: newProfile.role || 'Explorer',
+          avatar: newProfile.avatar || newProfile.username?.slice(0, 2).toUpperCase() || 'US',
+          bio: newProfile.bio || '',
+          location: newProfile.location || '',
+          profileImage: newProfile.profile_image_url,
+          bannerImage: newProfile.banner_image_url,
+          stats: {
+            entries: newProfile.entry_count || 0,
+            dreams: newProfile.dream_count || 0,
+            connections: newProfile.connection_count || 0,
+          },
+          followerCount: newProfile.follower_count || 0,
+          followingCount: newProfile.following_count || 0,
+          createdAt: newProfile.created_at,
+        };
+      }
+    } catch (createError) {
+      console.error('❌ AuthContext: Failed to create profile:', createError);
+    }
+
+    // Fallback to a temporary user profile
+    console.log('⚠️ AuthContext: Using fallback user profile');
     return {
       id: supabaseUser.id,
-      username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'user',
+      username: username,
       email: supabaseUser.email || '',
-      name: supabaseUser.user_metadata?.name || 'User',
+      name: name,
       userType: 'human',
       role: 'Explorer',
       avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
@@ -204,27 +257,26 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       createdAt: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('❌ AuthContext: Error fetching user profile:', error);
+    console.error('❌ AuthContext: Error in fetchUserProfile:', error);
     
-    // If it's a timeout or network error, still return a fallback user
-    if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('network'))) {
-      console.log('⚠️ AuthContext: Using fallback user due to timeout/network error');
-      return {
-        id: supabaseUser.id,
-        username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'user',
-        email: supabaseUser.email || '',
-        name: supabaseUser.user_metadata?.name || 'User',
-        userType: 'human',
-        role: 'Explorer',
-        avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
-        bio: '',
-        location: '',
-        stats: { entries: 0, dreams: 0, connections: 0 },
-        createdAt: new Date().toISOString(),
-      };
-    }
+    // Return fallback user for any error
+    const username = supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'user';
+    const name = supabaseUser.user_metadata?.name || supabaseUser.user_metadata?.full_name || 'User';
     
-    throw error;
+    console.log('⚠️ AuthContext: Using fallback user due to error');
+    return {
+      id: supabaseUser.id,
+      username: username,
+      email: supabaseUser.email || '',
+      name: name,
+      userType: 'human',
+      role: 'Explorer',
+      avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
+      bio: '',
+      location: '',
+      stats: { entries: 0, dreams: 0, connections: 0 },
+      createdAt: new Date().toISOString(),
+    };
   }
 }
 

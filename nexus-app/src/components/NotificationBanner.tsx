@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { X, LucideIcon } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface NotificationBannerProps {
   show: boolean;
@@ -24,6 +25,7 @@ export default function NotificationBanner({
   autoHide = true,
   autoHideDelay = 3000
 }: NotificationBannerProps) {
+  const { refreshAuth } = useAuth();
   useEffect(() => {
     if (show && autoHide && autoHideDelay) {
       const timer = setTimeout(() => {
@@ -116,14 +118,12 @@ export default function NotificationBanner({
                 Your browser's storage data has become corrupted. This can happen due to browser updates or storage issues.
                 <br />
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     if (typeof window !== 'undefined') {
-                      // Try to access the auth service to clear data
                       try {
-                        import('../lib/services/authService').then(({ authService }) => {
-                          authService.clearAllStorageData();
-                          window.location.reload();
-                        });
+                        // Use the auth context's refresh method which clears all auth data
+                        await refreshAuth();
+                        window.location.reload();
                       } catch (error) {
                         // Fallback: manual localStorage clear
                         const keys = Object.keys(localStorage).filter(key => 

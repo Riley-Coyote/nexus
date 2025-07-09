@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, signOut } = useAuth();
   const [isMagicLinkFlow, setIsMagicLinkFlow] = useState(false);
   const [formData, setFormData] = useState({
     oldPassword: '',
@@ -145,20 +146,20 @@ export default function ResetPasswordPage() {
         return;
       } else {
         // Traditional flow - verify old password first
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
+        if (!user) {
           setError('You must be signed in to change your password');
           setIsLoading(false);
           return;
         }
 
-        const result = await authService.updatePasswordSecure(
-          formData.oldPassword,
-          formData.newPassword
+        // Update password using Supabase client
+        const { error: updateError } = await withTimeout(
+          supabase.auth.updateUser({ password: formData.newPassword }),
+          30000
         );
 
-        if (!result.success) {
-          setError(result.error || 'Failed to update password');
+        if (updateError) {
+          setError(updateError.message || 'Failed to update password');
           setIsLoading(false);
           return;
         }
@@ -166,7 +167,7 @@ export default function ResetPasswordPage() {
         // Password update successful - reset loading and redirect immediately
         setIsLoading(false);
         // Sign out in background and redirect immediately
-        authService.signOut();
+        signOut();
         // Use window.location for guaranteed redirect
         window.location.href = '/?tab=signin&message=password_updated';
         return;
