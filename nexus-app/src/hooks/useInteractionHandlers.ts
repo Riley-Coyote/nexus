@@ -14,7 +14,7 @@ import { dataService } from '@/lib/services/dataService';
 export const useInteractionHandlers = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const { resonateWithEntry, amplifyEntry, createBranch, hasUserResonated, hasUserAmplified } = useUserInteractions();
+  const { resonateWithEntry, amplifyEntry, createBranch, hasUserResonated, hasUserAmplified } = useUserInteractions(user?.id);
 
   // Branch creation - centralized logic
   const handleBranch = useCallback(async (parentId: string, content: string) => {
