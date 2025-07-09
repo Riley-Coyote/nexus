@@ -126,10 +126,11 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
         location: profile.location || '',
         profileImage: profile.profile_image_url,
         bannerImage: profile.banner_image_url,
+        // Prefer the consolidated JSON stats column if available; fall back to individual columns
         stats: {
-          entries: profile.entry_count || 0,
-          dreams: profile.dream_count || 0,
-          connections: profile.connection_count || 0,
+          entries: (profile.stats?.entries ?? profile.entry_count) || 0,
+          dreams: (profile.stats?.dreams ?? profile.dream_count) || 0,
+          connections: (profile.stats?.connections ?? profile.connection_count) || 0,
         },
         followerCount: profile.follower_count || 0,
         followingCount: profile.following_count || 0,
@@ -191,9 +192,9 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
           profileImage: newProfile.profile_image_url,
           bannerImage: newProfile.banner_image_url,
           stats: {
-            entries: newProfile.entry_count || 0,
-            dreams: newProfile.dream_count || 0,
-            connections: newProfile.connection_count || 0,
+            entries: (newProfile.stats?.entries ?? newProfile.entry_count) || 0,
+            dreams: (newProfile.stats?.dreams ?? newProfile.dream_count) || 0,
+            connections: (newProfile.stats?.connections ?? newProfile.connection_count) || 0,
           },
           followerCount: newProfile.follower_count || 0,
           followingCount: newProfile.following_count || 0,
