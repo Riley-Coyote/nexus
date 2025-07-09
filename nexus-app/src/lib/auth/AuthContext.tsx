@@ -158,7 +158,7 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       .single();
     
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Profile query timeout - database may be slow')), 10000); // Increased timeout
+      setTimeout(() => reject(new Error('Profile query timeout - database may be slow')), 30000); // Increased timeout to 30s for production stability
     });
 
     let profile;
@@ -621,6 +621,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         try {
           if (event === 'SIGNED_IN' && session?.user) {
+            // Skip fetch if we already have this user loaded (avoids redundant call & timeout)
+            if (currentAuthState.user && currentAuthState.user.id === session.user.id) {
+              console.log('⏩ AuthContext: User already in state, skipping profile fetch');
+              return;
+            }
+
             console.log('✅ AuthContext: Processing SIGNED_IN event for:', session.user.email);
             
             try {
