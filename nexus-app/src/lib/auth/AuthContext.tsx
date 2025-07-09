@@ -337,6 +337,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Ref to hold the failsafe timeout so we can clear it from anywhere
+  const failsafeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   
   // Ref to track if we're in the middle of initialization
   const initializingRef = useRef(false);
 
@@ -580,6 +583,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initializingRef.current = false;
     }, 15000); // Increased timeout to give more time for slow connections
 
+    // Keep a reference so we can cancel it as soon as auth completes
+    failsafeRef.current = failsafeTimeout;
+
     // Initialize auth on mount
     if (!initializingRef.current) {
       initializingRef.current = true;
@@ -595,7 +601,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         .finally(() => {
           initializingRef.current = false;
-          clearTimeout(failsafeTimeout);
+          if (failsafeRef.current) {
+            clearTimeout(failsafeRef.current);
+            failsafeRef.current = null;
+          }
         });
     }
 
@@ -686,10 +695,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       console.log('🔄 AuthContext: Cleaning up auth listener');
+      initializingRef.current = false; // Reset so re-mounted effects can run initialization
       clearTimeout(failsafeTimeout);
+      if (failsafeRef.current) {
+        clearTimeout(failsafeRef.current);
+        failsafeRef.current = null;
+      }
       subscription.unsubscribe();
     };
   }, []); // Removed initializeAuth dependency to prevent re-mounting
+
+  // ---------------------------------------------------------------------------------
+  // Clear the failsafe timer as soon as we know loading is finished
+  // ---------------------------------------------------------------------------------
+  useEffect(() => {
+    if (!state.isLoading && failsafeRef.current) {
+      clearTimeout(failsafeRef.current);
+      failsafeRef.current = null;
+    }
+  }, [state.isLoading]);
 
   // =============================================================================
   // PROVIDE CONTEXT
