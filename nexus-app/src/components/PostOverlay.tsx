@@ -4,9 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType, StreamEntryData } from '../lib/types';
 import { dataService } from '../lib/services/dataService';
-import { authService } from '../lib/services/supabaseAuthService';
+import { useAuth } from '../lib/auth/AuthContext';
 import { createPostShareData, shareContent } from '../lib/utils/shareUtils';
-import { useAuth } from '../hooks/useAuth';
 
 interface PostOverlayProps {
   post: StreamEntryType | null;
@@ -93,12 +92,11 @@ export default function PostOverlay({
       if (!post) return;
       
       try {
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser) return; // safety: user not authenticated
+        if (!user) return; // safety: user not authenticated
 
         // Use existing methods instead of non-existent getUserInteractionState
-        const hasResonated = dataService.hasUserResonated(currentUser.id, post.id);
-        const hasAmplified = dataService.hasUserAmplified(currentUser.id, post.id);
+        const hasResonated = dataService.hasUserResonated(user.id, post.id);
+        const hasAmplified = dataService.hasUserAmplified(user.id, post.id);
         
         // OPTIMIZATION: Only update if different to prevent flicker
         if (hasResonated !== userHasResonated) {

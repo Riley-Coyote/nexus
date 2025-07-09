@@ -242,6 +242,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     error: null,
   });
 
+  // Keep service-accessible state in sync
+  const updateState = (newState: AuthState | ((prevState: AuthState) => AuthState)) => {
+    setState(prevState => {
+      const finalState = typeof newState === 'function' ? newState(prevState) : newState;
+      currentAuthState = finalState;
+      return finalState;
+    });
+  };
+
   // Ref to track if we're in the middle of initialization
   const initializingRef = useRef(false);
 
@@ -257,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cachedSession = SessionCache.get();
       if (cachedSession) {
         console.log('✅ AuthContext: Using cached session for user:', cachedSession.user.username);
-        setState({
+        updateState({
           isLoading: false,
           isAuthenticated: true,
           user: cachedSession.user,
@@ -278,7 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         console.error('❌ AuthContext: Session check error:', error);
-        setState({
+        updateState({
           isLoading: false,
           isAuthenticated: false,
           user: null,
@@ -300,7 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           SessionCache.set(user, session.access_token);
           
           console.log('✅ AuthContext: Successfully loaded user profile:', user.username);
-          setState({
+          updateState({
             isLoading: false,
             isAuthenticated: true,
             user,
@@ -325,7 +334,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           
           console.log('⚠️ AuthContext: Using fallback user due to profile fetch error');
-          setState({
+          updateState({
             isLoading: false,
             isAuthenticated: true,
             user: fallbackUser,
@@ -334,7 +343,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         console.log('ℹ️ AuthContext: No Supabase session found');
-        setState({
+        updateState({
           isLoading: false,
           isAuthenticated: false,
           user: null,
@@ -343,7 +352,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('❌ AuthContext: Initialization failed:', error);
-      setState({
+      updateState({
         isLoading: false,
         isAuthenticated: false,
         user: null,
@@ -417,7 +426,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       SessionCache.clear();
       
-      setState({
+      updateState({
         isLoading: false,
         isAuthenticated: false,
         user: null,
@@ -443,7 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     // Reset state to loading
-    setState({
+    updateState({
       isLoading: true,
       isAuthenticated: false,
       user: null,
@@ -458,7 +467,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await initializeAuth();
     } catch (error) {
       console.error('❌ AuthContext: Refresh failed:', error);
-      setState({
+      updateState({
         isLoading: false,
         isAuthenticated: false,
         user: null,
@@ -477,7 +486,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Failsafe timeout - never let loading state persist indefinitely
     const failsafeTimeout = setTimeout(() => {
       console.warn('⚠️ AuthContext: Failsafe timeout triggered - forcing loading to false');
-      setState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         isLoading: false,
         error: prev.error || 'Authentication took too long. Please check your connection and try refreshing.' 
@@ -491,7 +500,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initializeAuth()
         .catch((error) => {
           console.error('❌ AuthContext: Initialization failed completely:', error);
-          setState({
+          updateState({
             isLoading: false,
             isAuthenticated: false,
             user: null,
@@ -523,7 +532,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const user = await fetchUserProfile(session.user);
               SessionCache.set(user, session.access_token);
               
-              setState({
+              updateState({
                 isLoading: false,
                 isAuthenticated: true,
                 user,
@@ -532,7 +541,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.log('✅ AuthContext: SIGNED_IN processed successfully');
             } catch (error) {
               console.error('❌ AuthContext: Error processing SIGNED_IN:', error);
-              setState(prev => ({ 
+              updateState(prev => ({ 
                 ...prev, 
                 isLoading: false, 
                 error: 'Failed to load user profile' 
@@ -541,7 +550,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else if (event === 'SIGNED_OUT') {
             console.log('✅ AuthContext: Processing SIGNED_OUT event');
             SessionCache.clear();
-            setState({
+            updateState({
               isLoading: false,
               isAuthenticated: false,
               user: null,
@@ -556,7 +565,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           console.error('❌ AuthContext: Auth event handler error:', error);
-          setState(prev => ({ 
+          updateState(prev => ({ 
             ...prev, 
             isLoading: false, 
             error: 'Authentication event failed' 
@@ -601,6 +610,22 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+}
+
+// =============================================================================
+// SERVICE ACCESS (for non-component code)
+// =============================================================================
+
+let currentAuthState: AuthState = {
+  isLoading: true,
+  isAuthenticated: false,
+  user: null,
+  error: null,
+};
+
+// Simple function for services to get current user without hooks
+export function getCurrentUser(): User | null {
+  return currentAuthState.user;
 }
 
 // =============================================================================

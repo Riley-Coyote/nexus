@@ -5,7 +5,7 @@ import PostList from './PostList';
 import { Post, StreamEntry } from '@/lib/types';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 import { makeBranchHandler } from '@/lib/utils/interactionHandlers';
-import { authService } from '@/lib/services/supabaseAuthService';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { DatabaseFactory } from '@/lib/database/factory';
 import { StreamEntryWithUserStates } from '@/lib/database/types';
 
@@ -32,6 +32,7 @@ export default function NexusFeed({
   onShare,
   onDeepDive,
 }: NexusFeedProps) {
+  const { user: currentUser } = useAuth(); // Use shared auth context
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -58,7 +59,6 @@ export default function NexusFeed({
   const loadFeedEntries = async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
-      const currentUser = authService.getCurrentUser();
       const offset = (requestedPage - 1) * PAGE_SIZE;
       
       console.log(`📡 Loading feed entries (page ${requestedPage}) with optimized single query...`);

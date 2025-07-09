@@ -13,7 +13,7 @@ import {
   User,
   JournalMode
 } from '../types';
-import { authService } from './supabaseAuthService';
+import { getCurrentUser } from '../auth/AuthContext';
 import { userInteractionService } from './userInteractionService';
 import { supabase } from '../supabase';
 import { StreamEntryData } from '../types';
@@ -821,7 +821,7 @@ export class DataService {
     await this.initializeData();
     
     // Ensure we have the authenticated user
-    let currentUser = authService.getCurrentUser();
+    let currentUser = getCurrentUser();
     if (!currentUser) {
       // Attempt to rehydrate from Supabase session
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -875,7 +875,21 @@ export class DataService {
     try {
       // Use database
       const newEntry = await this.database.createEntry(entryData);
-      authService.updateUserStats(mode === 'logbook' ? 'entries' : 'dreams');
+      
+      // Update user stats directly with Supabase
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        try {
+          await supabase.rpc('update_user_stats', {
+            user_id: currentUser.id,
+            stat_type: mode === 'logbook' ? 'entries' : 'dreams',
+            increment_value: 1
+          });
+        } catch (statsError) {
+          console.warn('Failed to update user stats:', statsError);
+          // Don't fail the entire operation for stats update
+        }
+      }
       
       // Clear cache to force refresh on next fetch
       this.lastCacheUpdate = 0;
@@ -896,7 +910,7 @@ export class DataService {
 
     try {
       console.log(`⚡ OPTIMIZED: Resonating with entry ${entryId} (granular cache update)`);
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
       const newState = await this.database.toggleUserResonance(currentUser.id, entryId);
@@ -926,7 +940,7 @@ export class DataService {
 
     try {
       console.log(`⚡ OPTIMIZED: Amplifying entry ${entryId} (granular cache update)`);
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
       const newState = await this.database.toggleUserAmplification(currentUser.id, entryId);
@@ -956,7 +970,7 @@ export class DataService {
 
     try {
       console.log(`⚡ OPTIMIZED: Creating branch for entry ${parentId} (granular cache update)`);
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       if (!currentUser) throw new Error('User not authenticated');
 
       // Get parent entry to inherit privacy and entry_type
@@ -1087,7 +1101,7 @@ export class DataService {
       );
       
       // Enrich with interaction data
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
       const enriched = await this.enrichEntriesWithInteractions(children, currentUser?.id);
       return await this.enrichEntriesWithUserContext(enriched, currentUser?.id);
     } catch (error) {
@@ -1114,7 +1128,7 @@ export class DataService {
   async updateUserProfile(updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string }): Promise<User> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       throw new Error('User not authenticated. Cannot update profile.');
     }
@@ -1182,7 +1196,7 @@ export class DataService {
   async followUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.error('Authentication error: Cannot follow user without being logged in.');
       return false;
@@ -1203,7 +1217,7 @@ export class DataService {
   async unfollowUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.error('Authentication error: Cannot unfollow user without being logged in.');
       return false;
@@ -1220,7 +1234,7 @@ export class DataService {
   async isFollowing(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) return false;
 
     if (!this.database || !this.database.isFollowing) {
@@ -1248,7 +1262,7 @@ export class DataService {
 
   async getMutualFollows(userId: string, limit: number = 50) {
     await this.initializeData();
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) return [];
 
     if (!this.database || !this.database.getMutualFollows) {
@@ -1261,7 +1275,7 @@ export class DataService {
 
   async getFollowSuggestions(limit: number = 10) {
     await this.initializeData();
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.warn("Cannot get follow suggestions for a logged-out user.");
       return [];
@@ -1275,7 +1289,7 @@ export class DataService {
 
   async bulkCheckFollowing(userIds: string[]): Promise<Map<string, boolean>> {
     await this.initializeData();
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       return new Map(userIds.map(id => [id, false]));
     }
@@ -1360,7 +1374,7 @@ export class DataService {
   }> {
     await this.initializeData();
     
-    const currentUser = authService.getCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       throw new Error('User must be authenticated to view entry details');
     }
@@ -1464,7 +1478,7 @@ export class DataService {
     }
 
     try {
-      const currentUser = authService.getCurrentUser();
+      const currentUser = getCurrentUser();
 
       let entries: StreamEntry[] = [];
   
