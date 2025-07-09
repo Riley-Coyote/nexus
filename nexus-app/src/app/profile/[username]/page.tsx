@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import ProfileView from '@/components/ProfileView';
@@ -43,6 +43,9 @@ export default function UserProfilePage() {
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Track current loaded username to prevent duplicate loads
+  const loadedUsernameRef = useRef<string | null>(null);
+
   // Determine mode from pathname
   const isDreamPath = pathname.startsWith('/dream');
   const modeClass = isDreamPath ? 'mode-dream' : 'mode-logbook';
@@ -50,15 +53,19 @@ export default function UserProfilePage() {
 
   // Load the user profile when the component mounts or username changes
   useEffect(() => {
-    if (username && currentUser) {
+    if (username && currentUser && loadedUsernameRef.current !== username) {
+      loadedUsernameRef.current = username; // Mark as loading this username
+      
       // If viewing own username, switch to self profile mode
       if (currentUser && username === currentUser.username) {
         viewSelfProfile().catch((error) => {
           console.error('Failed to load self profile:', error);
+          loadedUsernameRef.current = null; // Reset on error
         });
       } else {
         viewUserProfile(username).catch((error) => {
           console.error('Failed to load user profile:', error);
+          loadedUsernameRef.current = null; // Reset on error
           // Leave in loading state so fallback shows "User not found"
         });
       }

@@ -180,14 +180,45 @@ export default function ProfileView({
     }
   }, [user.id, currentUser?.id, isOwnProfile, streamEntryWithUserStatesToPost]);
 
-  // Reset state when user changes (prevents stale data)
+  // Reset posts when user changes to ensure clean transitions
   useEffect(() => {
+    // Clear posts when user changes to prevent showing stale data
     setPosts([]);
+    setIsUserStatesLoaded(false);
     setPage(1);
     setHasMore(true);
-    setIsUserStatesLoaded(false);
-    setError(null);
-  }, [user.id]);
+  }, [user.id]); // Reset when user ID changes
+
+  // Use provided userPosts if available (from useProfile hook)
+  useEffect(() => {
+    if (userPosts !== undefined) {
+      // Validate that the posts belong to the current user
+      // If posts exist but don't match the current user, ignore them (stale data)
+      if (userPosts.length > 0) {
+        const firstPost = userPosts[0];
+        if (firstPost.username !== user.username) {
+          console.log(`⚠️ Ignoring stale posts for ${firstPost.username}, current user is ${user.username}`);
+          return; // Ignore stale data
+        }
+      }
+      
+      console.log(`📡 Using provided posts for ${user.username}: ${userPosts.length} posts`);
+      
+      if (userPosts.length > 0) {
+        // Convert StreamEntry to Post format
+        const convertedPosts = userPosts.map(entry => streamEntryToPost(entry));
+        setPosts(convertedPosts);
+        setHasMore(false); // Assume no pagination when posts are provided
+      } else {
+        // Empty array provided - show empty state
+        setPosts([]);
+        setHasMore(false);
+      }
+      
+      setIsUserStatesLoaded(true);
+      setPage(1);
+    }
+  }, [userPosts, user.username]); // Re-add user.username to detect user changes
 
   // Initial data load - only when activeTab is posts and we haven't loaded yet
   // SKIP if userPosts are provided (managed by parent like useProfile)
@@ -205,27 +236,6 @@ export default function ProfileView({
       loadProfileEntries(1, false);
     }
   }, [isAuthenticated, currentUser, activeTab, isUserStatesLoaded, posts.length, isLoading, loadProfileEntries, userPosts]);
-
-  // Use provided userPosts if available (from useProfile hook)
-  useEffect(() => {
-    if (userPosts !== undefined) {
-      console.log(`📡 Using provided posts for ${user.username}: ${userPosts.length} posts`);
-      
-      if (userPosts.length > 0) {
-        // Convert StreamEntry to Post format
-        const convertedPosts = userPosts.map(entry => streamEntryToPost(entry));
-        setPosts(convertedPosts);
-        setHasMore(false); // Assume no pagination when posts are provided
-      } else {
-        // Empty array provided - show empty state
-        setPosts([]);
-        setHasMore(false);
-      }
-      
-      setIsUserStatesLoaded(true);
-      setPage(1);
-    }
-  }, [userPosts, user.username]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {
