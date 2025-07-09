@@ -122,6 +122,11 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
           amplifications: entry.amplification_count || 0,
           shares: entry.share_count || 0
         },
+        // Preserve per-entry user interaction state so ProfileView can highlight buttons correctly
+        userInteractionStates: {
+          hasResonated: entry.has_resonated || false,
+          hasAmplified: entry.has_amplified || false,
+        },
         threads: entry.threads || [],
         isAmplified: entry.isAmplified || false,
         userId: entry.userId,
@@ -191,6 +196,11 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
           branches: entry.branch_count || 0,
           amplifications: entry.amplification_count || 0,
           shares: entry.share_count || 0
+        },
+        // Preserve per-entry user interaction state so ProfileView can highlight buttons correctly
+        userInteractionStates: {
+          hasResonated: entry.has_resonated || false,
+          hasAmplified: entry.has_amplified || false,
         },
         threads: entry.threads || [],
         isAmplified: entry.isAmplified || false,

@@ -206,7 +206,20 @@ export default function ProfileView({
       
       if (userPosts.length > 0) {
         // Convert StreamEntry to Post format
-        const convertedPosts = userPosts.map(entry => streamEntryToPost(entry));
+        const convertedPosts = userPosts.map(entry => {
+          const post = streamEntryToPost(entry);
+          // Forward any user interaction states if present on the original entry
+          if ((entry as any).has_resonated !== undefined || (entry as any).has_amplified !== undefined) {
+            post.userInteractionStates = {
+              hasResonated: (entry as any).has_resonated || false,
+              hasAmplified: (entry as any).has_amplified || false,
+            };
+          } else if ((entry as any).userInteractionStates) {
+            // Already shaped as Post with userInteractionStates – just copy
+            post.userInteractionStates = (entry as any).userInteractionStates;
+          }
+          return post;
+        });
         setPosts(convertedPosts);
         setHasMore(false); // Assume no pagination when posts are provided
       } else {
