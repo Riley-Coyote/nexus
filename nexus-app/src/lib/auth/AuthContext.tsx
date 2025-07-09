@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/types';
 
 // =============================================================================
@@ -22,25 +22,8 @@ interface AuthContextType extends AuthState {
   refreshAuth: () => Promise<void>;
 }
 
-// =============================================================================
-// SUPABASE CLIENT (SINGLETON)
-// =============================================================================
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    // Automatic token refresh handled by Supabase
-  },
-});
+// The shared Supabase client is now imported from '@/lib/supabase', ensuring a single client
+// instance is reused across both server and client environments without duplication.
 
 // =============================================================================
 // SESSION CACHE MANAGEMENT

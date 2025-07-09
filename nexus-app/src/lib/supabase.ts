@@ -1,7 +1,27 @@
-// Re-export the single Supabase client from AuthContext to ensure singleton pattern
-export { supabase } from '@/lib/auth/AuthContext';
+// Replace entire file with universal Supabase client setup and keep Database type definitions
+import { createClient } from '@supabase/supabase-js';
 
-// Database type definitions for better TypeScript support
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+// Create a single Supabase client that works in both server and browser environments.
+// "persistSession" and "detectSessionInUrl" are disabled on the server to avoid
+// accessing browser-only APIs like localStorage and window.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: typeof window !== 'undefined',
+    detectSessionInUrl: typeof window !== 'undefined',
+  },
+});
+
+// -----------------------------------------------------------------------------
+// Database type definitions for better TypeScript support (kept as-is)
+// -----------------------------------------------------------------------------
 export type Database = {
   public: {
     Tables: {
