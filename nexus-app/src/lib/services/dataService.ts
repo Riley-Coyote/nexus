@@ -1076,27 +1076,31 @@ export class DataService {
     
     // ---------------- PRODUCTION (SUPABASE) ----------------
     try {
-      // 1) Prefer fetching children via the dedicated entry_branches table (new system)
-      const childIds = await this.database.getBranchChildren(parentId);
       let children: StreamEntry[] = [];
 
-      if (childIds.length > 0) {
-        // OPTIMIZATION: Batch fetch all children using new method instead of individual calls
-        children = await this.batchFetchEntries(childIds);
+      // 0) Try the dedicated optimized RPC (fast path)
+      if (this.database.getChildrenEntries) {
+        const rpcChildren = await this.database.getChildrenEntries(parentId, {
+          targetUserId: getCurrentUser()?.id ?? undefined,
+          limit: 100,
+          sortBy: 'timestamp',
+          sortOrder: 'asc',
+        });
+        if (rpcChildren.length > 0) {
+          children = rpcChildren;
+        }
       }
 
-      // 2) Fallback: legacy check using parentId column for data created before entry_branches existed
+      // 1) If RPC returned nothing (likely legacy data), fall back to branch table
       if (children.length === 0) {
-        const [logbookEntries, dreamEntries] = await Promise.all([
-          this.database.getEntries('logbook', { page: 1, limit: 1000 }),
-          this.database.getEntries('dream', { page: 1, limit: 1000 })
-        ]);
-        const allEntries = [...logbookEntries, ...dreamEntries];
-        children = allEntries.filter(entry => entry.parentId === parentId);
+        const childIds = await this.database.getBranchChildren(parentId);
+        if (childIds.length > 0) {
+          children = await this.batchFetchEntries(childIds);
+        }
       }
 
       // Sort by timestamp (oldest first for conversation flow)
-      children.sort((a, b) => 
+      children.sort((a: StreamEntry, b: StreamEntry) => 
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
       

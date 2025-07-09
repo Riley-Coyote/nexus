@@ -1485,4 +1485,38 @@ export class SupabaseProvider implements DatabaseProvider {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(value.trim()) ? value.trim() : null;
   }
+
+  async getChildrenEntries(parentId: string, options: {
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<StreamEntryWithUserStates[]> {
+    const {
+      targetUserId = null,
+      offset = 0,
+      limit = 20,
+      sortBy = 'timestamp',
+      sortOrder = 'asc',
+    } = options;
+
+    const validatedTargetUserId = this.validateUUID(targetUserId);
+    const parent_entry_id = parseInt(parentId, 10);
+
+    const { data, error } = await this.client.rpc('get_children_entries_with_user_states', {
+      parent_entry_id,
+      target_user_id: validatedTargetUserId,
+      page_offset: offset,
+      page_limit: limit,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    });
+
+    if (error) {
+      console.error('Error fetching children entries:', error);
+      throw error;
+    }
+    return data || [];
+  }
 }

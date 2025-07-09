@@ -147,6 +147,14 @@ export interface DatabaseProvider {
     sortBy?: 'timestamp' | 'interactions';
     sortOrder?: 'asc' | 'desc';
   }): Promise<StreamEntryWithUserStates[]>;
+
+  getChildrenEntries?(parentId: string, options?: {
+    targetUserId?: string;
+    offset?: number;
+    limit?: number;
+    sortBy?: 'timestamp' | 'interactions';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<StreamEntryWithUserStates[]>;
 }
 
 export interface QueryOptions {
