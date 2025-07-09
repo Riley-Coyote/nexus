@@ -1364,7 +1364,7 @@ export class DataService {
     children: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean })[];
   }> {
     await this.initializeData();
-    
+
     const currentUser = getCurrentUser();
     if (!currentUser) {
       throw new Error('User must be authenticated to view entry details');
@@ -1374,56 +1374,71 @@ export class DataService {
       throw new Error('Database not initialized');
     }
 
-    try {
-      // Database mode - make efficient queries
-      const currentEntry = await this.database.getEntryById(entryId);
-      if (!currentEntry) {
-        throw new Error('Entry not found');
-      }
+    // ---- Fetch current entry (and discover parentId) ----
+    const [currentEntryWithStates] = await (this.database.getEntriesByIdsWithUserStates
+      ? await this.database.getEntriesByIdsWithUserStates([entryId], currentUser.id)
+      : []);
 
-      // Get parent and children in parallel
-      const [parentEntry, childEntries] = await Promise.all([
-        currentEntry.parentId ? this.database.getEntryById(currentEntry.parentId) : Promise.resolve(null),
-        this.getDirectChildren(entryId)
-      ]);
-
-      // Collect all entry IDs for batch interaction state lookup
-      const allEntries = [currentEntry, ...(parentEntry ? [parentEntry] : []), ...childEntries];
-      const allEntryIds = allEntries.map(e => e.id);
-
-      // Batch fetch interaction counts and user states in parallel
-      const [interactionCounts, userInteractionStates] = await Promise.all([
-        this.database.getInteractionCounts(allEntryIds),
-        this.database.getUserInteractionStates(currentUser.id, allEntryIds)
-      ]);
-
-      // Enrich entries with fresh data
-      const enrichEntry = (entry: StreamEntry) => {
-        const counts = interactionCounts.get(entry.id);
-        const userStates = userInteractionStates.get(entry.id);
-        
-        return {
-          ...entry,
-          interactions: counts ? {
-            resonances: counts.resonanceCount,
-            branches: counts.branchCount,
-            amplifications: counts.amplificationCount,
-            shares: counts.shareCount
-          } : entry.interactions,
-          userHasResonated: userStates?.hasResonated || false,
-          userHasAmplified: userStates?.hasAmplified || false
-        };
-      };
-
-      return {
-        current: enrichEntry(currentEntry),
-        parent: parentEntry ? enrichEntry(parentEntry) : null,
-        children: childEntries.map(enrichEntry)
-      };
-    } catch (error) {
-      console.error('❌ Error fetching entry details with context:', error);
-      throw error;
+    if (!currentEntryWithStates) {
+      throw new Error('Entry not found');
     }
+
+    // Helper to convert StreamEntryWithUserStates -> StreamEntry (+ camelCase flags)
+    const convert = (entry: any) => {
+      const {
+        resonance_count,
+        branch_count,
+        amplification_count,
+        share_count,
+        has_resonated,
+        has_amplified,
+        ...rest
+      } = entry;
+      return {
+        ...rest,
+        interactions: {
+          resonances: resonance_count,
+          branches: branch_count,
+          amplifications: amplification_count,
+          shares: share_count,
+        },
+        userHasResonated: has_resonated,
+        userHasAmplified: has_amplified,
+      } as StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean };
+    };
+
+    // ---- Fetch parent (if any) ----
+    let parent: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean }) | null = null;
+    if (currentEntryWithStates.parentId) {
+      const [parentWithStates] = await (this.database.getEntriesByIdsWithUserStates
+        ? await this.database.getEntriesByIdsWithUserStates([currentEntryWithStates.parentId], currentUser.id)
+        : []);
+      if (parentWithStates) {
+        parent = convert(parentWithStates);
+      }
+    }
+
+    // ---- Fetch children via dedicated RPC ----
+    let children: (StreamEntry & { userHasResonated: boolean; userHasAmplified: boolean })[] = [];
+    if (this.database.getChildrenEntries) {
+      try {
+        const childEntries = await this.database.getChildrenEntries(entryId, {
+          targetUserId: currentUser.id,
+          limit: 100,
+          sortBy: 'timestamp',
+          sortOrder: 'asc',
+        });
+        children = childEntries.map(convert);
+      } catch (err) {
+        console.error('Error fetching children entries with user states:', err);
+      }
+    }
+
+    return {
+      current: convert(currentEntryWithStates),
+      parent,
+      children,
+    };
   }
 
   // ========== UNIFIED PAGINATION API ==========

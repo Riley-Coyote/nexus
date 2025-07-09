@@ -1519,4 +1519,40 @@ export class SupabaseProvider implements DatabaseProvider {
     }
     return data || [];
   }
+
+  async getEntriesByIdsWithUserStates(entryIds: string[], targetUserId: string | null = null): Promise<StreamEntryWithUserStates[]> {
+    if (entryIds.length === 0) return [];
+
+    // First, reuse the existing optimized batch fetch (includes interaction counts)
+    const baseEntries = await this.getEntriesByIds(entryIds);
+    if (baseEntries.length === 0) return [];
+
+    // Fetch user interaction states in one shot (if viewer specified)
+    let userStates: Map<string, UserInteractionState> = new Map();
+    if (targetUserId) {
+      try {
+        userStates = await this.getUserInteractionStates(targetUserId, entryIds);
+      } catch (err) {
+        console.error('⚠️ Failed to fetch user interaction states, defaulting to false:', err);
+      }
+    }
+
+    // Merge counts + states into StreamEntryWithUserStates objects
+    return baseEntries.map((entry) => {
+      const counts = entry.interactions;
+      const state = userStates.get(entry.id) || { hasResonated: false, hasAmplified: false };
+
+      const withStates: StreamEntryWithUserStates = {
+        ...entry,
+        resonance_count: counts.resonances,
+        branch_count: counts.branches,
+        amplification_count: counts.amplifications,
+        share_count: counts.shares,
+        has_resonated: state.hasResonated,
+        has_amplified: state.hasAmplified,
+      } as StreamEntryWithUserStates;
+
+      return withStates;
+    });
+  }
 }

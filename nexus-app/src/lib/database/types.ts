@@ -155,6 +155,8 @@ export interface DatabaseProvider {
     sortBy?: 'timestamp' | 'interactions';
     sortOrder?: 'asc' | 'desc';
   }): Promise<StreamEntryWithUserStates[]>;
+
+  getEntriesByIdsWithUserStates?(entryIds: string[], targetUserId: string | null): Promise<StreamEntryWithUserStates[]>;
 }
 
 export interface QueryOptions {
