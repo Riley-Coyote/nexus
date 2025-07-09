@@ -24,7 +24,6 @@ export interface UserInteractionsHook {
   // Data loading
   refreshResonatedEntries: () => Promise<void>;
   refreshAmplifiedEntries: () => Promise<void>;
-  appendResonatedEntries: (page: number, limit?: number) => Promise<StreamEntryData[]>;
   ensureResonatedEntriesLoaded: () => Promise<void>;
   ensureAmplifiedEntriesLoaded: () => Promise<void>;
   
@@ -291,21 +290,6 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
   }, [loadAmplifiedEntries]);
   
   // Append more resonated entries (for pagination)
-  const appendResonatedEntries = useCallback(async (page: number, limit: number = 20) => {
-    if (!currentUserId) return [];
-    try {
-      console.log(`🔄 Loading more resonated entries - page ${page}`);
-      const newEntries = await dataService.getResonatedEntries(currentUserId, page, limit);
-      const newEntriesData = newEntries.map(convertToStreamEntryData);
-      setResonatedEntries(prev => [...prev, ...newEntriesData]);
-      console.log(`✅ Appended ${newEntriesData.length} resonated entries`);
-      return newEntriesData;
-    } catch (error) {
-      console.error('❌ Error loading more resonated entries:', error);
-      return [];
-    }
-  }, [currentUserId]);
-
   const ensureResonatedEntriesLoaded = useCallback(async () => {
     if (currentUserId && resonatedEntries.length === 0) {
       await loadResonatedEntries();
@@ -344,7 +328,6 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
     hasUserAmplified,
     refreshResonatedEntries,
     refreshAmplifiedEntries,
-    appendResonatedEntries,
     ensureResonatedEntriesLoaded,
     ensureAmplifiedEntriesLoaded,
     loadUserInteractionStates,
