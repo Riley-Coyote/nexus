@@ -148,9 +148,9 @@ class SessionCache {
 
 async function fetchUserProfile(supabaseUser: any): Promise<User> {
   try {
-    console.log('🔄 AuthContext: Fetching user profile for:', supabaseUser.email);
+    console.log('🔄 AuthContext: Fetching user profile for:', supabaseUser.email, 'with ID:', supabaseUser.id);
 
-    // First, try to get existing profile with shorter timeout
+    // First, try to get existing profile with longer timeout and better error handling
     const profileQueryPromise = supabase
       .from('users')
       .select('*')
@@ -158,10 +158,20 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       .single();
     
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Profile query timeout')), 5000); // Reduced timeout
+      setTimeout(() => reject(new Error('Profile query timeout - database may be slow')), 10000); // Increased timeout
     });
 
-    const { data: profile, error } = await Promise.race([profileQueryPromise, timeoutPromise]);
+    let profile;
+    let error;
+    
+    try {
+      const result = await Promise.race([profileQueryPromise, timeoutPromise]);
+      profile = result.data;
+      error = result.error;
+    } catch (timeoutError) {
+      console.warn('⚠️ AuthContext: Profile query timed out, will attempt fallback');
+      throw timeoutError;
+    }
 
     if (profile && !error) {
       console.log('✅ AuthContext: Successfully fetched existing profile for:', profile.username);
@@ -188,6 +198,11 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       };
     }
 
+    // Log the error for debugging
+    if (error) {
+      console.warn('⚠️ AuthContext: Database error when fetching profile:', error);
+    }
+
     // If profile doesn't exist or query failed, try to create one
     console.log('⚠️ AuthContext: No profile found, creating new profile for user:', supabaseUser.email);
     
@@ -195,7 +210,9 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
     const name = supabaseUser.user_metadata?.name || supabaseUser.user_metadata?.full_name || username;
     
     try {
-      const { data: newProfile, error: createError } = await supabase
+      console.log('🔄 AuthContext: Attempting to create profile with username:', username);
+      
+      const createProfilePromise = supabase
         .from('users')
         .insert({
           id: supabaseUser.id,
@@ -206,12 +223,19 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
           location: 'The Digital Realm',
           avatar: (supabaseUser.email?.slice(0, 2) || 'US').toUpperCase(),
           role: 'Explorer',
+          user_type: 'human',
           stats: { entries: 0, dreams: 0, connections: 0 },
           follower_count: 0,
           following_count: 0
         })
         .select()
         .single();
+      
+      const createTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile creation timeout')), 8000);
+      });
+
+      const { data: newProfile, error: createError } = await Promise.race([createProfilePromise, createTimeoutPromise]);
 
       if (newProfile && !createError) {
         console.log('✅ AuthContext: Successfully created new profile for:', newProfile.username);
@@ -239,6 +263,10 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
       }
     } catch (createError) {
       console.error('❌ AuthContext: Failed to create profile:', createError);
+      // Log more details about the error
+      if (createError instanceof Error) {
+        console.error('❌ AuthContext: Create error details:', createError.message);
+      }
     }
 
     // Fallback to a temporary user profile
@@ -258,6 +286,12 @@ async function fetchUserProfile(supabaseUser: any): Promise<User> {
     };
   } catch (error) {
     console.error('❌ AuthContext: Error in fetchUserProfile:', error);
+    
+    // Log more specific error details
+    if (error instanceof Error) {
+      console.error('❌ AuthContext: Error message:', error.message);
+      console.error('❌ AuthContext: Error stack:', error.stack);
+    }
     
     // Return fallback user for any error
     const username = supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'user';
@@ -544,7 +578,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error: prev.error || 'Authentication took too long. Please check your connection and try refreshing.' 
       }));
       initializingRef.current = false;
-    }, 12000); // Reduced to 12 second timeout
+    }, 15000); // Increased timeout to give more time for slow connections
 
     // Initialize auth on mount
     if (!initializingRef.current) {
@@ -614,6 +648,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (state.user) {
               SessionCache.set(state.user, session.access_token);
             }
+          } else if (event === 'INITIAL_SESSION' && session?.user) {
+            console.log('🔄 AuthContext: Processing INITIAL_SESSION event');
+            // Only process if we don't already have a user to avoid duplicate processing
+            if (!state.user) {
+              try {
+                const user = await fetchUserProfile(session.user);
+                SessionCache.set(user, session.access_token);
+                
+                updateState({
+                  isLoading: false,
+                  isAuthenticated: true,
+                  user,
+                  error: null,
+                });
+                console.log('✅ AuthContext: INITIAL_SESSION processed successfully');
+              } catch (error) {
+                console.error('❌ AuthContext: Error processing INITIAL_SESSION:', error);
+                updateState(prev => ({ 
+                  ...prev, 
+                  isLoading: false, 
+                  error: 'Failed to load user profile' 
+                }));
+              }
+            }
           }
         } catch (error) {
           console.error('❌ AuthContext: Auth event handler error:', error);
@@ -631,7 +689,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(failsafeTimeout);
       subscription.unsubscribe();
     };
-  }, [initializeAuth]);
+  }, []); // Removed initializeAuth dependency to prevent re-mounting
 
   // =============================================================================
   // PROVIDE CONTEXT

@@ -48,6 +48,9 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
   const resonatedCallsRef = useRef<Set<string>>(new Set());
   const amplifiedCallsRef = useRef<Set<string>>(new Set());
   
+  // Track if we've ever had a user to distinguish logout vs initial load
+  const hasHadUserRef = useRef(false);
+  
   // Load user resonated entries
   const loadResonatedEntries = useCallback(async () => {
     if (!currentUserId) return;
@@ -327,7 +330,10 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
   
   // Clear data when user logs out
   useEffect(() => {
-    if (!currentUserId) {
+    if (currentUserId) {
+      hasHadUserRef.current = true;
+    } else if (hasHadUserRef.current) {
+      // Only clear and log if we previously had a user and now don't
       console.log('🔄 User logged out, clearing interaction data');
       setUserInteractionStates(new Map());
       setIsUserStatesLoaded(false);
