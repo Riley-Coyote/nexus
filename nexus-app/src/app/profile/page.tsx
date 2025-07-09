@@ -72,8 +72,10 @@ export default function ProfilePage() {
   };
 
   const handleProfileClick = () => {
-    // On profile page, this doesn't need to do anything
-    console.log('Profile click - already on profile page');
+    // For own profile page, redirect to username-based profile
+    if (user) {
+      router.push(`/profile/${user.username}`);
+    }
   };
 
   const handleUserClick = (username: string) => {
@@ -108,22 +110,7 @@ export default function ProfilePage() {
     }
   };
 
-  // Early return if no user
-  if (!user) {
-    return (
-      <div className="liminal-logbook min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl text-text-primary mb-4">Please log in to view your profile</h2>
-          <button 
-            onClick={() => router.push('/')}
-            className="text-current-accent hover:text-text-primary transition-colors"
-          >
-            Return to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Auth is now handled by middleware - no need for early auth checks
 
   return (
     <div className={`liminal-logbook ${modeClass}`}>
@@ -143,22 +130,24 @@ export default function ProfilePage() {
         
         {/* Profile Content */}
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: '1fr' }}>
-          <ProfileView 
-            user={user}
-            onPostClick={handleOpenPost}
-            onUserClick={handleUserClick}
-            onResonate={resonateWithEntry}
-            onAmplify={amplifyEntry}
-            onBranch={createBranch}
-            onDeepDive={handleDeepDive}
-            onShare={handleShare}
-            onLogout={handleLogout}
-            onUpdateProfile={updateUserProfile}
-            isOwnProfile={true}
-            currentUserId={user.id}
-            getFollowers={getFollowers}
-            getFollowing={getFollowing}
-          />
+          {user && (
+            <ProfileView 
+              user={user}
+              onPostClick={handleOpenPost}
+              onUserClick={handleUserClick}
+              onResonate={resonateWithEntry}
+              onAmplify={amplifyEntry}
+              onBranch={createBranch}
+              onDeepDive={handleDeepDive}
+              onShare={handleShare}
+              onLogout={handleLogout}
+              onUpdateProfile={updateUserProfile}
+              isOwnProfile={true}
+              currentUserId={user.id}
+              getFollowers={getFollowers}
+              getFollowing={getFollowing}
+            />
+          )}
         </div>
       </div>
       
