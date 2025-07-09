@@ -7,13 +7,16 @@ import ResonanceField from '@/components/ResonanceField';
 import PostOverlay from '@/components/PostOverlay';
 import UserProfile from '@/components/UserProfile';
 import { Post, StreamEntry } from '@/lib/types';
-import { useNexusData } from '@/hooks/useNexusData';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserInteractions } from '@/hooks/useUserInteractions';
 import { postToStreamEntry } from '@/lib/utils/postUtils';
+import { dataService } from '@/lib/services/dataService';
 
 export default function ResonanceFieldPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const nexusData = useNexusData();
+  const { user, logout } = useAuth();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
@@ -45,9 +48,9 @@ export default function ResonanceFieldPage() {
   const handlePostInteraction = async (action: string, postId: string) => {
     try {
       if (action === 'Resonate ◊' || action === 'resonate') {
-        await nexusData.resonateWithEntry(postId);
+        await resonateWithEntry(postId);
       } else if (action === 'Amplify ≋' || action === 'amplify') {
-        await nexusData.amplifyEntry(postId);
+        await amplifyEntry(postId);
       }
     } catch (error) {
       console.error('Failed to perform action:', error);
@@ -68,8 +71,8 @@ export default function ResonanceFieldPage() {
   };
 
   const handleNavigateToProfile = () => {
-    if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+    if (user) {
+      router.push(`/profile/${user.username}`);
     }
   };
 
@@ -78,20 +81,39 @@ export default function ResonanceFieldPage() {
   };
 
   const handleLogout = () => {
-    nexusData.logout();
+    logout();
     setIsProfileModalOpen(false);
     router.push('/');
   };
 
   const handleViewProfile = () => {
     setIsProfileModalOpen(false);
-    if (nexusData.currentUser) {
-      router.push(`/profile/${nexusData.currentUser.username}`);
+    if (user) {
+      router.push(`/profile/${user.username}`);
     }
   };
 
   const handleDeepDive = (username: string, postId: string) => {
     router.push(`/${username}/entry/${postId}`);
+  };
+
+  // Fallback implementations for PostOverlay
+  const getDirectChildren = async (postId: string) => {
+    try {
+      return await dataService.getDirectChildren(postId);
+    } catch (error) {
+      console.error('Failed to get direct children:', error);
+      return [];
+    }
+  };
+
+  const getParentPost = async (postId: string) => {
+    try {
+      return await dataService.getParentPost(postId);
+    } catch (error) {
+      console.error('Failed to get parent post:', error);
+      return null;
+    }
   };
 
   return (
@@ -106,7 +128,7 @@ export default function ResonanceFieldPage() {
             if (view === 'feed') handleNavigateToFeed();
             else if (view === 'profile') handleNavigateToProfile();
           }}
-          currentUser={nexusData.currentUser}
+          currentUser={user}
           onProfileClick={handleProfileClick}
         />
         
@@ -114,9 +136,9 @@ export default function ResonanceFieldPage() {
         <div className="grid overflow-hidden grid-cols-1">
           <ResonanceField
             onPostClick={handleOpenPost}
-            onResonate={nexusData.resonateWithEntry}
-            onAmplify={nexusData.amplifyEntry}
-            onBranch={nexusData.createBranch}
+            onResonate={resonateWithEntry}
+            onAmplify={amplifyEntry}
+            onBranch={createBranch}
             onShare={handleShare}
             onDeepDive={(post) => handleDeepDive(post.username, post.id)}
           />
@@ -129,15 +151,15 @@ export default function ResonanceFieldPage() {
         isOpen={isOverlayOpen}
         onClose={handleCloseOverlay}
         onInteraction={handlePostInteraction}
-        getDirectChildren={nexusData.getDirectChildren}
-        getParentPost={nexusData.getParentPost}
+        getDirectChildren={getDirectChildren}
+        getParentPost={getParentPost}
         onChildClick={handleOpenPost}
       />
 
       {/* User Profile Modal */}
-      {nexusData.currentUser && (
+      {user && (
         <UserProfile
-          user={nexusData.currentUser}
+          user={user}
           onLogout={handleLogout}
           onViewProfile={handleViewProfile}
           isOpen={isProfileModalOpen}

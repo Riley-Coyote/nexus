@@ -17,7 +17,6 @@ export interface PostsHook {
   // Actions
   refreshPosts: () => Promise<void>;
   refreshFeedData: () => Promise<void>;
-  createBranch: (parentId: string, content: string) => Promise<void>;
   ensureFeedDataLoaded: () => Promise<void>;
   
   // Unified API methods
@@ -123,28 +122,7 @@ export const usePosts = (currentUserId?: string): PostsHook => {
     await loadFeedData();
   }, [loadFeedData]);
   
-  // Create branch
-  const createBranch = useCallback(async (parentId: string, content: string) => {
-    if (!currentUserId || currentUserId.trim() === '') {
-      throw new Error('No user logged in');
-    }
-    
-    try {
-      console.log('🌿 Creating branch for parent:', parentId);
-      
-      // Step 1: Create the branch (critical operation)
-      await dataService.createBranch(parentId, content);
-      
-      // Step 2: Refresh data to show new branch
-      await loadFeedData();
-      
-      console.log('✅ Branch created successfully');
-      
-    } catch (error) {
-      console.error('❌ Failed to create branch:', error);
-      throw error; // This will be caught by the UI error handling
-    }
-  }, [currentUserId, loadFeedData]);
+  // Removed createBranch - now centralized in useUserInteractions hook
   
   // Ensure feed data is loaded (for lazy loading)
   const ensureFeedDataLoaded = useCallback(async () => {
@@ -223,7 +201,6 @@ export const usePosts = (currentUserId?: string): PostsHook => {
     // Actions
     refreshPosts,
     refreshFeedData,
-    createBranch,
     ensureFeedDataLoaded,
     
     // Unified API

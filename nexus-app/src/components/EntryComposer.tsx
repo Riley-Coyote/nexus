@@ -12,17 +12,42 @@ interface EntryComposerData {
 }
 
 interface EntryComposerProps {
-  data: EntryComposerData;
+  data?: EntryComposerData;
   onSubmit?: (content: string, type: string, isPublic: boolean) => Promise<void>;
 }
 
 const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryComposerProps) {
-  const [selectedType, setSelectedType] = useState(data.types[0]);
+  // Provide default values if data is undefined
+  const composerData = data || {
+    types: ['entry', 'insight', 'observation'],
+    placeholder: 'Share your thoughts...',
+    buttonText: 'Submit'
+  };
+
+  const [selectedType, setSelectedType] = useState(composerData.types[0]);
   const [content, setContent] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const maxCharacters = 2000;
+
+  // Update selectedType when data changes
+  useEffect(() => {
+    if (data && data.types && data.types.length > 0) {
+      setSelectedType(data.types[0]);
+    }
+  }, [data]);
+
+  // If data is still loading, show a placeholder
+  if (!data) {
+    return (
+      <div className="composer-container">
+        <div className="entry-composer glass-panel-enhanced rounded-2xl p-4 sm:p-6 shadow-level-3 depth-near depth-responsive atmosphere-layer-1">
+          <div className="text-text-tertiary text-sm">Loading composer...</div>
+        </div>
+      </div>
+    );
+  }
 
   const handleContentChange = useCallback((htmlContent: string) => {
     setContent(htmlContent);
@@ -77,7 +102,7 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
       <form onSubmit={handleSubmit} className="entry-composer glass-panel-enhanced rounded-2xl p-4 sm:p-6 shadow-level-3 depth-near depth-responsive atmosphere-layer-1">
         {/* Type Selector */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {data.types.map((type) => (
+          {composerData.types.map((type) => (
             <button
               key={type}
               type="button"
@@ -98,7 +123,7 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
           <RichTextEditor
             value={content}
             onChange={handleContentChange}
-            placeholder={data.placeholder}
+            placeholder={composerData.placeholder}
             maxCharacters={maxCharacters}
             disabled={isSubmitting}
             className={`w-full transition-all duration-300 ${
@@ -144,7 +169,7 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
                 : 'bg-white/5 text-text-quaternary cursor-not-allowed'
             }`}
           >
-            {isSubmitting ? 'Submitting...' : data.buttonText}
+            {isSubmitting ? 'Submitting...' : composerData.buttonText}
           </button>
         </div>
       </form>

@@ -30,9 +30,9 @@ export default function Home() {
   
   // PHASE 3: Use focused hooks instead of monolithic useNexusData
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { logbookEntries, logbookState, networkStatus, isLoading: isLogbookLoading } = useLogbook(user?.id);
-  const { posts, dreamEntries, refreshPosts, createBranch } = usePosts(user?.id);
-  const { resonateWithEntry, amplifyEntry } = useUserInteractions(user?.id);
+  const { logbookEntries, logbookState, networkStatus, entryComposer, systemVitals, activeAgents, isLoading: isLogbookLoading } = useLogbook(user?.id);
+  const { posts, dreamEntries, refreshPosts } = usePosts(user?.id);
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
   
   // State management
   const [journalMode, setJournalMode] = useState<JournalMode>(() =>
@@ -262,9 +262,9 @@ export default function Home() {
                 }}
               />
               <MainContent 
-                entryComposer={logbookState?.entryComposer}
+                entryComposer={entryComposer}
                 stream={logbookEntries}
-                onSubmitEntry={(content, type, isPublic) => {
+                onSubmitEntry={async (content, type, isPublic) => {
                   // TODO: Implement submit entry with focused hooks
                   console.log('Submit entry:', content, type, isPublic, 'logbook');
                 }}

@@ -15,6 +15,7 @@ export interface UserInteractionsHook {
   // Actions
   resonateWithEntry: (entryId: string) => Promise<void>;
   amplifyEntry: (entryId: string) => Promise<void>;
+  createBranch: (parentId: string, content: string) => Promise<void>;
   
   // Checks
   hasUserResonated: (entryId: string) => boolean;
@@ -198,6 +199,31 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
       });
     }
   }, [currentUserId, userInteractionStates]);
+
+  // Create branch
+  const createBranch = useCallback(async (parentId: string, content: string) => {
+    if (!currentUserId) {
+      console.log(`⏭️ Cannot create branch - user not authenticated`);
+      return;
+    }
+
+    console.log(`🌿 INTERACTION: Creating branch for entry ${parentId}`);
+    console.log(`🔍 - Current user: ${currentUserId}`);
+    console.log(`🔍 - Content: ${content.substring(0, 100)}...`);
+
+    try {
+      // Call dataService to create the branch
+      await dataService.createBranch(parentId, content);
+      console.log(`✅ Successfully created branch for entry ${parentId}`);
+      
+      // The dataService already handles updating the interaction counts in cache
+      // No need for additional state management here
+      
+    } catch (error) {
+      console.error('❌ Failed to create branch:', error);
+      throw error; // Re-throw to let the UI handle the error
+    }
+  }, [currentUserId]);
   
   // Check if user has resonated with entry
   const hasUserResonated = useCallback((entryId: string): boolean => {
@@ -321,6 +347,7 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
     // Actions
     resonateWithEntry,
     amplifyEntry,
+    createBranch,
     
     // Checks
     hasUserResonated,

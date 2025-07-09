@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -9,19 +9,32 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
 }
 
-// Use service role key on server to bypass RLS, anon key on client
-const isServer = typeof window === 'undefined';
-const supabaseKey = isServer && supabaseServiceRoleKey
-  ? supabaseServiceRoleKey
-  : supabaseAnonKey;
+// Singleton pattern to prevent multiple instances
+let supabaseInstance: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
+const createSupabaseClient = (): SupabaseClient => {
+  if (supabaseInstance) {
+    return supabaseInstance;
   }
-});
+
+  // Use service role key on server to bypass RLS, anon key on client
+  const isServer = typeof window === 'undefined';
+  const supabaseKey = isServer && supabaseServiceRoleKey
+    ? supabaseServiceRoleKey
+    : supabaseAnonKey;
+
+  supabaseInstance = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  return supabaseInstance;
+};
+
+export const supabase = createSupabaseClient();
 
 // Database type definitions for better TypeScript support
 export type Database = {
