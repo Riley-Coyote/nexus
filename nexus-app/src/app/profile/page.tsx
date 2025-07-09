@@ -15,9 +15,9 @@ import { dataService } from '@/lib/services/dataService';
 export default function ProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
-  const { updateUserProfile, getFollowers, getFollowing } = useProfile();
+  const { updateUserProfile, getFollowers, getFollowing } = useProfile(user);
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
@@ -87,7 +87,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    logout();
+    signOut();
     router.push('/');
   };
 

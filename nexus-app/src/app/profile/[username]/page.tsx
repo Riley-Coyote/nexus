@@ -19,7 +19,7 @@ export default function UserProfilePage() {
   const params = useParams();
   const pathname = usePathname();
   const username = params.username as string;
-  const { user: currentUser, logout } = useAuth();
+  const { user: currentUser, signOut } = useAuth();
   const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
   const { 
     updateUserProfile, 
@@ -33,7 +33,7 @@ export default function UserProfilePage() {
     viewSelfProfile,
     profileViewState,
     isLoading: isProfileLoading 
-  } = useProfile();
+  } = useProfile(currentUser);
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
@@ -93,7 +93,7 @@ export default function UserProfilePage() {
   };
 
   const handleLogout = () => {
-    logout();
+    signOut();
     setIsProfileModalOpen(false);
     router.push('/');
   };
@@ -267,7 +267,7 @@ export default function UserProfilePage() {
             onBranch={createBranch}
             onDeepDive={handleDeepDive}
             onShare={handleShare}
-            onLogout={logout}
+            onLogout={signOut}
             onUpdateProfile={updateUserProfile}
             isOwnProfile={profileViewState.mode === 'self'}
             followUser={followUser}

@@ -17,7 +17,7 @@ import { dataService } from '@/lib/services/dataService';
 
 export default function DreamPageWrapper() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { logbookState, networkStatus, logbookField, systemVitals, activeAgents } = useLogbook();
   const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
   

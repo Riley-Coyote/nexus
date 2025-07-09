@@ -15,7 +15,7 @@ import { dataService } from '@/lib/services/dataService';
 export default function ResonanceFieldPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
   
   // Post overlay state
@@ -81,7 +81,7 @@ export default function ResonanceFieldPage() {
   };
 
   const handleLogout = () => {
-    logout();
+    signOut();
     setIsProfileModalOpen(false);
     router.push('/');
   };

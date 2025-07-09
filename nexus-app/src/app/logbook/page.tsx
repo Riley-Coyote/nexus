@@ -17,7 +17,7 @@ import { dataService } from '@/lib/services/dataService';
 
 export default function LogbookPageWrapper() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { logbookState, networkStatus, logbookField, entryComposer, systemVitals, activeAgents } = useLogbook();
   const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
   

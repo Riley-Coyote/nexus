@@ -17,7 +17,7 @@ interface PrivatePostPageClientProps {
 }
 
 export default function PrivatePostPageClient({ post, parent, childPosts, isDeepDive = false }: PrivatePostPageClientProps) {
-  const { user: currentUser, logout, isLoading } = useAuth();
+  const { user: currentUser, signOut, isLoading } = useAuth();
   const isOwner = currentUser?.id === post.userId;
   const router = useRouter();
 
@@ -29,7 +29,7 @@ export default function PrivatePostPageClient({ post, parent, childPosts, isDeep
   };
 
   const handleLogout = () => {
-    logout();
+    signOut();
     setIsProfileModalOpen(false);
     router.push('/');
   };
