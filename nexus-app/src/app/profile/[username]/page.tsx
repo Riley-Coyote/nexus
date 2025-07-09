@@ -20,7 +20,7 @@ export default function UserProfilePage() {
   const pathname = usePathname();
   const username = params.username as string;
   const { user: currentUser, signOut } = useAuth();
-  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(currentUser?.id);
   const { 
     updateUserProfile, 
     getFollowers, 

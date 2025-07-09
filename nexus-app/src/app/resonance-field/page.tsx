@@ -16,7 +16,7 @@ export default function ResonanceFieldPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
   
   // Post overlay state
   const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);

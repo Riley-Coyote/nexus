@@ -19,7 +19,7 @@ export default function LogbookPageWrapper() {
   const router = useRouter();
   const { user } = useAuth();
   const { logbookState, networkStatus, logbookField, entryComposer, systemVitals, activeAgents } = useLogbook();
-  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
   
   // State management
   const [journalMode] = useState<JournalMode>('logbook');

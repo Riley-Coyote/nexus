@@ -16,7 +16,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
   const { updateUserProfile, getFollowers, getFollowing } = useProfile(user);
   
   // Post overlay state

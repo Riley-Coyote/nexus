@@ -19,7 +19,7 @@ export default function DreamPageWrapper() {
   const router = useRouter();
   const { user } = useAuth();
   const { logbookState, networkStatus, logbookField, systemVitals, activeAgents } = useLogbook();
-  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions();
+  const { resonateWithEntry, amplifyEntry, createBranch } = useUserInteractions(user?.id);
   
   // Get dream-specific entry composer
   const dreamComposer = dataService.getEntryComposer('dream');
