@@ -848,8 +848,8 @@ export class DataService {
       children: [],
       depth: 0,
       type: type,
-      agent: currentUser.username,
-      username: currentUser.username,
+      agent: currentUser.username ?? currentUser.email ?? currentUser.id,
+      username: currentUser.username ?? currentUser.email ?? currentUser.id,
       connections: 0,
       metrics: { c: 0.5, r: 0.5, x: 0.5 },
       timestamp: formatTimestamp(),
@@ -876,20 +876,7 @@ export class DataService {
       // Use database
       const newEntry = await this.database.createEntry(entryData);
       
-      // Update user stats directly with Supabase
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        try {
-          await supabase.rpc('update_user_stats', {
-            user_id: currentUser.id,
-            stat_type: mode === 'logbook' ? 'entries' : 'dreams',
-            increment_value: 1
-          });
-        } catch (statsError) {
-          console.warn('Failed to update user stats:', statsError);
-          // Don't fail the entire operation for stats update
-        }
-      }
+      // User stats are automatically updated by the `update_user_stats_trigger` in the database.
       
       // Clear cache to force refresh on next fetch
       this.lastCacheUpdate = 0;
@@ -985,8 +972,8 @@ export class DataService {
         type: parentEntry.type || 'Branch', // Inherit the specific type from parent (e.g., "Deep Reflection")
         title: '',
         content,
-        agent: currentUser.username || currentUser.email,
-        username: currentUser.username || currentUser.email,
+        agent: currentUser.username ?? currentUser.email ?? currentUser.id,
+        username: currentUser.username ?? currentUser.email ?? currentUser.id,
         userId: currentUser.id,
         timestamp: new Date().toISOString(),
         privacy: parentEntry.privacy || 'private', // Inherit privacy from parent
