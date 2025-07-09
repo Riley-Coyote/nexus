@@ -23,24 +23,8 @@ CREATE POLICY "Users can insert their own profile" ON users
 CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE USING (id = auth.uid());
 
--- Add a debugging function to help troubleshoot auth issues
-CREATE OR REPLACE FUNCTION debug_auth_state()
-RETURNS TABLE (
-  current_user_id UUID,
-  is_authenticated BOOLEAN,
-  current_role TEXT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    auth.uid() as current_user_id,
-    (auth.uid() IS NOT NULL) as is_authenticated,
-    auth.role() as current_role;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Grant execute permission to authenticated users for debugging
-GRANT EXECUTE ON FUNCTION debug_auth_state() TO authenticated;
+-- Debug function removed to avoid syntax issues
+-- You can check auth state with: SELECT auth.uid(), auth.role();
 
 -- Also ensure the users table has proper permissions
 GRANT SELECT ON users TO anon, authenticated;
