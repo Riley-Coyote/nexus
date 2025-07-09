@@ -33,10 +33,8 @@ export async function middleware(request: NextRequest) {
       }
     )
     
-    // Check if user is authenticated
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    // Get session - simplified, no complex error handling
+    const { data: { session } } = await supabase.auth.getSession()
 
     // Define protected routes
     const protectedRoutes = [
@@ -61,21 +59,21 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith(route)
     );
 
-    // Redirect unauthenticated users from protected routes to home
+    // Simple redirects - let AuthContext handle complex auth state
     if (!session && isProtectedRoute) {
       const redirectUrl = new URL('/', request.url);
-      redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Redirect authenticated users from auth routes to feed
+    // Redirect authenticated users away from auth pages to the main feed
     if (session && isAuthRoute) {
-      return NextResponse.redirect(new URL('/feed', request.url));
+      return NextResponse.redirect(new URL('/', request.url));
     }
 
     return response;
+    
   } catch (error) {
-    // If middleware fails, allow the request to continue
+    // On any error, let the request through and let AuthContext handle it
     console.error('Middleware error:', error);
     return response;
   }
@@ -85,11 +83,11 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - public folder
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
-} 
+}; 
