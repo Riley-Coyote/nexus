@@ -23,6 +23,11 @@ export default function Header({
   const [showMessengerBanner, setShowMessengerBanner] = useState(false);
   const router = useRouter();
 
+  // Clicking the title should take the user to the feed, or refresh it if already there
+  const handleTitleClick = () => {
+    window.location.reload(); // Force full page reload to guarantee data refetch
+  };
+
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -101,7 +106,7 @@ export default function Header({
       />
       <div className="header-content">
         {/* Title Section - Always Left */}
-        <div className="header-title-section">
+        <div className="header-title-section cursor-pointer" onClick={handleTitleClick}>
           <h1 id="journal-title" className="header-title">
             {getTitle()}
           </h1>
