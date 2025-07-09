@@ -254,7 +254,12 @@ export default function Home() {
               <LeftSidebar 
                 logbookState={logbookState!}
                 networkStatus={networkStatus!}
-                consciousnessField={logbookState?.consciousnessField}
+                consciousnessField={{
+                  id: 'consciousness-field',
+                  rows: 14,
+                  columns: 42,
+                  characters: [' ', '⋅', '∘', '○', '●', '◉', '◈']
+                }}
               />
               <MainContent 
                 entryComposer={logbookState?.entryComposer}

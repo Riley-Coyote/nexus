@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { StreamEntry as StreamEntryType, StreamEntryData } from '../lib/types';
 import { dataService } from '../lib/services/dataService';
 import { authService } from '../lib/services/supabaseAuthService';
 import { createPostShareData, shareContent } from '../lib/utils/shareUtils';
-import { useNexusData } from '../hooks/useNexusData';
+import { useAuth } from '../hooks/useAuth';
 
 interface PostOverlayProps {
   post: StreamEntryType | null;
@@ -62,7 +62,7 @@ export default function PostOverlay({
   const branchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 
-  const nexusData = useNexusData();
+  const { user } = useAuth();
 
   // Cleanup on unmount
   useEffect(() => {
@@ -154,7 +154,7 @@ export default function PostOverlay({
   }, [post?.id, getParentPost]); // Removed getDirectChildren dependency
 
   // Load children only when requested (lazy loading)
-  const loadChildrenWhenNeeded = useCallback(async () => {
+  const loadChildrenWhenNeeded = async () => {
     if (!post || !getDirectChildren || childrenExpanded || isLoadingChildren) return;
     
     setIsLoadingChildren(true);
@@ -168,7 +168,7 @@ export default function PostOverlay({
     } finally {
       setIsLoadingChildren(false);
     }
-  }, [post?.id, getDirectChildren, childrenExpanded, isLoadingChildren]);
+  };
 
   if (!post) return null;
 
@@ -311,9 +311,7 @@ export default function PostOverlay({
         }, 30000); // 30 second timeout
       });
       
-      const branchPromise = nexusData?.createBranch
-        ? nexusData.createBranch(post.id, branchContent.trim())
-        : dataService.createBranch(post.id, branchContent.trim());
+      const branchPromise = dataService.createBranch(post.id, branchContent.trim());
       
       // Race between the actual operation and timeout
       await Promise.race([branchPromise, timeoutPromise]);

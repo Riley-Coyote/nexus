@@ -1,18 +1,44 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req: request, res })
+  const response = NextResponse.next()
   
   try {
-    // Get the current session
+    // Create a Supabase client configured for server-side rendering
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+          },
+          remove(name: string, options: any) {
+            response.cookies.set({
+              name,
+              value: '',
+              ...options,
+            })
+          },
+        },
+      }
+    )
+    
+    // Check if user is authenticated
     const {
       data: { session },
     } = await supabase.auth.getSession()
 
-    // Define protected routes that require authentication
+    // Define protected routes
     const protectedRoutes = [
       '/logbook',
       '/dream',
@@ -20,7 +46,7 @@ export async function middleware(request: NextRequest) {
       '/resonance-field'
     ];
 
-    // Define auth routes that authenticated users shouldn't access
+    // Define auth routes (where authenticated users shouldn't go)
     const authRoutes = [
       '/auth',
       '/login',
@@ -37,25 +63,21 @@ export async function middleware(request: NextRequest) {
 
     // Redirect unauthenticated users from protected routes to home
     if (!session && isProtectedRoute) {
-      console.log(`🔒 Redirecting unauthenticated user from ${request.nextUrl.pathname} to /`);
-      return NextResponse.redirect(new URL('/', request.url))
+      const redirectUrl = new URL('/', request.url);
+      redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
+      return NextResponse.redirect(redirectUrl);
     }
 
-    // Redirect authenticated users from auth pages to feed
+    // Redirect authenticated users from auth routes to feed
     if (session && isAuthRoute) {
-      console.log(`🔒 Redirecting authenticated user from ${request.nextUrl.pathname} to /feed`);
-      return NextResponse.redirect(new URL('/feed', request.url))
+      return NextResponse.redirect(new URL('/feed', request.url));
     }
 
-    // Allow access to all other routes
-    return res
-
+    return response;
   } catch (error) {
-    console.error('❌ Middleware error:', error);
-    
-    // On error, allow the request to continue but don't redirect
-    // This prevents middleware errors from breaking the app
-    return res
+    // If middleware fails, allow the request to continue
+    console.error('Middleware error:', error);
+    return response;
   }
 }
 
@@ -67,8 +89,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files (images, etc.)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 } 
