@@ -39,89 +39,45 @@ const CACHE_KEY = 'nexus_session';
 const CACHE_DURATION = 45 * 60 * 1000; // 45 minutes (refresh before 1hr expiry)
 
 class SessionCache {
+  // NOTE: Supabase already persists the session (access + refresh tokens) when
+  // `persistSession: true` is enabled.  The legacy cache duplicated that data
+  // under the `nexus_session` key.  We now rely solely on Supabase’s built-in
+  // mechanism.  All methods are retained as no-ops so the rest of the file
+  // continues to compile without wider refactors.
+
+  /**
+   * Always return null so AuthContext falls back to `supabase.auth.getSession()`.
+   * Remove the legacy cache entry if it still exists (one-time cleanup).
+   */
   static get(): CachedSession | null {
-    if (typeof window === 'undefined') return null;
-    
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (!cached) return null;
-      
-      const session: CachedSession = JSON.parse(cached);
-      
-      // Validate session structure
-      if (!session.user || !session.accessToken || !session.expiresAt) {
-        console.warn('⚠️ SessionCache: Invalid session structure, clearing cache');
-        this.clear();
-        return null;
-      }
-      
-      // Check if expired
-      if (Date.now() > session.expiresAt) {
-        console.log('ℹ️ SessionCache: Session expired, clearing cache');
-        this.clear();
-        return null;
-      }
-      
-      return session;
-    } catch (error) {
-      console.error('❌ SessionCache: Error reading cache:', error);
-      this.clear();
-      return null;
-    }
-  }
-  
-  static set(user: User, accessToken: string): void {
-    if (typeof window === 'undefined') return;
-    
-    const session: CachedSession = {
-      user,
-      expiresAt: Date.now() + CACHE_DURATION,
-      accessToken,
-    };
-    
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(session));
-      console.log('✅ SessionCache: Session cached for user:', user.username);
-    } catch (error) {
-      console.warn('⚠️ SessionCache: Failed to cache session:', error);
-    }
-  }
-  
-  static clear(): void {
-    if (typeof window === 'undefined') return;
-    
-    try {
+    if (typeof window !== 'undefined') {
       localStorage.removeItem(CACHE_KEY);
-      console.log('✅ SessionCache: Cache cleared');
-    } catch (error) {
-      console.warn('⚠️ SessionCache: Failed to clear cache:', error);
+    }
+    return null;
+  }
+
+  /**
+   * No-op – Supabase already writes the session to storage.
+   * Keep a reference to CACHE_DURATION so TypeScript doesn’t warn about
+   * the const being unused after this change.
+   */
+  static set(_user: User, _accessToken: string): void {
+    void CACHE_DURATION; // intentional noop – rely on Supabase persistence
+  }
+
+  /** Remove the legacy cache key if present. */
+  static clear(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CACHE_KEY);
     }
   }
 
+  /**
+   * Previously this wiped every auth-related key.  We now only need to bin the
+   * legacy key; Supabase’s own keys are managed by `supabase.auth.signOut()`.
+   */
   static clearAllAuthData(): void {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      // Clear all auth-related localStorage entries
-      const authKeys = Object.keys(localStorage).filter(key => 
-        key.includes('supabase') || 
-        key.includes('auth') || 
-        key.includes('nexus') ||
-        key.includes('session')
-      );
-      
-      authKeys.forEach(key => {
-        try {
-          localStorage.removeItem(key);
-        } catch (e) {
-          console.warn('Failed to remove key:', key);
-        }
-      });
-      
-      console.log('✅ SessionCache: All auth data cleared');
-    } catch (error) {
-      console.error('❌ SessionCache: Failed to clear all auth data:', error);
-    }
+    this.clear();
   }
 }
 
