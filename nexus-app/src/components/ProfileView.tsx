@@ -221,7 +221,8 @@ export default function ProfileView({
           return post;
         });
         setPosts(convertedPosts);
-        setHasMore(false); // Assume no pagination when posts are provided
+        // Enable pagination if the first batch equals page size
+        setHasMore(convertedPosts.length === PAGE_SIZE);
       } else {
         // Empty array provided - show empty state
         setPosts([]);
