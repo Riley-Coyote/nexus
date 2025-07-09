@@ -16,7 +16,7 @@ export interface ProfileHook {
   // Actions
   updateUserProfile: (updates: { name?: string; bio?: string; location?: string }) => Promise<void>;
   viewUserProfile: (username: string) => Promise<void>;
-  viewSelfProfile: () => void;
+  viewSelfProfile: () => Promise<void>;
   getCurrentProfileUser: () => User | null;
   
   // Follow system actions
@@ -34,14 +34,15 @@ export interface ProfileHook {
  * Extracted from useNexusData to follow single responsibility principle
  */
 export const useProfile = (currentUser?: User | null): ProfileHook => {
-  // Profile state
+  // Profile state - start with no specific mode to prevent flash
   const [profileViewState, setProfileViewState] = useState<ProfileViewState>({
     mode: 'self'
   });
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [profileUserPosts, setProfileUserPosts] = useState<StreamEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [hasInitialized, setHasInitialized] = useState(false);
+
   // Update user profile
   const updateUserProfile = useCallback(async (updates: { name?: string; bio?: string; location?: string }) => {
     if (!currentUser) {
@@ -75,6 +76,12 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
   const viewUserProfile = useCallback(async (username: string) => {
     try {
       setIsLoading(true);
+      // Immediately switch to 'other' mode and clear previous user to prevent flash
+      setProfileViewState({ mode: 'other' });
+      setProfileUser(null);
+      setProfileUserPosts([]);
+      setHasInitialized(false);
+      
       console.log('👤 Loading profile for user:', username);
       
       // Load user profile data
@@ -83,13 +90,48 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
         throw new Error('User not found');
       }
       
-      // Load user's posts
-      const posts = await dataService.getPosts({ mode: 'profile', userId: user.id });
+      // Load user's posts using direct database call (same pattern as ProfileView component)
+      const { DatabaseFactory } = await import('../lib/database/factory');
+      const database = DatabaseFactory.getInstance();
+      const entriesWithUserStates = await database.getProfileEntries?.(user.id, {
+        targetUserId: currentUser?.id, // For checking user interaction states
+        includePrivate: false, // Only public posts for other users
+        offset: 0,
+        limit: 20,
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+      });
+      
+      // Convert to StreamEntry format for compatibility
+      const posts = entriesWithUserStates?.map(entry => ({
+        id: entry.id,
+        parentId: entry.parentId,
+        children: entry.children || [],
+        depth: entry.depth || 0,
+        type: entry.type,
+        agent: entry.agent || entry.username,
+        connections: entry.connections || 0,
+        metrics: entry.metrics || { c: 0.5, r: 0.5, x: 0.5 },
+        timestamp: entry.timestamp,
+        content: entry.content,
+        actions: entry.actions || [],
+        privacy: entry.privacy,
+        interactions: {
+          resonances: entry.resonance_count || 0,
+          branches: entry.branch_count || 0,
+          amplifications: entry.amplification_count || 0,
+          shares: entry.share_count || 0
+        },
+        threads: entry.threads || [],
+        isAmplified: entry.isAmplified || false,
+        userId: entry.userId,
+        username: entry.username
+      })) || [];
       
       // Update profile state
-      setProfileViewState({ mode: 'other' });
       setProfileUser(user);
       setProfileUserPosts(posts);
+      setHasInitialized(true); // Mark as initialized after loading another user
       
       console.log(`✅ Loaded profile for ${username} with ${posts.length} posts`);
       
@@ -99,23 +141,98 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
-  
-  // View self profile
-  const viewSelfProfile = useCallback(() => {
-    console.log('👤 Switching to self profile view');
-    setProfileViewState({ mode: 'self' });
-    setProfileUser(currentUser || null);
-    setProfileUserPosts([]); // Will be loaded from user's own posts
   }, [currentUser]);
   
-  // Get current profile user
-  const getCurrentProfileUser = useCallback((): User | null => {
-    if (profileViewState.mode === 'other') {
-      return profileUser;
+  // View self profile
+  const viewSelfProfile = useCallback(async () => {
+    if (!currentUser) {
+      console.log('👤 No current user, cannot view self profile');
+      return;
     }
-    return currentUser || null;
-  }, [profileViewState.mode, profileUser, currentUser]);
+
+    try {
+      setIsLoading(true);
+      // Immediately switch to 'self' mode and clear previous data to prevent flash
+      setProfileViewState({ mode: 'self' });
+      setProfileUser(null);
+      setProfileUserPosts([]);
+      setHasInitialized(false);
+      
+      console.log('👤 Switching to self profile view');
+      
+      // Load user's own posts using direct database call
+      const { DatabaseFactory } = await import('../lib/database/factory');
+      const database = DatabaseFactory.getInstance();
+      const entriesWithUserStates = await database.getProfileEntries?.(currentUser.id, {
+        targetUserId: currentUser.id, // For checking user interaction states
+        includePrivate: true, // Include private posts for own profile
+        offset: 0,
+        limit: 20,
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+      });
+      
+      // Convert to StreamEntry format for compatibility
+      const posts = entriesWithUserStates?.map(entry => ({
+        id: entry.id,
+        parentId: entry.parentId,
+        children: entry.children || [],
+        depth: entry.depth || 0,
+        type: entry.type,
+        agent: entry.agent || entry.username,
+        connections: entry.connections || 0,
+        metrics: entry.metrics || { c: 0.5, r: 0.5, x: 0.5 },
+        timestamp: entry.timestamp,
+        content: entry.content,
+        actions: entry.actions || [],
+        privacy: entry.privacy,
+        interactions: {
+          resonances: entry.resonance_count || 0,
+          branches: entry.branch_count || 0,
+          amplifications: entry.amplification_count || 0,
+          shares: entry.share_count || 0
+        },
+        threads: entry.threads || [],
+        isAmplified: entry.isAmplified || false,
+        userId: entry.userId,
+        username: entry.username
+      })) || [];
+
+      // Update profile state
+      setProfileViewState({ mode: 'self' });
+      setProfileUser(currentUser);
+      setProfileUserPosts(posts);
+      setHasInitialized(true); // Mark as initialized after loading self profile
+      
+      console.log(`✅ Loaded self profile for ${currentUser.username} with ${posts.length} posts`);
+      
+    } catch (error) {
+      console.error('❌ Failed to load self profile:', error);
+      // Fallback to basic self profile without posts
+      setProfileViewState({ mode: 'self' });
+      setProfileUser(currentUser);
+      setProfileUserPosts([]);
+      setHasInitialized(true); // Mark as initialized even on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser]);
+  
+  // Get current profile user - prevent flash by being more careful about when to return currentUser
+  const getCurrentProfileUser = useCallback((): User | null => {
+    // If we're loading another user's profile, don't return currentUser until we have the actual profile
+    if (profileViewState.mode === 'other') {
+      return profileUser; // Only return profileUser, never fallback to currentUser
+    }
+    
+    // For self mode, return currentUser only if we've explicitly set it
+    if (profileViewState.mode === 'self' && hasInitialized) {
+      return currentUser || null;
+    }
+    
+    // During initial loading, return null to show loading state
+    return null;
+  }, [profileViewState.mode, profileUser, currentUser, hasInitialized]);
   
   // Follow user
   const followUser = useCallback(async (followedId: string) => {

@@ -105,7 +105,7 @@ export default function ProfileView({
   const LOCATION_MAX_LENGTH = 30;
 
   // Convert StreamEntryWithUserStates to Post format (same as ResonanceField)
-  const streamEntryWithUserStatesToPost = (entry: StreamEntryWithUserStates): Post => {
+  const streamEntryWithUserStatesToPost = useCallback((entry: StreamEntryWithUserStates): Post => {
     const basePost = streamEntryToPost(entry);
     
     // Add user interaction states from the database query
@@ -123,10 +123,10 @@ export default function ProfileView({
         hasAmplified: entry.has_amplified || false
       }
     };
-  };
+  }, []);
 
   // OPTIMIZED: Load profile entries using the new get_entries_with_user_states function
-  const loadProfileEntries = async (requestedPage: number = 1, append: boolean = false) => {
+  const loadProfileEntries = useCallback(async (requestedPage: number = 1, append: boolean = false) => {
     setIsLoading(true);
     try {
       const offset = (requestedPage - 1) * PAGE_SIZE;
@@ -178,33 +178,54 @@ export default function ProfileView({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user.id, currentUser?.id, isOwnProfile, streamEntryWithUserStatesToPost]);
 
-  // Initial data load
+  // Reset state when user changes (prevents stale data)
   useEffect(() => {
-    if (activeTab === 'posts') {
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+    setIsUserStatesLoaded(false);
+    setError(null);
+  }, [user.id]);
+
+  // Initial data load - only when activeTab is posts and we haven't loaded yet
+  // SKIP if userPosts are provided (managed by parent like useProfile)
+  useEffect(() => {
+    if (activeTab === 'posts' && !isUserStatesLoaded && posts.length === 0 && !userPosts) {
       loadProfileEntries(1, false);
     }
-  }, []);
+  }, [activeTab, isUserStatesLoaded, posts.length, loadProfileEntries, userPosts]);
 
-  // Reload when user or profile settings change
+  // Auth state management - only reload if we have no data and auth just completed
+  // SKIP if userPosts are provided (managed by parent like useProfile)
   useEffect(() => {
-    if (activeTab === 'posts') {
-      console.log('🔄 User or profile settings changed, reloading profile data');
+    if (isAuthenticated && currentUser && activeTab === 'posts' && !isUserStatesLoaded && posts.length === 0 && !isLoading && !userPosts) {
+      console.log('🔄 Auth completed, loading profile data');
       loadProfileEntries(1, false);
     }
-  }, [user.id, isOwnProfile]);
+  }, [isAuthenticated, currentUser, activeTab, isUserStatesLoaded, posts.length, isLoading, loadProfileEntries, userPosts]);
 
-  // Auth state management - reload when user changes
+  // Use provided userPosts if available (from useProfile hook)
   useEffect(() => {
-    if (isAuthenticated && currentUser) {
-      // User just became authenticated - reload profile data if needed
-      if (activeTab === 'posts' && !isUserStatesLoaded && !isLoading) {
-        console.log('🔄 Auth completed, reloading profile data');
-        loadProfileEntries(1, false);
+    if (userPosts !== undefined) {
+      console.log(`📡 Using provided posts for ${user.username}: ${userPosts.length} posts`);
+      
+      if (userPosts.length > 0) {
+        // Convert StreamEntry to Post format
+        const convertedPosts = userPosts.map(entry => streamEntryToPost(entry));
+        setPosts(convertedPosts);
+        setHasMore(false); // Assume no pagination when posts are provided
+      } else {
+        // Empty array provided - show empty state
+        setPosts([]);
+        setHasMore(false);
       }
+      
+      setIsUserStatesLoaded(true);
+      setPage(1);
     }
-  }, [isAuthenticated, currentUser, isUserStatesLoaded, activeTab]);
+  }, [userPosts, user.username]);
 
   // Load more entries for pagination
   const handleLoadMore = async () => {
@@ -251,18 +272,52 @@ export default function ProfileView({
   const handleResonate = React.useCallback(async (entryId: string) => {
     if (onResonate) {
       await onResonate(entryId);
-      // Refresh profile posts to get updated interaction states
-      await loadProfileEntries(1, false);
-      setPage(1);
+      // Update local state optimistically instead of full refresh
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id === entryId) {
+          const currentlyResonated = post.userInteractionStates?.hasResonated || false;
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              resonances: currentlyResonated 
+                ? Math.max(0, post.interactions.resonances - 1)
+                : post.interactions.resonances + 1
+            },
+            userInteractionStates: {
+              hasResonated: !currentlyResonated,
+              hasAmplified: post.userInteractionStates?.hasAmplified || false
+            }
+          };
+        }
+        return post;
+      }));
     }
   }, [onResonate]);
 
   const handleAmplify = React.useCallback(async (entryId: string) => {
     if (onAmplify) {
       await onAmplify(entryId);
-      // Refresh profile posts to get updated interaction states
-      await loadProfileEntries(1, false);
-      setPage(1);
+      // Update local state optimistically instead of full refresh
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id === entryId) {
+          const currentlyAmplified = post.userInteractionStates?.hasAmplified || false;
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              amplifications: currentlyAmplified 
+                ? Math.max(0, post.interactions.amplifications - 1)
+                : post.interactions.amplifications + 1
+            },
+            userInteractionStates: {
+              hasResonated: post.userInteractionStates?.hasResonated || false,
+              hasAmplified: !currentlyAmplified
+            }
+          };
+        }
+        return post;
+      }));
     }
   }, [onAmplify]);
 
