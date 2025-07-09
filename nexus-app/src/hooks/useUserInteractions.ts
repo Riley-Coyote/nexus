@@ -136,8 +136,8 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
       // Update user interaction service cache
       userInteractionService.updateUserInteractionState(currentUserId, entryId, 'resonance', isNowResonated);
       
-      // State update is async; log the expected new state to avoid 'undefined' confusion
-      console.log(`🔍 - Post-interaction state verification (expected):`, newState);
+      // Confirm final state based on service response
+      console.log(`🔍 - Post-interaction state confirmation (server):`, isNowResonated);
       
     } catch (error) {
       console.error('❌ Failed to resonate with entry:', error);
@@ -186,8 +186,8 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
       // Update user interaction service cache
       userInteractionService.updateUserInteractionState(currentUserId, entryId, 'amplification', isNowAmplified);
       
-      // State update is async; log the expected new state to avoid 'undefined' confusion
-      console.log(`🔍 - Post-interaction state verification (expected):`, newState);
+      // Confirm final state based on service response
+      console.log(`🔍 - Post-interaction state confirmation (server):`, isNowAmplified);
       
     } catch (error) {
       console.error('❌ Failed to amplify entry:', error);
@@ -293,45 +293,36 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
   // Append more resonated entries (for pagination)
   const appendResonatedEntries = useCallback(async (page: number, limit: number = 20) => {
     if (!currentUserId) return [];
-    
     try {
       console.log(`🔄 Loading more resonated entries - page ${page}`);
-      
       const newEntries = await dataService.getResonatedEntries(currentUserId, page, limit);
       const newEntriesData = newEntries.map(convertToStreamEntryData);
-      
-      // Append to existing resonated entries
       setResonatedEntries(prev => [...prev, ...newEntriesData]);
-      
       console.log(`✅ Appended ${newEntriesData.length} resonated entries`);
-      
       return newEntriesData;
     } catch (error) {
       console.error('❌ Error loading more resonated entries:', error);
       return [];
     }
   }, [currentUserId]);
-  
-  // Ensure resonated entries are loaded
+
   const ensureResonatedEntriesLoaded = useCallback(async () => {
     if (currentUserId && resonatedEntries.length === 0) {
       await loadResonatedEntries();
     }
   }, [currentUserId, resonatedEntries.length, loadResonatedEntries]);
-  
-  // Ensure amplified entries are loaded
+
   const ensureAmplifiedEntriesLoaded = useCallback(async () => {
     if (currentUserId && amplifiedEntries.length === 0) {
       await loadAmplifiedEntries();
     }
   }, [currentUserId, amplifiedEntries.length, loadAmplifiedEntries]);
-  
+
   // Clear data when user logs out
   useEffect(() => {
     if (currentUserId) {
       hasHadUserRef.current = true;
     } else if (hasHadUserRef.current) {
-      // Only clear and log if we previously had a user and now don't
       console.log('🔄 User logged out, clearing interaction data');
       setUserInteractionStates(new Map());
       setIsUserStatesLoaded(false);
@@ -340,31 +331,22 @@ export const useUserInteractions = (currentUserId?: string): UserInteractionsHoo
       setAmplifiedEntries([]);
     }
   }, [currentUserId]);
-  
+
   return {
-    // User interaction state
     userInteractionStates,
     isUserStatesLoaded,
     resonatedEntries,
     amplifiedEntries,
-    
-    // Actions
     resonateWithEntry,
     amplifyEntry,
     createBranch,
-    
-    // Checks
     hasUserResonated,
     hasUserAmplified,
-    
-    // Data loading
     refreshResonatedEntries,
     refreshAmplifiedEntries,
     appendResonatedEntries,
     ensureResonatedEntriesLoaded,
     ensureAmplifiedEntriesLoaded,
-    
-    // Batch operations
-    loadUserInteractionStates
+    loadUserInteractionStates,
   };
-}; 
+};
