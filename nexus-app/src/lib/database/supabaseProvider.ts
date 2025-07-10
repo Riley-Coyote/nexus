@@ -1346,7 +1346,26 @@ export class SupabaseProvider implements DatabaseProvider {
       throw error;
     }
 
-    return data || [];
+    if (!data) return [];
+
+    // Convert snake_case rows to StreamEntryWithUserStates with camelCase fields
+    return (data as any[]).map((row) => {
+      // Convert base entry fields
+      const streamEntry = this.supabaseToStreamEntry(row);
+
+      // Merge optimized counts & user states back in expected shape
+      const withStates: StreamEntryWithUserStates = {
+        ...streamEntry,
+        resonance_count: row.resonance_count || 0,
+        branch_count: row.branch_count || 0,
+        amplification_count: row.amplification_count || 0,
+        share_count: row.share_count || 0,
+        has_resonated: row.has_resonated || false,
+        has_amplified: row.has_amplified || false,
+      } as StreamEntryWithUserStates;
+
+      return withStates;
+    });
   }
 
   // LEGACY: Get entries with interaction counts and user states (backward compatibility)

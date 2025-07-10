@@ -23,6 +23,7 @@ export function streamEntryToPost(entry: StreamEntry): Post {
     coherence: entry.coherence,
     tags: entry.tags,
     response: entry.response,
+    entryType: entry.entryType,
     children: entry.children,
     actions: entry.actions,
     threads: entry.threads,
@@ -67,6 +68,7 @@ export function streamEntryDataToPost(data: any): Post {
     coherence: data.coherence,
     tags: data.tags,
     response: data.response,
+    entryType: data.entryType,
   };
 }
 

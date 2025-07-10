@@ -79,6 +79,21 @@ export default function PostDisplay({
   const shouldShowPreview = displayMode === 'preview' && !isReply && post.content.length > 200 && !isExpanded;
   const shouldCollapse = shouldShowPreview || isMobileCollapsed;
 
+  // Determine colors based on entryType (dream vs logbook)
+  const entryTypeColors = React.useMemo(() => {
+    if (post.entryType === 'dream') {
+      return {
+        hoverBg: 'hover:bg-purple-400/10',
+        textColor: 'text-purple-400',
+      } as const;
+    }
+    // Default to logbook colors
+    return {
+      hoverBg: 'hover:bg-emerald-400/10',
+      textColor: 'text-emerald-400',
+    } as const;
+  }, [post.entryType]);
+
   // Sync interaction state from parent when props change
   // OPTIMIZATION: Only sync if the props have actually changed to avoid flicker
   useEffect(() => {
@@ -286,7 +301,7 @@ export default function PostDisplay({
 
   return (
     <div 
-      className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${post.isAmplified ? 'amplified-post' : ''} cursor-pointer hover:bg-white/[0.02] transition-all duration-300 relative overflow-hidden ${shouldCollapse ? 'post-preview' : ''} ${className}`} 
+      className={`glass-panel-enhanced rounded-2xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 shadow-level-4 interactive-card depth-near depth-responsive atmosphere-layer-1 ${post.isAmplified ? 'amplified-post' : ''} cursor-pointer ${entryTypeColors.hoverBg} transition-all duration-300 relative overflow-hidden ${shouldCollapse ? 'post-preview' : ''} ${className}`} 
       data-post-id={post.id} 
       title="Click to view full post"
       onClick={handlePostClick}
@@ -295,7 +310,7 @@ export default function PostDisplay({
       <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2 sm:gap-0">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <span 
-            className={`text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20 ${getAccentClass()}`}
+            className={`text-xs font-medium tracking-widest uppercase px-2 py-1 rounded bg-black/20 ${entryTypeColors.textColor}`}
           >
             {post.type}
           </span>

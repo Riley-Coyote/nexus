@@ -122,6 +122,7 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
           amplifications: entry.amplification_count || 0,
           shares: entry.share_count || 0
         },
+        entryType: entry.entryType,
         // Preserve per-entry user interaction state so ProfileView can highlight buttons correctly
         userInteractionStates: {
           hasResonated: entry.has_resonated || false,
@@ -197,6 +198,7 @@ export const useProfile = (currentUser?: User | null): ProfileHook => {
           amplifications: entry.amplification_count || 0,
           shares: entry.share_count || 0
         },
+        entryType: entry.entryType,
         // Preserve per-entry user interaction state so ProfileView can highlight buttons correctly
         userInteractionStates: {
           hasResonated: entry.has_resonated || false,
