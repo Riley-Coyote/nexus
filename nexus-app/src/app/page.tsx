@@ -7,6 +7,10 @@ import NexusFeed from '@/components/NexusFeed';
 import UserProfile from '@/components/UserProfile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useUserInteractions } from '@/hooks/useUserInteractions';
+import PostOverlay from '@/components/PostOverlay';
+import { Post, StreamEntry } from '@/lib/types';
+import { postToStreamEntry } from '@/lib/utils/postUtils';
+import { dataService } from '@/lib/services/dataService';
 
 export default function Home() {
   const router = useRouter();
@@ -15,6 +19,8 @@ export default function Home() {
   
   // Local state for UI
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [overlayPost, setOverlayPost] = useState<StreamEntry | null>(null);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
   // Handle navigation
   const handleViewChange = (view: string) => {
@@ -48,9 +54,21 @@ export default function Home() {
     }
   };
 
+  const handleOpenPost = (post: Post | StreamEntry) => {
+    const streamEntry: StreamEntry = 'children' in post && 'actions' in post ?
+      post as StreamEntry :
+      postToStreamEntry(post as Post);
+    setOverlayPost(streamEntry);
+    setIsOverlayOpen(true);
+  };
+
+  const handleCloseOverlay = () => {
+    setIsOverlayOpen(false);
+    setTimeout(() => setOverlayPost(null), 400);
+  };
+
   const handlePostClick = (post: any) => {
-    // Navigate to post detail page
-    router.push(`/post/${post.id}`);
+    handleOpenPost(post);
   };
 
   const handleUserClick = (username: string) => {
@@ -64,6 +82,25 @@ export default function Home() {
   const handleShare = (postId: string) => {
     // Implement share functionality
     console.log('Share post:', postId);
+  };
+
+  // Fallback implementations for PostOverlay (optional)
+  const getDirectChildren = async (postId: string) => {
+    try {
+      return await dataService.getDirectChildren(postId);
+    } catch (error) {
+      console.error('Failed to get direct children:', error);
+      return [];
+    }
+  };
+
+  const getParentPost = async (postId: string) => {
+    try {
+      return await dataService.getParentPost(postId);
+    } catch (error) {
+      console.error('Failed to get parent post:', error);
+      return null;
+    }
   };
 
   // Render main application UI
@@ -102,6 +139,17 @@ export default function Home() {
           onViewProfile={handleViewProfile}
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
+        />
+      )}
+
+      {overlayPost && (
+        <PostOverlay 
+          post={overlayPost}
+          isOpen={isOverlayOpen}
+          onClose={handleCloseOverlay}
+          getDirectChildren={getDirectChildren}
+          getParentPost={getParentPost}
+          onChildClick={handleOpenPost}
         />
       )}
     </div>
