@@ -257,9 +257,11 @@ export default function PostDisplay({
   const getDisplayContent = () => {
     if (shouldCollapse) {
       const maxLength = displayMode === 'compact' ? 100 : 200;
-      return post.content.length > maxLength 
-        ? post.content.substring(0, maxLength) + '...'
-        : post.content;
+      // Strip HTML tags so previews don't show raw markup like </p>
+      const plainText = post.content.replace(/<[^>]*>/g, '');
+      return plainText.length > maxLength 
+        ? plainText.substring(0, maxLength) + '...'
+        : plainText;
     }
     return post.content;
   };
