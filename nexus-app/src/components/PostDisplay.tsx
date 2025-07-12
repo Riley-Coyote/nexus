@@ -494,7 +494,7 @@ export default function PostDisplay({
                 <span className="interaction-count font-medium">{localInteractions.shares}</span>
               </button>
 
-              {onDeepDive && (
+              {onDeepDive && post.privacy?.toLowerCase?.() !== 'private' && (
                 <button 
                   onClick={handleDeepDive}
                   disabled={isInteracting}
