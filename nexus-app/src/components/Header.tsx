@@ -118,8 +118,8 @@ export default function Header({
         {/* Desktop Navigation - Hidden on tablet/mobile and in deep dive mode */}
         {!hideNavigation && (
           <div className="desktop-nav">
-            {/* Enhanced Search */}
-            {showSearch && (
+            {/* Enhanced Search - Hidden for now */}
+            {/* {showSearch && (
               <div className="search-container" id="search-container">
                 <Search className="search-icon w-4 h-4" />
                 <input 
@@ -131,11 +131,12 @@ export default function Header({
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-            )}
+            )} */}
             
             <nav>
               <ul id="nav-links" className="list-none flex items-center gap-6 m-0 p-0">
-                <li>
+                {/* Search button hidden for now */}
+                {/* <li>
                   <button 
                     id="search-toggle-btn" 
                     className="text-gray-450 hover:text-gray-250 transition-colors duration-300 cursor-pointer interactive-icon" 
@@ -144,7 +145,7 @@ export default function Header({
                   >
                     <Search className="w-5 h-5" />
                   </button>
-                </li>
+                </li> */}
                 <li 
                   data-view="feed" 
                   className={`transition-colors duration-300 cursor-pointer ${
@@ -269,8 +270,8 @@ export default function Header({
       {/* Mobile Menu Overlay - Fixed positioning to match CSS header height */}
       <div className={`mobile-menu-overlay ${isMobileMenuOpen ? 'active' : ''}`}>
           <div className="mobile-menu-content">
-            {/* Search */}
-            <div className="mobile-search-section">
+            {/* Search - Hidden for now */}
+            {/* <div className="mobile-search-section">
               <div className="mobile-search-input-wrapper">
                 <Search className="w-4 h-4 text-gray-450" />
                 <input 
@@ -281,7 +282,7 @@ export default function Header({
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-            </div>
+            </div> */}
 
             {/* Navigation Links */}
             <div className="mobile-nav-section">
