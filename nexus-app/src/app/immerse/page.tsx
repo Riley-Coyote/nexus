@@ -189,38 +189,38 @@ function ImmerseContent({
           </div>
 
           {/* Floating Suggestion Bubbles */}
-          {showSuggestions && (
-            <div className="fixed top-0 right-0 w-80 h-screen overflow-y-auto z-30 p-6 pt-24">
-              <div className="space-y-6">
-                {error ? (
-                  <div className="liquid-bubble error-bubble">
-                    <p className="text-red-400 text-sm">{error}</p>
-                  </div>
-                ) : isLoading ? (
-                  <div className="liquid-bubble loading-bubble">
-                    <p className="text-text-tertiary text-sm animate-pulse">Summoning suggestions...</p>
-                  </div>
-                ) : (
-                  suggestions.map((s: string, idx: number) => (
-                    <FloatingBubble 
-                      key={idx} 
-                      text={s} 
-                      index={idx}
-                      scrollY={scrollY}
-                    />
-                  ))
-                )}
-              </div>
-              
-              {/* Floating Instructions */}
-              <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
-                <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                  ✨ Drag bubbles to infuse your writing<br/>
-                  🧠 Hold Meta for precise sentence alchemy
-                </p>
-              </div>
+          <div className={`fixed top-0 right-0 w-80 h-screen overflow-y-auto z-30 p-6 pt-24 transition-transform duration-500 ease-out ${
+            showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'
+          }`}>
+            <div className="space-y-6">
+              {error ? (
+                <div className="liquid-bubble error-bubble">
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              ) : isLoading ? (
+                <div className="liquid-bubble loading-bubble">
+                  <p className="text-text-tertiary text-sm animate-pulse">Summoning suggestions...</p>
+                </div>
+              ) : (
+                suggestions.map((s: string, idx: number) => (
+                  <FloatingBubble 
+                    key={idx} 
+                    text={s} 
+                    index={idx}
+                    scrollY={scrollY}
+                  />
+                ))
+              )}
             </div>
-          )}
+            
+            {/* Floating Instructions */}
+            <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
+              <p className="text-xs text-text-quaternary text-center leading-relaxed">
+                ✨ Drag bubbles to infuse your writing<br/>
+                🧠 Hold Meta for precise sentence alchemy
+              </p>
+            </div>
+          </div>
 
 
         </main>
