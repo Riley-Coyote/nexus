@@ -78,6 +78,7 @@ function ImmerseContent({
   const dropRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null); // Add this for Tiptap editor reference
   const [scrollY, setScrollY] = useState(0);
+  const suggestionsRef = useRef<HTMLDivElement>(null); // Add ref for suggestions container
 
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'suggestion',
@@ -118,6 +119,13 @@ function ImmerseContent({
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Auto-scroll to bottom of suggestions when shown or suggestions change
+  useEffect(() => {
+    if (showSuggestions && suggestionsRef.current) {
+      suggestionsRef.current.scrollTop = suggestionsRef.current.scrollHeight;
+    }
+  }, [showSuggestions, suggestions]);
 
   const handleSuggestionDrop = (suggestion: string) => {
     if (!editorRef.current) return;
@@ -189,9 +197,12 @@ function ImmerseContent({
           </div>
 
           {/* Floating Suggestion Bubbles */}
-          <div className={`fixed top-0 right-0 w-80 h-screen overflow-y-auto z-30 p-6 pt-24 transition-transform duration-500 ease-out ${
-            showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'
-          }`}>
+          <div 
+            ref={suggestionsRef}
+            className={`fixed top-8 right-0 w-80 h-[75vh] overflow-y-auto z-30 p-6 pt-16 transition-transform duration-500 ease-out ${
+              showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'
+            }`}
+          >
             <div className="space-y-6">
               {error ? (
                 <div className="liquid-bubble error-bubble">
