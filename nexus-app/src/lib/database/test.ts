@@ -39,7 +39,8 @@ export class DatabaseTester {
         interactions: { resonances: 0, branches: 0, amplifications: 0, shares: 0 },
         threads: [],
         isAmplified: false,
-        userId: 'test_user_123'
+        userId: 'test_user_123',
+        username: 'TestUser'
       };
 
       const createdEntry = await db.createEntry(testEntry);
