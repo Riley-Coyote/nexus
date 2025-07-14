@@ -6,11 +6,11 @@ import { dataService } from '@/lib/services/dataService';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 
 interface PostPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function PostPage({ params }: PostPageProps) {
-  const { id } = params;
+  const { id } = await params;
 
   // Fetch the entry by ID
   const entry = await dataService.getEntryById(id);

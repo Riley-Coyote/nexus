@@ -7,11 +7,11 @@ import { streamEntryToPost } from '@/lib/utils/postUtils';
 import PrivatePostPageClient from '@/components/PrivatePostPageClient';
 
 interface PostDetailPageProps {
-  params: { username: string; id: string };
+  params: Promise<{ username: string; id: string }>;
 }
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
-  const { username, id } = params;
+  const { username, id } = await params;
 
   // Fetch the entry by ID
   const entry = await dataService.getEntryById(id);
