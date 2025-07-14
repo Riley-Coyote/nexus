@@ -869,6 +869,19 @@ export class DataService {
     const userId = effectiveUserId || currentUser?.id;
     const username = currentUser?.username || currentUser?.email || userId || 'user';
     
+    // If we don't have a full currentUser object (server path), fetch profile for nicer username
+    let resolvedUsername = username;
+    if (!currentUser) {
+      try {
+        const profile = await this.getUserProfile(userId);
+        if (profile?.username) {
+          resolvedUsername = profile.username;
+        }
+      } catch {
+        // non-fatal – fall back to id
+      }
+    }
+    
     if (!userId) {
       throw new Error('User must be authenticated to submit entries');
     }
@@ -879,8 +892,8 @@ export class DataService {
       children: [],
       depth: 0,
       type: type,
-      agent: username,
-      username: username,
+      agent: resolvedUsername,
+      username: resolvedUsername,
       connections: 0,
       metrics: { c: 0.5, r: 0.5, x: 0.5 },
       timestamp: formatTimestamp(),
@@ -1011,9 +1024,20 @@ export class DataService {
 
       console.log(`🔄 Inheriting from parent: privacy=${parentEntry.privacy}, entry_type=${parentEntry.entryType}, type=${parentEntry.type}`);
 
-      // Get user info for username (fallback to user ID if not available)
-      const currentUser = typeof window !== 'undefined' ? safeGetCurrentUser() : null;
-      const username = currentUser?.username || currentUser?.email || effectiveUserId || 'user';
+      // Resolve username nicely
+      let username: string = 'user';
+      if (typeof window !== 'undefined' && getCurrentUser) {
+        const cu = safeGetCurrentUser();
+        username = cu?.username || cu?.email || username;
+      }
+      if (!username || username === 'user') {
+        try {
+          const profile = await this.getUserProfile(effectiveUserId);
+          if (profile?.username) username = profile.username;
+        } catch {
+          username = effectiveUserId;
+        }
+      }
 
       const newEntry = await this.database.createEntry({
         type: parentEntry.type || 'Branch', // Inherit the specific type from parent (e.g., "Deep Reflection")
