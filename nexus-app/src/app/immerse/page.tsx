@@ -156,9 +156,13 @@ function ImmerseContent({
           {/* Background overlay for drop zone */}
           <div 
             ref={dropRef}
-            className={`absolute inset-0 transition-all duration-300 ${
-              isOver ? 'bg-blue-500/10 backdrop-blur-sm' : ''
+            className={`absolute inset-0 transition-all duration-500 ${
+              isOver ? 'bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-blue-500/5 backdrop-blur-md' : ''
             }`}
+            style={{
+              filter: isOver ? 'url(#glass-distortion)' : 'none',
+              WebkitFilter: isOver ? 'url(#glass-distortion)' : 'none',
+            }}
           />
 
           {/* Title */}
@@ -180,8 +184,6 @@ function ImmerseContent({
                 placeholder="Begin your journey of thoughts..."
                 maxCharacters={10000}
                 className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl text-text-primary min-h-[60vh]"
-                onEditorCreated={(editor) => { editorRef.current = editor; }}
-                hideToolbar={false}
               />
             </div>
           </div>
@@ -220,24 +222,7 @@ function ImmerseContent({
             </div>
           )}
 
-          {/* Toggle Button for Suggestions */}
-          {!showSuggestions && (
-            <button
-              onClick={() => setShowSuggestions(true)}
-              className="fixed top-6 right-6 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-text-quaternary hover:text-white px-4 py-2 rounded-full transition-all duration-300 z-40 shadow-lg"
-            >
-              Show AI Companions
-            </button>
-          )}
 
-          {showSuggestions && (
-            <button
-              onClick={() => setShowSuggestions(false)}
-              className="fixed top-6 right-6 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-text-quaternary hover:text-white px-4 py-2 rounded-full transition-all duration-300 z-40 shadow-lg"
-            >
-              Hide Suggestions
-            </button>
-          )}
         </main>
       </div>
 
@@ -279,53 +264,117 @@ function ImmerseContent({
         </div>
       )}
 
+      {/* SVG Glass Distortion Filter */}
+      <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style={{ position: 'absolute', overflow: 'hidden' }}>
+        <defs>
+          <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.002 0.002" numOctaves="1" seed="92" result="noise" />
+            <feGaussianBlur in="noise" stdDeviation="1" result="blurred" />
+            <feDisplacementMap in="SourceGraphic" in2="blurred" scale="15" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
+
       {/* Liquid Glass Styles */}
-      <style jsx>{`
+      <style jsx global>{`
         .liquid-bubble {
           position: relative;
+          isolation: isolate;
+          border-radius: 24px;
+          box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.15);
           overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.02);
         }
         
         .liquid-bubble::before {
           content: '';
           position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-          animation: liquid-flow 8s ease-in-out infinite;
-          opacity: 0.6;
+          inset: 0;
+          z-index: 1;
+          border-radius: 24px;
+          box-shadow: 
+            inset 0 0 18px -3px rgba(255, 255, 255, 0.5);
+          background-color: rgba(255, 255, 255, 0.15);
+          animation: liquid-shimmer 4s ease-in-out infinite;
         }
         
         .liquid-bubble::after {
           content: '';
           position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
-          pointer-events: none;
+          inset: 0;
+          z-index: -1;
+          border-radius: 24px;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          filter: url(#glass-distortion);
+          -webkit-filter: url(#glass-distortion);
+          isolation: isolate;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
         }
         
-        @keyframes liquid-flow {
-          0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
-          33% { transform: translate(-30%, -70%) rotate(120deg); }
-          66% { transform: translate(-70%, -30%) rotate(240deg); }
+        @keyframes liquid-shimmer {
+          0%, 100% { 
+            background-color: rgba(255, 255, 255, 0.15);
+            box-shadow: inset 0 0 18px -3px rgba(255, 255, 255, 0.5);
+          }
+          50% { 
+            background-color: rgba(255, 255, 255, 0.25);
+            box-shadow: inset 0 0 23px -3px rgba(255, 255, 255, 0.5);
+          }
         }
         
         .loading-bubble::before {
-          animation: liquid-flow 3s ease-in-out infinite, pulse 2s ease-in-out infinite;
+          animation: liquid-shimmer 2s ease-in-out infinite, pulse 1.5s ease-in-out infinite;
         }
         
         .error-bubble::before {
-          background: radial-gradient(circle, rgba(239,68,68,0.1) 0%, transparent 70%);
+          background-color: rgba(255, 100, 100, 0.15);
+          box-shadow: inset 0 0 18px -3px rgba(255, 100, 100, 0.4);
         }
         
         @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.8; }
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+        
+        /* Hover effects */
+        .liquid-bubble:hover::before {
+          background-color: rgba(255, 255, 255, 0.30);
+          box-shadow: inset 0 0 26px -3px rgba(255, 255, 255, 0.5);
+        }
+        
+        .liquid-bubble:hover::after {
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+        
+        /* Different glass tints for variety */
+        .liquid-bubble:nth-child(3n+1)::before {
+          background-color: rgba(200, 255, 255, 0.15);
+          box-shadow: inset 0 0 18px -3px rgba(200, 255, 255, 0.4);
+        }
+        
+        .liquid-bubble:nth-child(3n+2)::before {
+          background-color: rgba(255, 200, 255, 0.15);
+          box-shadow: inset 0 0 18px -3px rgba(255, 200, 255, 0.4);
+        }
+        
+        .liquid-bubble:nth-child(3n+3)::before {
+          background-color: rgba(255, 255, 200, 0.15);
+          box-shadow: inset 0 0 18px -3px rgba(255, 255, 200, 0.4);
+        }
+        
+        /* Dragging state */
+        .liquid-bubble:active::before {
+          animation: liquid-shimmer 0.5s ease-in-out infinite;
+          background-color: rgba(255, 255, 255, 0.35);
+          box-shadow: inset 0 0 28px -3px rgba(255, 255, 255, 0.5);
+        }
+        
+        .liquid-bubble:active::after {
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
         }
       `}</style>
     </>
@@ -339,31 +388,24 @@ function FloatingBubble({ text, index, scrollY }: { text: string; index: number;
     collect: (m) => ({ isDragging: !!m.isDragging() }),
   }));
 
-  const floatOffset = Math.sin((scrollY * 0.01) + (index * 0.5)) * 8;
+  const floatOffset = Math.sin((scrollY * 0.01) + (index * 0.5)) * 12;
 
   return (
     <div
       ref={(node) => { drag(node); }}
-      className={`liquid-bubble relative cursor-grab active:cursor-grabbing transition-all duration-500 ease-out ${
-        isDragging ? 'scale-95 opacity-60' : 'hover:scale-105'
+      className={`liquid-bubble cursor-grab active:cursor-grabbing transition-all duration-500 ease-out ${
+        isDragging ? 'scale-95 opacity-70' : 'hover:scale-105'
       }`}
       style={{
         transform: `translateY(${floatOffset}px)`,
-        animationDelay: `${index * 0.2}s`,
+        animationDelay: `${index * 0.3}s`,
+        touchAction: 'none', // Enable pointer dragging on touch
       }}
     >
-      <div className="relative z-10 p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300">
-        <div className="relative z-20">
-          <p className="text-sm font-light leading-relaxed text-white/90">
-            {text}
-          </p>
-        </div>
-        
-        {/* Liquid glass effect layer */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 via-transparent to-white/5 opacity-50" />
-        
-        {/* Shimmer effect */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500 animate-pulse" />
+      <div className="relative z-10 p-6">
+        <p className="text-sm font-light leading-relaxed text-white/95 relative z-20">
+          {text}
+        </p>
       </div>
     </div>
   );
