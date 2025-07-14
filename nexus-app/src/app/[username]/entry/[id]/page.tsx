@@ -5,6 +5,7 @@ import PostDetailClient from '@/components/PostDetailClient';
 import { dataService } from '@/lib/services/dataService';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
 import PrivatePostPageClient from '@/components/PrivatePostPageClient';
+import { getServerCurrentUser } from '@/lib/auth/serverAuth';
 
 interface PostDetailPageProps {
   params: Promise<{ username: string; id: string }>;
@@ -12,6 +13,9 @@ interface PostDetailPageProps {
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const { username, id } = await params;
+
+  // Get server current user
+  const user = await getServerCurrentUser();
 
   // Fetch the entry by ID
   const entry = await dataService.getEntryById(id);
@@ -29,7 +33,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const parentEntry = await dataService.getParentPost(id);
   const parentPost = parentEntry ? streamEntryToPost(parentEntry) : null;
   
-  const childEntries = await dataService.getDirectChildren(id);
+  const childEntries = await dataService.getDirectChildren(id, user?.id);
   const childPosts = childEntries.map(streamEntryToPost);
 
   // Debug logging - Server side

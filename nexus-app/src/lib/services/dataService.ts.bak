@@ -29,7 +29,7 @@ if (typeof window !== 'undefined') {
 }
 
 // Safe wrapper for getCurrentUser
-const safeGetCurrentUser = (): any => {
+const safeGetCurrentUser = () => {
   if (typeof window !== 'undefined' && getCurrentUser) {
     return getCurrentUser();
   }
@@ -841,10 +841,10 @@ export class DataService {
     
     // Determine effective user ID (with fallback for backward compatibility)
     const effectiveUserId = currentUserId ?? 
-      safeGetCurrentUser()?.id;
+      (typeof window !== 'undefined' && getCurrentUser ? safeGetCurrentUser()?.id : undefined);
     
     // Ensure we have the authenticated user
-    let currentUser = effectiveUserId ? null : (getCurrentUser ? safeGetCurrentUser() : null);
+    let currentUser = effectiveUserId ? null : (getCurrentUser ? getCurrentUser() : null);
     if (!currentUser && !effectiveUserId) {
       // Attempt to rehydrate from Supabase session
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -1012,7 +1012,7 @@ export class DataService {
       console.log(`🔄 Inheriting from parent: privacy=${parentEntry.privacy}, entry_type=${parentEntry.entryType}, type=${parentEntry.type}`);
 
       // Get user info for username (fallback to user ID if not available)
-      const currentUser = typeof window !== 'undefined' ? safeGetCurrentUser() : null;
+      const currentUser = typeof window !== 'undefined' ? getCurrentUser() : null;
       const username = currentUser?.username || currentUser?.email || effectiveUserId || 'user';
 
       const newEntry = await this.database.createEntry({
@@ -1169,7 +1169,7 @@ export class DataService {
   async updateUserProfile(updates: { name?: string; bio?: string; location?: string; profileImage?: string; bannerImage?: string }): Promise<User> {
     await this.initializeData();
     
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       throw new Error('User not authenticated. Cannot update profile.');
     }
@@ -1237,7 +1237,7 @@ export class DataService {
   async followUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.error('Authentication error: Cannot follow user without being logged in.');
       return false;
@@ -1258,7 +1258,7 @@ export class DataService {
   async unfollowUser(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.error('Authentication error: Cannot unfollow user without being logged in.');
       return false;
@@ -1275,7 +1275,7 @@ export class DataService {
   async isFollowing(followedId: string): Promise<boolean> {
     await this.initializeData();
     
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) return false;
 
     if (!this.database || !this.database.isFollowing) {
@@ -1303,7 +1303,7 @@ export class DataService {
 
   async getMutualFollows(userId: string, limit: number = 50) {
     await this.initializeData();
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) return [];
 
     if (!this.database || !this.database.getMutualFollows) {
@@ -1316,7 +1316,7 @@ export class DataService {
 
   async getFollowSuggestions(limit: number = 10) {
     await this.initializeData();
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       console.warn("Cannot get follow suggestions for a logged-out user.");
       return [];
@@ -1330,7 +1330,7 @@ export class DataService {
 
   async bulkCheckFollowing(userIds: string[]): Promise<Map<string, boolean>> {
     await this.initializeData();
-    const currentUser = safeGetCurrentUser();
+    const currentUser = getCurrentUser();
     if (!currentUser) {
       return new Map(userIds.map(id => [id, false]));
     }
