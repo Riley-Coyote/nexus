@@ -12,8 +12,8 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 
-// Revolutionary Collaborative Consciousness Weaver
-import { CollaborativeConsciousnessWeaver } from './components/CollaborativeConsciousnessWeaver';
+// BiometricTracker import
+import { BiometricTracker } from './components/BiometricTracker';
 
 // Dummy suggestions the AI would provide (placeholder until backend integration)
 const DUMMY_SUGGESTIONS = [
@@ -30,7 +30,6 @@ const DUMMY_SUGGESTIONS = [
 export default function ImmersePage() {
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [collaborativeMode, setCollaborativeMode] = useState(false);
   // const { suggestions, isLoading, error } = useAISuggestions(content);
   const suggestions = DUMMY_SUGGESTIONS;
   const isLoading = false;
@@ -41,51 +40,25 @@ export default function ImmersePage() {
     setContent((prev) => (prev ? `${prev}<p>${suggestion}</p>` : `<p>${suggestion}</p>`));
   };
 
-  // Revolutionary mode toggle
-  if (collaborativeMode) {
-    return (
-      <div className="revolutionary-mode">
-        <div className="mode-toggle">
-          <button 
-            onClick={() => setCollaborativeMode(false)}
-            className="back-button"
-          >
-            ← Back to Traditional Mode
-          </button>
-          <h2>🧠 Collaborative Consciousness Weaver</h2>
-        </div>
-        <CollaborativeConsciousnessWeaver
-          content={content}
-          onContentChange={setContent}
-          userId="user-123" // TODO: Get from auth context
-          isActive={true}
-        />
-      </div>
-    );
-  }
+  // Biometric update handler
+  const handleBiometricUpdate = (signature: any) => {
+    // Handle biometric data if needed
+    console.log('Biometric signature:', signature);
+  };
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="traditional-mode">
-        <div className="mode-toggle">
-          <button 
-            onClick={() => setCollaborativeMode(true)}
-            className="revolutionary-button"
-          >
-            🚀 Try Revolutionary Mode
-          </button>
-        </div>
-        <ImmerseContent
-          content={content}
-          setContent={setContent}
-          showSuggestions={showSuggestions}
-          setShowSuggestions={setShowSuggestions}
-          suggestions={suggestions}
-          isLoading={isLoading}
-          error={error}
-          mergeSuggestion={mergeSuggestion}
-        />
-      </div>
+      <ImmerseContent
+        content={content}
+        setContent={setContent}
+        showSuggestions={showSuggestions}
+        setShowSuggestions={setShowSuggestions}
+        suggestions={suggestions}
+        isLoading={isLoading}
+        error={error}
+        mergeSuggestion={mergeSuggestion}
+        onBiometricUpdate={handleBiometricUpdate}
+      />
     </DndProvider>
   );
 }
@@ -99,6 +72,7 @@ interface ImmerseContentProps {
   isLoading: boolean;
   error: string | null;
   mergeSuggestion: (suggestion: string) => void;
+  onBiometricUpdate: (signature: any) => void;
 }
 
 function ImmerseContent({
@@ -110,6 +84,7 @@ function ImmerseContent({
   isLoading,
   error,
   mergeSuggestion,
+  onBiometricUpdate,
 }: ImmerseContentProps) {
   // Move states and logic here
   const [isMetaPressed, setIsMetaPressed] = useState(false);
@@ -269,13 +244,25 @@ function ImmerseContent({
   return (
     <>
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-gray-900 to-gray-950 text-text-primary relative overflow-hidden">
-        {/* Left Column – Coming Soon */}
-        <aside className="hidden lg:flex w-64 shrink-0 items-center justify-center border-r border-white/5 text-text-quaternary text-sm px-4 fixed left-0 top-0 h-screen z-10" style={{ writingMode: 'vertical-rl' }}>
-          Timeline River – Coming Soon
+        {/* Left Column - Split into Biometrics (30%) and Timeline (70%) */}
+        <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-white/5 fixed left-0 top-0 h-screen z-10">
+          {/* Biometric Tracker - Top 30% */}
+          <div className="h-[30%] p-4 border-b border-white/5">
+            <BiometricTracker 
+              onBiometricUpdate={onBiometricUpdate}
+              isActive={true}
+              userId="user-123"
+            />
+          </div>
+          
+          {/* Timeline River - Bottom 70% */}
+          <div className="h-[70%] flex items-center justify-center text-text-quaternary text-sm px-4" style={{ writingMode: 'vertical-rl' }}>
+            Timeline River – Coming Soon
+          </div>
         </aside>
 
-        {/* Main Content Area - Unified Writing Space */}
-        <main className="min-h-screen lg:ml-64 relative">
+        {/* Main Content Area - Full Screen Writing Space */}
+        <main className="h-screen lg:ml-64 relative">
           {/* Background overlay for drop zone */}
           <div 
             ref={dropRef}
@@ -288,23 +275,13 @@ function ImmerseContent({
             }}
           />
 
-          {/* Title */}
-          <div className="text-center py-12">
-            <h1 className="text-4xl font-light tracking-wide text-white/90 mb-2">
-              Immersive AI Journal
-            </h1>
-            <p className="text-text-quaternary text-sm">
-              {showSuggestions ? 'Cmd+I to hide suggestions' : 'Cmd+I to show suggestions'}
-            </p>
-          </div>
-
-          {/* Writing Area */}
-          <div className="px-8 md:px-16 lg:px-24 xl:px-32 relative z-20">
-            <div className="max-w-4xl mx-auto">
-              <div className="custom-editor rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl text-text-primary min-h-[60vh] p-6">
+          {/* Full Height Writing Area */}
+          <div className="h-full pr-80 p-6 relative z-20">
+            <div className="h-full">
+              <div className="custom-editor rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl text-text-primary h-full p-6">
                 <EditorContent
                   editor={editor}
-                  className="prose prose-invert max-w-none focus:outline-none"
+                  className="prose prose-invert max-w-none focus:outline-none h-full"
                 />
               </div>
             </div>
@@ -365,14 +342,17 @@ function ImmerseContent({
               )}
             </div>
             
-            {/* Floating Instructions */}
-            <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
-              <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ✨ Drag bubbles to infuse your writing<br/>
-                🧠 Hold Meta for precise sentence alchemy
-              </p>
-            </div>
+                      {/* Floating Instructions */}
+          <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
+            <p className="text-xs text-text-quaternary text-center leading-relaxed">
+              ✨ Drag bubbles to infuse your writing<br/>
+              🧠 Hold Meta for precise sentence alchemy<br/>
+              ⌨️ Cmd+I to toggle suggestions
+            </p>
           </div>
+          </div>
+
+
 
 
         </main>
@@ -423,6 +403,32 @@ function ImmerseContent({
           color: rgba(255, 255, 255, 0.9);
           font-size: 16px;
           line-height: 1.7;
+          height: 100%;
+          overflow-y: auto;
+          padding: 0;
+        }
+
+        .custom-editor {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .custom-editor .ProseMirror::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .custom-editor .ProseMirror::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 4px;
+        }
+
+        .custom-editor .ProseMirror::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+        }
+
+        .custom-editor .ProseMirror::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
         }
 
         .custom-editor .ProseMirror p {
@@ -491,7 +497,7 @@ function ImmerseContent({
 
         /* Placeholder styling */
         .custom-editor .ProseMirror p.is-editor-empty:first-child::before {
-          content: "Begin your journey of thoughts...";
+          content: "Start writing... Your thoughts shape your reality.";
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
           pointer-events: none;
@@ -499,7 +505,7 @@ function ImmerseContent({
         }
 
         .custom-editor .ProseMirror:empty::before {
-          content: "Begin your journey of thoughts...";
+          content: "Start writing... Your thoughts shape your reality.";
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
           pointer-events: none;
@@ -678,74 +684,4 @@ function FloatingBubble({ text, index, scrollY }: { text: string; index: number;
   );
 }
 
-// Add global styles for the revolutionary mode
-const revolutionaryModeStyles = `
-  .revolutionary-mode {
-    width: 100%;
-    height: 100vh;
-    background: #000;
-  }
-
-  .mode-toggle {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    background: rgba(0, 0, 0, 0.9);
-    padding: 12px 20px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-  }
-
-  .mode-toggle h2 {
-    color: white;
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .back-button, .revolutionary-button {
-    padding: 8px 16px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .back-button:hover, .revolutionary-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.5);
-    transform: translateY(-1px);
-  }
-
-  .revolutionary-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: 1px solid rgba(102, 126, 234, 0.5);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    animation: glow 2s ease-in-out infinite alternate;
-  }
-
-  @keyframes glow {
-    from { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
-    to { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
-  }
-
-  .traditional-mode {
-    position: relative;
-  }
-`;
-
-// Inject styles
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = revolutionaryModeStyles;
-  document.head.appendChild(styleElement);
-} 
+ 
