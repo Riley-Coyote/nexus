@@ -366,16 +366,13 @@ export const BiometricTracker: React.FC<BiometricTrackerProps> = ({
       
       <style jsx>{`
         .biometric-tracker {
-          position: fixed;
-          top: 20px;
-          left: 20px;
-          z-index: 1000;
+          position: relative;
+          width: 100%;
           background: rgba(0, 0, 0, 0.8);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 12px;
           padding: 16px;
           backdrop-filter: blur(10px);
-          min-width: 300px;
         }
         
         .biometric-visualization {

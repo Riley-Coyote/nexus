@@ -431,37 +431,94 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
 
   return (
     <div className="collaborative-consciousness-weaver">
-      {/* Biometric Tracker */}
-      <BiometricTracker
-        onBiometricUpdate={handleBiometricUpdate}
-        isActive={showBiometrics}
-        userId={userId}
-      />
-
-      {/* Main Weaving Interface */}
-      <div className="weaving-interface">
-                 {/* Content Editor */}
-         <div 
-           ref={contentRef}
-           className="content-editor"
-           contentEditable
-           suppressContentEditableWarning={true}
-           onInput={(e) => onContentChange(e.currentTarget.textContent || '')}
-         >
-           {content}
-         </div>
-
-        {/* Synaptic Atmosphere */}
-        <div className="atmosphere-container">
-          <SynapticAtmosphere
-            atmosphere={atmosphere}
-            threads={threads}
-            onThreadSelect={handleThreadSelect}
-            onThreadWeave={handleThreadWeave}
-            onAtmosphereShift={handleAtmosphereShift}
-            selectedThread={selectedThread}
-            isBreathing={isBreathing}
+      {/* Main Interface Grid */}
+      <div className="interface-grid">
+        {/* Biometric Sidebar */}
+        <div className="biometric-sidebar">
+          <BiometricTracker
+            onBiometricUpdate={handleBiometricUpdate}
+            isActive={showBiometrics}
+            userId={userId}
           />
+        </div>
+
+        {/* Main Content Area */}
+        <div className="main-content">
+          {/* Content Editor */}
+          <div 
+            ref={contentRef}
+            className="content-editor"
+            contentEditable
+            suppressContentEditableWarning={true}
+            onInput={(e) => {
+              const target = e.currentTarget;
+              const newContent = target.textContent || '';
+              // Prevent cursor jumping and reverse text issues
+              const selection = window.getSelection();
+              const cursorPosition = selection?.getRangeAt(0).startOffset || 0;
+              
+              onContentChange(newContent);
+              
+              // Restore cursor position after content update
+              setTimeout(() => {
+                if (selection && target.firstChild) {
+                  const range = document.createRange();
+                  const textNode = target.firstChild;
+                  const maxPosition = textNode.textContent?.length || 0;
+                  const safePosition = Math.min(cursorPosition, maxPosition);
+                  
+                  try {
+                    range.setStart(textNode, safePosition);
+                    range.setEnd(textNode, safePosition);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                  } catch (error) {
+                    // Handle edge cases gracefully
+                    console.warn('Cursor position restoration failed:', error);
+                  }
+                }
+              }, 0);
+            }}
+            onKeyDown={(e) => {
+              // Prevent common contentEditable issues
+              if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                document.execCommand('insertLineBreak');
+              }
+            }}
+            dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br/>') }}
+          />
+
+          {/* Real-time AI Suggestion Overlay */}
+          <div className="ai-suggestion-overlay">
+            {weavingMode === 'auto' && biometricSignature && (
+              <div className="auto-suggestions">
+                {biometricSignature.flowState.current > 0.7 && (
+                  <div className="flow-suggestion">
+                    ✨ You're in flow state - consider expanding this insight...
+                  </div>
+                )}
+                {biometricSignature.cognitiveLoad.current > 0.7 && (
+                  <div className="load-suggestion">
+                    🧠 High cognitive load detected - take a moment to breathe...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Synaptic Atmosphere */}
+          <div className="atmosphere-container">
+            <SynapticAtmosphere
+              atmosphere={atmosphere}
+              threads={threads}
+              onThreadSelect={handleThreadSelect}
+              onThreadWeave={handleThreadWeave}
+              onAtmosphereShift={handleAtmosphereShift}
+              selectedThread={selectedThread}
+              isBreathing={isBreathing}
+            />
+          </div>
         </div>
 
         {/* Control Panel */}
@@ -497,6 +554,13 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
               <option value="auto">Auto-Weaving</option>
               <option value="manual">Manual Weaving</option>
             </select>
+            <div className="mode-description">
+              {weavingMode === 'auto' ? (
+                <span>🤖 AI automatically weaves thoughts based on your cognitive state</span>
+              ) : (
+                <span>✋ Manual control - click and drag to weave thoughts together</span>
+              )}
+            </div>
           </div>
 
           <div className="panel-section">
@@ -509,6 +573,7 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
               value={atmosphereIntensity}
               onChange={(e) => setAtmosphereIntensity(parseFloat(e.target.value))}
             />
+            <div className="intensity-value">{(atmosphereIntensity * 100).toFixed(0)}%</div>
           </div>
         </div>
       </div>
@@ -522,13 +587,27 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
           background: #000;
         }
 
-        .weaving-interface {
+        .interface-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 320px 1fr;
           grid-template-rows: 1fr auto;
           height: 100%;
           gap: 20px;
           padding: 20px;
+        }
+
+        .biometric-sidebar {
+          grid-row: 1 / -1;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .main-content {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          height: 100%;
         }
 
         .content-editor {
@@ -544,13 +623,60 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
           resize: none;
           overflow-y: auto;
           backdrop-filter: blur(10px);
+          position: relative;
+          min-height: 200px;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          white-space: pre-wrap;
         }
 
-                 .content-editor:empty::before {
-           content: "Begin weaving your thoughts...";
-           color: rgba(255, 255, 255, 0.4);
-           font-style: italic;
-         }
+        .content-editor:empty::before {
+          content: "Begin weaving your thoughts...";
+          color: rgba(255, 255, 255, 0.4);
+          font-style: italic;
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          pointer-events: none;
+        }
+
+        .ai-suggestion-overlay {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          z-index: 10;
+          pointer-events: none;
+        }
+
+        .auto-suggestions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .flow-suggestion, .load-suggestion {
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 8px;
+          padding: 8px 12px;
+          color: #10B981;
+          font-size: 12px;
+          font-weight: 500;
+          backdrop-filter: blur(10px);
+          animation: suggestionPulse 2s infinite;
+          max-width: 200px;
+        }
+
+        .load-suggestion {
+          background: rgba(245, 158, 11, 0.1);
+          border-color: rgba(245, 158, 11, 0.3);
+          color: #F59E0B;
+        }
+
+        @keyframes suggestionPulse {
+          0%, 100% { opacity: 0.8; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.02); }
+        }
 
         .atmosphere-container {
           position: relative;
@@ -562,7 +688,7 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
         }
 
         .control-panel {
-          grid-column: 1 / -1;
+          grid-column: 2;
           display: flex;
           gap: 30px;
           background: rgba(255, 255, 255, 0.05);
@@ -570,6 +696,7 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
           border-radius: 12px;
           padding: 20px;
           backdrop-filter: blur(10px);
+          max-height: 200px;
         }
 
         .panel-section {
@@ -597,6 +724,23 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
           font-size: 14px;
         }
 
+        .mode-description {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.6);
+          margin-top: 8px;
+          padding: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 6px;
+          border-left: 3px solid #10B981;
+        }
+
+        .intensity-value {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.8);
+          text-align: center;
+          margin-top: 4px;
+        }
+
         select, input[type="range"] {
           background: rgba(255, 255, 255, 0.1);
           border: 1px solid rgba(255, 255, 255, 0.2);
@@ -613,6 +757,47 @@ export const CollaborativeConsciousnessWeaver: React.FC<CollaborativeConsciousne
 
         input[type="range"] {
           width: 100%;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+          .interface-grid {
+            grid-template-columns: 280px 1fr;
+          }
+        }
+
+        @media (max-width: 1200px) {
+          .interface-grid {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto 1fr auto;
+          }
+          
+          .biometric-sidebar {
+            grid-row: 1;
+            grid-column: 1;
+          }
+          
+          .main-content {
+            grid-row: 2;
+            grid-column: 1;
+          }
+          
+          .control-panel {
+            grid-row: 3;
+            grid-column: 1;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .main-content {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr 1fr;
+          }
+          
+          .control-panel {
+            flex-direction: column;
+            gap: 15px;
+          }
         }
       `}</style>
     </div>
