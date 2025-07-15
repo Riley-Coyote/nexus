@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     
     const data = await response.json();
     const aiResponse = data.candidates[0].content.parts[0].text;
-    const suggestions = aiResponse.split('\n').filter(s => s.trim()).slice(0, 4);
+    const suggestions = aiResponse.split('\n').filter((s: string) => s.trim()).slice(0, 4);
     
     return NextResponse.json({ suggestions });
   } catch (error) {

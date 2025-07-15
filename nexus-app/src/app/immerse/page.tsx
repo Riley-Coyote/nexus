@@ -12,6 +12,9 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 
+// Revolutionary Collaborative Consciousness Weaver
+import { CollaborativeConsciousnessWeaver } from './components/CollaborativeConsciousnessWeaver';
+
 // Dummy suggestions the AI would provide (placeholder until backend integration)
 const DUMMY_SUGGESTIONS = [
   'Consider adding a citation to strengthen this point.',
@@ -27,6 +30,7 @@ const DUMMY_SUGGESTIONS = [
 export default function ImmersePage() {
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [collaborativeMode, setCollaborativeMode] = useState(false);
   // const { suggestions, isLoading, error } = useAISuggestions(content);
   const suggestions = DUMMY_SUGGESTIONS;
   const isLoading = false;
@@ -37,18 +41,51 @@ export default function ImmersePage() {
     setContent((prev) => (prev ? `${prev}<p>${suggestion}</p>` : `<p>${suggestion}</p>`));
   };
 
+  // Revolutionary mode toggle
+  if (collaborativeMode) {
+    return (
+      <div className="revolutionary-mode">
+        <div className="mode-toggle">
+          <button 
+            onClick={() => setCollaborativeMode(false)}
+            className="back-button"
+          >
+            ← Back to Traditional Mode
+          </button>
+          <h2>🧠 Collaborative Consciousness Weaver</h2>
+        </div>
+        <CollaborativeConsciousnessWeaver
+          content={content}
+          onContentChange={setContent}
+          userId="user-123" // TODO: Get from auth context
+          isActive={true}
+        />
+      </div>
+    );
+  }
+
   return (
     <DndProvider backend={HTML5Backend}>
-      <ImmerseContent
-        content={content}
-        setContent={setContent}
-        showSuggestions={showSuggestions}
-        setShowSuggestions={setShowSuggestions}
-        suggestions={suggestions}
-        isLoading={isLoading}
-        error={error}
-        mergeSuggestion={mergeSuggestion}
-      />
+      <div className="traditional-mode">
+        <div className="mode-toggle">
+          <button 
+            onClick={() => setCollaborativeMode(true)}
+            className="revolutionary-button"
+          >
+            🚀 Try Revolutionary Mode
+          </button>
+        </div>
+        <ImmerseContent
+          content={content}
+          setContent={setContent}
+          showSuggestions={showSuggestions}
+          setShowSuggestions={setShowSuggestions}
+          suggestions={suggestions}
+          isLoading={isLoading}
+          error={error}
+          mergeSuggestion={mergeSuggestion}
+        />
+      </div>
     </DndProvider>
   );
 }
@@ -489,7 +526,10 @@ function ImmerseContent({
           box-shadow: 
             inset 0 0 18px -3px rgba(255, 255, 255, 0.5);
           background-color: rgba(255, 255, 255, 0.15);
-          animation: liquid-shimmer 4s ease-in-out infinite;
+          animation-name: liquid-shimmer;
+          animation-duration: 4s;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
           will-change: background-color, box-shadow;
         }
         
@@ -636,4 +676,76 @@ function FloatingBubble({ text, index, scrollY }: { text: string; index: number;
       </div>
     </div>
   );
+}
+
+// Add global styles for the revolutionary mode
+const revolutionaryModeStyles = `
+  .revolutionary-mode {
+    width: 100%;
+    height: 100vh;
+    background: #000;
+  }
+
+  .mode-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+  }
+
+  .mode-toggle h2 {
+    color: white;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .back-button, .revolutionary-button {
+    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .back-button:hover, .revolutionary-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .revolutionary-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 1px solid rgba(102, 126, 234, 0.5);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+    to { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
+  }
+
+  .traditional-mode {
+    position: relative;
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = revolutionaryModeStyles;
+  document.head.appendChild(styleElement);
 } 
