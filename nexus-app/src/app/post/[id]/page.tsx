@@ -4,13 +4,17 @@ import Header from '@/components/Header';
 import PostDetailClient from '@/components/PostDetailClient';
 import { dataService } from '@/lib/services/dataService';
 import { streamEntryToPost } from '@/lib/utils/postUtils';
+import { getServerCurrentUser } from '@/lib/auth/serverAuth';
 
 interface PostPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function PostPage({ params }: PostPageProps) {
-  const { id } = params;
+  const { id } = await params;
+
+  // Get server current user
+  const user = await getServerCurrentUser();
 
   // Fetch the entry by ID
   const entry = await dataService.getEntryById(id);
@@ -23,7 +27,7 @@ export default async function PostPage({ params }: PostPageProps) {
   // Fetch threading context
   const parentEntry = await dataService.getParentPost(id);
   const parentPost = parentEntry ? streamEntryToPost(parentEntry) : null;
-  const childEntries = await dataService.getDirectChildren(id);
+  const childEntries = await dataService.getDirectChildren(id, user?.id);
   const childPosts = childEntries.map(streamEntryToPost);
 
   return (
