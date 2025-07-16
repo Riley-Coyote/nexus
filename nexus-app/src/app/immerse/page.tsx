@@ -4,45 +4,79 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 
-// Add imports
-// import axios from 'axios'; // Assuming axios is installed, or use fetch
-import { useAISuggestions } from '@/hooks/useAISuggestions';
-// Add these
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+// Enhanced imports
+import { DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import ReactDiffViewer from 'react-diff-viewer-continued';
+
+// Enhanced types and services
+import { 
+  EnhancedSuggestion, 
+  DragState, 
+  DropZone, 
+  EditorContext,
+  ContentMergeResponse,
+  UserEditingPreferences
+} from './types';
+import { MockAIContentProcessor, MOCK_ENHANCED_SUGGESTIONS } from './services/mockAIService';
+import { EnhancedFloatingBubble } from './components/EnhancedFloatingBubble';
+import { EnhancedContentPreview } from './components/EnhancedContentPreview';
 
 // BiometricTracker import
 import { BiometricTracker } from './components/BiometricTracker';
 
-// Dummy suggestions the AI would provide (placeholder until backend integration)
-const DUMMY_SUGGESTIONS = [
-  'Consider adding a citation to strengthen this point.',
-  'You may want to outline possible counter-arguments here.',
-  'How does this idea connect to your previous research?',
-  'Can you provide a real-world example to illustrate this concept?',
-  'What implications does this have for future research?',
-  'Try expanding on this concept with more detail.',
-  'Consider adding a personal reflection here.',
-  'This could benefit from a transitional sentence.',
-];
-
 export default function ImmersePage() {
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
-  // const { suggestions, isLoading, error } = useAISuggestions(content);
-  const suggestions = DUMMY_SUGGESTIONS;
-  const isLoading = false;
-  const error = null;
-  const suggestionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [enhancedSuggestions, setEnhancedSuggestions] = useState<EnhancedSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Enhanced AI service
+  const aiServiceRef = useRef(new MockAIContentProcessor());
 
-  const mergeSuggestion = (suggestion: string) => {
-    setContent((prev) => (prev ? `${prev}<p>${suggestion}</p>` : `<p>${suggestion}</p>`));
-  };
+  // Generate enhanced suggestions when content changes
+  useEffect(() => {
+    const generateSuggestions = async () => {
+      if (!content.trim()) {
+        setEnhancedSuggestions([]);
+        return;
+      }
+
+      setIsLoadingSuggestions(true);
+      setError(null);
+
+      try {
+        // Create editor context for AI
+        const editorContext: EditorContext = {
+          currentParagraph: content.split('\n').pop() || '',
+          previousContext: content.substring(0, Math.max(0, content.length - 200)),
+          nextContext: '',
+          selectionRange: { from: 0, to: 0 },
+          cursorPosition: { line: 1, char: content.length },
+          documentStats: {
+            wordCount: content.split(/\s+/).length,
+            paragraphCount: content.split('\n').length,
+            estimatedReadingTime: Math.ceil(content.split(/\s+/).length / 200)
+          }
+        };
+
+        const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
+        setEnhancedSuggestions(suggestions);
+      } catch (err) {
+        setError('Failed to generate enhanced suggestions');
+        // Fallback to mock suggestions
+        setEnhancedSuggestions(MOCK_ENHANCED_SUGGESTIONS.slice(0, 4));
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(generateSuggestions, 3000);
+    return () => clearTimeout(debounceTimer);
+  }, [content]);
 
   // Biometric update handler
   const handleBiometricUpdate = (signature: any) => {
-    // Handle biometric data if needed
     console.log('Biometric signature:', signature);
   };
 
@@ -53,10 +87,10 @@ export default function ImmersePage() {
         setContent={setContent}
         showSuggestions={showSuggestions}
         setShowSuggestions={setShowSuggestions}
-        suggestions={suggestions}
-        isLoading={isLoading}
+        enhancedSuggestions={enhancedSuggestions}
+        isLoadingSuggestions={isLoadingSuggestions}
         error={error}
-        mergeSuggestion={mergeSuggestion}
+        aiService={aiServiceRef.current}
         onBiometricUpdate={handleBiometricUpdate}
       />
     </DndProvider>
@@ -68,10 +102,10 @@ interface ImmerseContentProps {
   setContent: (content: string) => void;
   showSuggestions: boolean;
   setShowSuggestions: Dispatch<SetStateAction<boolean>>;
-  suggestions: string[];
-  isLoading: boolean;
+  enhancedSuggestions: EnhancedSuggestion[];
+  isLoadingSuggestions: boolean;
   error: string | null;
-  mergeSuggestion: (suggestion: string) => void;
+  aiService: MockAIContentProcessor;
   onBiometricUpdate: (signature: any) => void;
 }
 
@@ -80,33 +114,50 @@ function ImmerseContent({
   setContent,
   showSuggestions,
   setShowSuggestions,
-  suggestions,
-  isLoading,
+  enhancedSuggestions,
+  isLoadingSuggestions,
   error,
-  mergeSuggestion,
+  aiService,
   onBiometricUpdate,
 }: ImmerseContentProps) {
-  // Move states and logic here
+  // Enhanced state management
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    draggedSuggestion: null,
+    currentDropZone: null,
+    hoverTime: 0,
+    dragDistance: 0,
+    isValidDrop: false
+  });
+  
   const [isMetaPressed, setIsMetaPressed] = useState(false);
-  const [preview, setPreview] = useState<{ oldText: string; newText: string; apply: () => void } | null>(null);
+  const [contentPreview, setContentPreview] = useState<{
+    originalContent: string;
+    mergeResponse: ContentMergeResponse;
+    suggestion: EnhancedSuggestion;
+    apply: () => void;
+  } | null>(null);
+  
   const dropRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<any>(null); // Add this for Tiptap editor reference
+  const editorRef = useRef<any>(null);
   const [scrollY, setScrollY] = useState(0);
-  const suggestionsRef = useRef<HTMLDivElement>(null); // Add ref for suggestions container
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Custom Tiptap editor
+  // User preferences (can be made configurable later)
+  const userPreferences: UserEditingPreferences = {
+    writingStyle: 'detailed',
+    preferredEditTypes: ['enhance', 'expand', 'connect'],
+    boldnessLevel: 'moderate',
+    voicePreservation: 0.8
+  };
+
+  // Tiptap editor setup
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Configure StarterKit to ensure lists work properly
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
+        bulletList: { keepMarks: true, keepAttributes: false },
+        orderedList: { keepMarks: true, keepAttributes: false },
       }),
       Underline,
     ],
@@ -118,14 +169,14 @@ function ImmerseContent({
     },
   });
 
-  // Update editorRef when editor changes
+  // Update editor ref
   useEffect(() => {
     if (editor) {
       editorRef.current = editor;
     }
   }, [editor]);
 
-  // Sync editor content when content prop changes
+  // Sync editor content
   useEffect(() => {
     if (editor && editor.getHTML() !== content) {
       if (content === '' || content === '<p></p>') {
@@ -136,18 +187,161 @@ function ImmerseContent({
     }
   }, [content, editor]);
 
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: 'suggestion',
-    drop: (item: { text: string }) => handleSuggestionDrop(item.text),
+  // Enhanced drop zone detection and handling
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
+    accept: 'enhanced-suggestion',
+    drop: (item: EnhancedSuggestion, monitor) => {
+      handleEnhancedSuggestionDrop(item, monitor);
+    },
+    hover: (item: EnhancedSuggestion, monitor) => {
+      handleDragHover(item, monitor);
+    },
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
+      canDrop: !!monitor.canDrop()
     }),
   }));
 
   useEffect(() => {
     drop(dropRef);
-  }, []);
+  }, [drop]);
 
+  // Enhanced suggestion drop handler
+  const handleEnhancedSuggestionDrop = async (suggestion: EnhancedSuggestion, monitor: any) => {
+    if (!editorRef.current) return;
+
+    const clientOffset = monitor.getClientOffset();
+    const dropZone = aiService.detectDropZone(editorRef.current, clientOffset.x, clientOffset.y);
+    
+    if (!dropZone) return;
+
+    try {
+      // Get the target text for merging
+      let targetText = '';
+      if (dropZone.context.selectedText) {
+        targetText = dropZone.context.selectedText;
+      } else if (dropZone.type === 'paragraph') {
+        targetText = dropZone.context.paragraphText;
+      } else {
+        targetText = dropZone.context.beforeText + dropZone.context.afterText;
+      }
+
+      // Process content with AI
+      const mergeResponse = await aiService.mergeContent({
+        originalText: targetText,
+        suggestion,
+        dropZone,
+        userPreferences
+      });
+
+      // Store current state for undo
+      const currentContent = editorRef.current.getHTML();
+      
+      // Show preview
+      setContentPreview({
+        originalContent: currentContent,
+        mergeResponse,
+        suggestion,
+        apply: () => {
+          applyContentMerge(mergeResponse, dropZone);
+          setContentPreview(null);
+        }
+      });
+
+    } catch (error) {
+      console.error('Failed to process suggestion:', error);
+      // Fallback to simple insertion
+      fallbackSuggestionInsertion(suggestion);
+    }
+
+    // Reset drag state
+    setDragState(prev => ({
+      ...prev,
+      isDragging: false,
+      draggedSuggestion: null,
+      currentDropZone: null
+    }));
+  };
+
+  // Apply the merged content to the editor
+  const applyContentMerge = (mergeResponse: ContentMergeResponse, dropZone: DropZone) => {
+    if (!editorRef.current) return;
+
+    const editor = editorRef.current;
+    const { from, to } = editor.state.selection;
+
+    // Apply based on the merge type
+    if (dropZone.context.selectedText) {
+      // Replace selected text
+      editor.chain().focus().deleteRange({ from, to }).insertContent(mergeResponse.mergedText).run();
+    } else if (dropZone.type === 'paragraph') {
+      // Replace entire paragraph
+      const paragraphStart = aiService.findParagraphStart?.(editor.state.doc, from) || from;
+      const paragraphEnd = aiService.findParagraphEnd?.(editor.state.doc, from) || to;
+      editor.chain().focus().deleteRange({ from: paragraphStart, to: paragraphEnd }).insertContent(mergeResponse.mergedText).run();
+    } else {
+      // Insert at cursor position
+      editor.chain().focus().insertContent(mergeResponse.mergedText).run();
+    }
+  };
+
+  // Fallback for simple suggestion insertion
+  const fallbackSuggestionInsertion = (suggestion: EnhancedSuggestion) => {
+    if (!editorRef.current) return;
+
+    const editor = editorRef.current;
+    const { from, to } = editor.state.selection;
+    const isSelection = from !== to;
+    
+    if (isSelection) {
+      const selectedText = editor.state.doc.textBetween(from, to);
+      const mergedText = `${selectedText} ${suggestion.text}`;
+      editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
+    } else {
+      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+    }
+  };
+
+  // Handle drag hover for visual feedback
+  const handleDragHover = (suggestion: EnhancedSuggestion, monitor: any) => {
+    if (!monitor.isOver()) return;
+
+    const clientOffset = monitor.getClientOffset();
+    const dropZone = aiService.detectDropZone(editorRef.current, clientOffset.x, clientOffset.y);
+
+    setDragState(prev => ({
+      ...prev,
+      currentDropZone: dropZone,
+      isValidDrop: !!dropZone,
+      hoverTime: prev.hoverTime + 50
+    }));
+  };
+
+  // Handle suggestion drag start
+  const handleSuggestionDragStart = (suggestion: EnhancedSuggestion) => {
+    setDragState(prev => ({
+      ...prev,
+      isDragging: true,
+      draggedSuggestion: suggestion,
+      hoverTime: 0,
+      dragDistance: 0
+    }));
+  };
+
+  // Handle suggestion drag end
+  const handleSuggestionDragEnd = () => {
+    setDragState(prev => ({
+      ...prev,
+      isDragging: false,
+      draggedSuggestion: null,
+      currentDropZone: null,
+      hoverTime: 0,
+      dragDistance: 0,
+      isValidDrop: false
+    }));
+  };
+
+  // Keyboard handlers
   useEffect(() => {
     const down = (e: KeyboardEvent) => { if (e.key === 'Meta') setIsMetaPressed(true); };
     const up = (e: KeyboardEvent) => { if (e.key === 'Meta') setIsMetaPressed(false); };
@@ -170,6 +364,7 @@ function ImmerseContent({
     return () => window.removeEventListener('keydown', handleKey);
   }, [setShowSuggestions]);
 
+  // Scroll tracking
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
@@ -185,10 +380,9 @@ function ImmerseContent({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll to bottom of suggestions when shown or suggestions change
+  // Auto-scroll suggestions
   useEffect(() => {
     if (showSuggestions && suggestionsRef.current) {
-      // Use requestAnimationFrame for smoother scrolling and add delay for slide animation
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (suggestionsRef.current) {
@@ -197,34 +391,10 @@ function ImmerseContent({
               behavior: 'smooth'
             });
           }
-        }, 100); // Small delay to let slide animation start
+        }, 100);
       });
     }
-  }, [showSuggestions, suggestions]);
-
-  const handleSuggestionDrop = (suggestion: string) => {
-    if (!editorRef.current) return;
-    const editor = editorRef.current;
-    const isSentence = isMetaPressed;
-    const { from, to } = editor.state.selection;
-    const isSelection = from !== to;
-    const extracted = editor.state.doc.textBetween(from, to, ' ');
-    let rewritten;
-    if (isSentence) {
-      rewritten = isSelection ? `Rewritten sentence: ${extracted} -> ${suggestion}` : `Inserted sentence suggestion: ${suggestion}`;
-    } else {
-      rewritten = isSelection ? `Rewritten block: ${extracted} + ${suggestion}` : `Inserted block suggestion: ${suggestion}`;
-    }
-    const oldText = editor.getHTML();
-    editor.chain().focus().deleteRange({ from, to }).insertContent(rewritten).run();
-    const newText = editor.getHTML();
-    editor.commands.undo();
-    const apply = () => {
-      editor.commands.redo();
-      setPreview(null);
-    };
-    setPreview({ oldText, newText, apply });
-  };
+  }, [showSuggestions, enhancedSuggestions]);
 
   // Helper to render toolbar buttons
   const renderToolbarBtn = (
@@ -261,19 +431,35 @@ function ImmerseContent({
           </div>
         </aside>
 
-        {/* Main Content Area - Full Screen Writing Space */}
+        {/* Main Content Area - Enhanced Drop Zone */}
         <main className="h-screen lg:ml-64 relative">
-          {/* Background overlay for drop zone */}
+          {/* Enhanced Background overlay for drop zone */}
           <div 
             ref={dropRef}
-            className={`absolute inset-0 transition-all duration-300 ease-out ${
-              isOver ? 'bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-blue-500/5 backdrop-blur-sm' : ''
-            }`}
+            className={`
+              absolute inset-0 transition-all duration-300 ease-out
+              ${isOver && canDrop ? 'bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-emerald-500/10 backdrop-blur-sm' : ''}
+              ${dragState.isDragging ? 'bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-blue-500/5' : ''}
+            `}
             style={{
               willChange: 'background-color, backdrop-filter',
               backfaceVisibility: 'hidden',
             }}
-          />
+          >
+            {/* Drop zone indicators */}
+            {dragState.isDragging && dragState.currentDropZone && (
+              <div className="absolute inset-4 border-2 border-dashed border-blue-400/50 rounded-xl flex items-center justify-center pointer-events-none">
+                <div className="bg-blue-500/10 backdrop-blur-xl border border-blue-400/30 rounded-lg px-6 py-3">
+                  <div className="text-blue-300 text-sm font-medium">
+                    {dragState.currentDropZone.suggestedAction} in {dragState.currentDropZone.type}
+                  </div>
+                  <div className="text-blue-200/60 text-xs mt-1">
+                    {dragState.draggedSuggestion?.type} suggestion ready
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Full Height Writing Area */}
           <div className="h-full pr-80 p-6 relative z-20">
@@ -287,7 +473,7 @@ function ImmerseContent({
             </div>
           </div>
 
-          {/* Floating Toolbar */}
+          {/* Enhanced Floating Toolbar */}
           {editor && (
             <div className="fixed left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
               <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
@@ -308,12 +494,14 @@ function ImmerseContent({
             </div>
           )}
 
-          {/* Floating Suggestion Bubbles */}
+          {/* Enhanced Floating Suggestion Bubbles */}
           <div 
             ref={suggestionsRef}
-            className={`fixed top-8 right-0 w-80 h-[75vh] overflow-y-auto z-30 p-6 pt-16 transition-transform duration-500 ease-out ${
-              showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'
-            }`}
+            className={`
+              fixed top-8 right-0 w-80 h-[75vh] overflow-y-auto z-30 p-6 pt-16 
+              transition-transform duration-500 ease-out
+              ${showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'}
+            `}
             style={{
               willChange: 'transform',
               backfaceVisibility: 'hidden',
@@ -324,79 +512,56 @@ function ImmerseContent({
             <div className="space-y-6">
               {error ? (
                 <div className="liquid-bubble error-bubble">
-                  <p className="text-red-400 text-sm">{error}</p>
+                  <p className="text-red-400 text-sm p-4">{error}</p>
                 </div>
-              ) : isLoading ? (
+              ) : isLoadingSuggestions ? (
                 <div className="liquid-bubble loading-bubble">
-                  <p className="text-text-tertiary text-sm animate-pulse">Summoning suggestions...</p>
+                  <div className="p-6">
+                    <p className="text-text-tertiary text-sm animate-pulse">
+                      🧠 Generating intelligent suggestions...
+                    </p>
+                  </div>
                 </div>
               ) : (
-                suggestions.map((s: string, idx: number) => (
-                  <FloatingBubble 
-                    key={idx} 
-                    text={s} 
+                enhancedSuggestions.map((suggestion, idx) => (
+                  <EnhancedFloatingBubble 
+                    key={suggestion.id} 
+                    suggestion={suggestion}
                     index={idx}
                     scrollY={scrollY}
+                    onDragStart={handleSuggestionDragStart}
+                    onDragEnd={handleSuggestionDragEnd}
+                    isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
                   />
                 ))
               )}
             </div>
             
-                      {/* Floating Instructions */}
-          <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
-            <p className="text-xs text-text-quaternary text-center leading-relaxed">
-              ✨ Drag bubbles to infuse your writing<br/>
-              🧠 Hold Meta for precise sentence alchemy<br/>
-              ⌨️ Cmd+I to toggle suggestions
-            </p>
+            {/* Enhanced Instructions */}
+            <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
+              <p className="text-xs text-text-quaternary text-center leading-relaxed">
+                ✨ Drag enhanced bubbles to intelligently merge ideas<br/>
+                🧠 AI analyzes context for perfect integration<br/>
+                🎯 Different suggestion types provide varied enhancements<br/>
+                ⌨️ Cmd+I to toggle suggestions
+              </p>
+            </div>
           </div>
-          </div>
-
-
-
-
         </main>
       </div>
 
-      {/* Diff Preview Modal */}
-      {preview && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
-          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 p-6 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Preview Changes</h3>
-            <ReactDiffViewer 
-              oldValue={preview.oldText} 
-              newValue={preview.newText} 
-              splitView={true}
-              styles={{
-                variables: {
-                  dark: {
-                    diffViewerBackground: '#1f2937',
-                    diffViewerColor: '#f3f4f6',
-                    addedBackground: '#065f46',
-                    removedBackground: '#7f1d1d',
-                  }
-                }
-              }}
-            />
-            <div className="flex justify-end mt-6 gap-3">
-              <button 
-                onClick={() => setPreview(null)} 
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={preview.apply} 
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
-              >
-                Apply Changes
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Enhanced Content Preview Modal */}
+      {contentPreview && (
+        <EnhancedContentPreview
+          originalContent={contentPreview.originalContent}
+          mergeResponse={contentPreview.mergeResponse}
+          suggestion={contentPreview.suggestion}
+          onApply={contentPreview.apply}
+          onCancel={() => setContentPreview(null)}
+        />
       )}
 
-      {/* Styles */}
+      {/* Enhanced Styles */}
       <style jsx global>{`
         .custom-editor .ProseMirror {
           outline: none;
@@ -495,9 +660,9 @@ function ImmerseContent({
           outline: none;
         }
 
-        /* Placeholder styling */
+        /* Enhanced placeholder styling */
         .custom-editor .ProseMirror p.is-editor-empty:first-child::before {
-          content: "Start writing... Your thoughts shape your reality.";
+          content: "Start writing... AI will intelligently enhance your thoughts.";
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
           pointer-events: none;
@@ -505,12 +670,13 @@ function ImmerseContent({
         }
 
         .custom-editor .ProseMirror:empty::before {
-          content: "Start writing... Your thoughts shape your reality.";
+          content: "Start writing... AI will intelligently enhance your thoughts.";
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
           pointer-events: none;
         }
 
+        /* Enhanced bubble styles remain from previous implementation */
         .liquid-bubble {
           position: relative;
           isolation: isolate;
@@ -576,41 +742,6 @@ function ImmerseContent({
           0%, 100% { opacity: 0.8; }
           50% { opacity: 1; }
         }
-        
-        /* Hover effects - reduced complexity */
-        .liquid-bubble:hover::before {
-          background-color: rgba(255, 255, 255, 0.30);
-          box-shadow: inset 0 0 26px -3px rgba(255, 255, 255, 0.5);
-        }
-        
-        .liquid-bubble:hover::after {
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-        }
-        
-        /* Simplified tint variations */
-        .liquid-bubble:nth-child(3n+1)::before {
-          background-color: rgba(200, 255, 255, 0.15);
-        }
-        
-        .liquid-bubble:nth-child(3n+2)::before {
-          background-color: rgba(255, 200, 255, 0.15);
-        }
-        
-        .liquid-bubble:nth-child(3n+3)::before {
-          background-color: rgba(255, 255, 200, 0.15);
-        }
-        
-        /* Optimized dragging state */
-        .liquid-bubble:active::before {
-          animation: liquid-shimmer 1s ease-in-out infinite;
-          background-color: rgba(255, 255, 255, 0.35);
-        }
-        
-        .liquid-bubble:active::after {
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-        }
 
         /* Floating Toolbar Styles */
         .floating-toolbar {
@@ -648,39 +779,6 @@ function ImmerseContent({
         }
       `}</style>
     </>
-  );
-}
-
-function FloatingBubble({ text, index, scrollY }: { text: string; index: number; scrollY: number }) {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: 'suggestion',
-    item: { text },
-    collect: (m) => ({ isDragging: !!m.isDragging() }),
-  }));
-
-  const floatOffset = Math.sin((scrollY * 0.01) + (index * 0.5)) * 12;
-
-  return (
-    <div
-      ref={(node) => { drag(node); }}
-      className={`liquid-bubble cursor-grab active:cursor-grabbing transition-all duration-300 ease-out ${
-        isDragging ? 'scale-95 opacity-70' : 'hover:scale-105'
-      }`}
-      style={{
-        transform: `translate3d(0, ${floatOffset}px, 0)`,
-        WebkitTransform: `translate3d(0, ${floatOffset}px, 0)`,
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        animationDelay: `${index * 0.2}s`,
-        touchAction: 'none',
-      }}
-    >
-      <div className="relative z-10 p-6">
-        <p className="text-sm font-light leading-relaxed text-white/95 relative z-20">
-          {text}
-        </p>
-      </div>
-    </div>
   );
 }
 
