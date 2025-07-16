@@ -132,6 +132,7 @@ function ImmerseContent({
   });
   
   const [isMetaPressed, setIsMetaPressed] = useState(false);
+  const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
   const [contentPreview, setContentPreview] = useState<{
     originalContent: string;
     mergeResponse: ContentMergeResponse;
@@ -413,6 +414,7 @@ function ImmerseContent({
       dragDistance: 0,
       isValidDrop: false
     }));
+    setHoveredSuggestion(null); // Clear hover state when drag ends
   };
 
   // Keyboard handlers
@@ -591,30 +593,47 @@ function ImmerseContent({
                   </div>
                 </div>
               ) : (
-                enhancedSuggestions.map((suggestion, idx) => (
-                  <EnhancedFloatingBubble 
-                    key={suggestion.id} 
-                    suggestion={suggestion}
-                    index={idx}
-                    scrollY={scrollY}
-                    onDragStart={handleSuggestionDragStart}
-                    onDragEnd={handleSuggestionDragEnd}
-                    isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
-                  />
-                ))
+                enhancedSuggestions.map((suggestion, idx) => {
+                  const isInteracted = hoveredSuggestion === suggestion.id || dragState.draggedSuggestion?.id === suggestion.id;
+                  const shouldHide = (hoveredSuggestion || dragState.draggedSuggestion) && !isInteracted;
+                  const isDragged = dragState.draggedSuggestion?.id === suggestion.id;
+                  
+                  return (
+                    <div 
+                      key={suggestion.id}
+                      className={`transition-opacity duration-300 ${
+                        shouldHide ? 'opacity-0 pointer-events-none' : 
+                        isDragged ? 'opacity-0' : 
+                        'opacity-100'
+                      }`}
+                    >
+                      <EnhancedFloatingBubble 
+                        suggestion={suggestion}
+                        index={idx}
+                        scrollY={scrollY}
+                        onDragStart={handleSuggestionDragStart}
+                        onDragEnd={handleSuggestionDragEnd}
+                        onHover={(id: string | null) => setHoveredSuggestion(id)}
+                        isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
+                      />
+                    </div>
+                  );
+                })
               )}
             </div>
             
-            {/* Enhanced Instructions */}
-            <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
-              <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ✨ <strong className="text-text-secondary">Drag bubbles to the writing area</strong> to see immediate changes<br/>
-                🎨 <strong className="text-text-secondary">Each suggestion type</strong> adds different colored labels<br/>
-                📝 <strong className="text-text-secondary">Select text first</strong> to merge intelligently<br/>
-                💡 <strong className="text-text-secondary">Watch for notifications</strong> confirming what was added<br/>
-                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions
-              </p>
-            </div>
+                          {/* Enhanced Instructions */}
+              <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
+                hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              }`}>
+                <p className="text-xs text-text-quaternary text-center leading-relaxed">
+                  ✨ <strong className="text-text-secondary">Drag bubbles to the writing area</strong> to see immediate changes<br/>
+                  🎨 <strong className="text-text-secondary">Each suggestion type</strong> adds different colored labels<br/>
+                  📝 <strong className="text-text-secondary">Select text first</strong> to merge intelligently<br/>
+                  💡 <strong className="text-text-secondary">Watch for notifications</strong> confirming what was added<br/>
+                  ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions
+                </p>
+              </div>
           </div>
         </main>
 

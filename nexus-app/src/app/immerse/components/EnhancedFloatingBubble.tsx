@@ -8,6 +8,7 @@ interface EnhancedFloatingBubbleProps {
   scrollY: number;
   onDragStart?: (suggestion: EnhancedSuggestion) => void;
   onDragEnd?: () => void;
+  onHover?: (id: string | null) => void;
   isActiveDrag?: boolean;
 }
 
@@ -35,6 +36,7 @@ export function EnhancedFloatingBubble({
   scrollY,
   onDragStart,
   onDragEnd,
+  onHover,
   isActiveDrag = false
 }: EnhancedFloatingBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -108,7 +110,7 @@ export function EnhancedFloatingBubble({
       className={`
         enhanced-bubble relative cursor-grab active:cursor-grabbing
         transition-all duration-300 ease-out
-        ${isDragging ? 'scale-95 opacity-80 z-50' : 'hover:scale-105'}
+        ${isDragging ? 'scale-95 opacity-0' : 'hover:scale-105'}
         ${isActiveDrag ? 'ring-2 ring-blue-400/50' : ''}
         ${relevanceGlow}
       `}
@@ -121,8 +123,14 @@ export function EnhancedFloatingBubble({
         touchAction: 'none',
         opacity: confidenceOpacity
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        onHover?.(suggestion.id);
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        onHover?.(null);
+      }}
     >
       {/* Main Bubble Container */}
       <div className={`
