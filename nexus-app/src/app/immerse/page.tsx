@@ -522,7 +522,7 @@ function ImmerseContent({
           )}
 
           {/* Full Height Writing Area */}
-          <div className="h-full p-6 relative z-5">
+          <div className="h-full p-6 pr-84 relative z-5">
             <div className="h-full">
               <div 
                 ref={dropRef}
