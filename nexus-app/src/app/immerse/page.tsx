@@ -522,7 +522,7 @@ function ImmerseContent({
           )}
 
           {/* Full Height Writing Area */}
-          <div className="h-full pr-80 p-6 relative z-5">
+          <div className="h-full p-6 relative z-5">
             <div className="h-full">
               <div 
                 ref={dropRef}
@@ -543,7 +543,7 @@ function ImmerseContent({
 
           {/* Enhanced Floating Toolbar */}
           {editor && (
-            <div className="fixed left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
+            <div className="absolute left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
               <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
                 <div className="flex items-center gap-1 p-2">
                   {renderToolbarBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
