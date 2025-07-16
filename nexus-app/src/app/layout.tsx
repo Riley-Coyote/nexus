@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import AuthProvider from '@/components/AuthProvider';
 import { AuthProvider as AuthContextProvider } from '@/lib/auth/AuthContext';
+import WebGLCanvas from '@/components/WebGLCanvas';
 
 export const metadata: Metadata = {
   title: 'NEXUS',
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <WebGLCanvas />
         <AuthContextProvider>
           <AuthProvider>
             {children}
