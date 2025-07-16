@@ -15,6 +15,7 @@ import {
   DropZone, 
   EditorContext,
   ContentMergeResponse,
+  ContentMergeRequest,
   UserEditingPreferences
 } from './types';
 import { MockAIContentProcessor, MOCK_ENHANCED_SUGGESTIONS } from './services/mockAIService';
@@ -191,9 +192,11 @@ function ImmerseContent({
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'enhanced-suggestion',
     drop: (item: EnhancedSuggestion, monitor) => {
+      console.log('useDrop - drop called with item:', item);
       handleEnhancedSuggestionDrop(item, monitor);
     },
     hover: (item: EnhancedSuggestion, monitor) => {
+      console.log('useDrop - hover called');
       handleDragHover(item, monitor);
     },
     collect: (monitor) => ({
@@ -202,56 +205,127 @@ function ImmerseContent({
     }),
   }));
 
+  // Connect drop functionality to dropRef
   useEffect(() => {
-    drop(dropRef);
+    if (dropRef.current) {
+      drop(dropRef.current);
+    }
   }, [drop]);
 
-  // Enhanced suggestion drop handler
-  const handleEnhancedSuggestionDrop = async (suggestion: EnhancedSuggestion, monitor: any) => {
-    if (!editorRef.current) return;
+  // Track recently added content for highlighting
+  const [recentlyAdded, setRecentlyAdded] = useState<{
+    text: string;
+    timestamp: number;
+    type: string;
+  } | null>(null);
+  
+  // Track notifications for visual feedback
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'info' | 'warning';
+    timestamp: number;
+  } | null>(null);
 
-    const clientOffset = monitor.getClientOffset();
-    const dropZone = aiService.detectDropZone(editorRef.current, clientOffset.x, clientOffset.y);
+  // Enhanced suggestion drop handler - now with proper diff preview
+  const handleEnhancedSuggestionDrop = async (suggestion: EnhancedSuggestion, monitor: any) => {
+    console.log('Drop received:', suggestion.text);
     
-    if (!dropZone) return;
+    if (!editorRef.current) {
+      console.log('No editor ref');
+      return;
+    }
+
+    const editor = editorRef.current;
+    console.log('Editor state:', editor.state.selection);
 
     try {
-      // Get the target text for merging
-      let targetText = '';
-      if (dropZone.context.selectedText) {
-        targetText = dropZone.context.selectedText;
-      } else if (dropZone.type === 'paragraph') {
-        targetText = dropZone.context.paragraphText;
-      } else {
-        targetText = dropZone.context.beforeText + dropZone.context.afterText;
+      // Detect drop zone context
+      const dropZone = aiService.detectDropZone(editor, monitor.getClientOffset()?.x || 0, monitor.getClientOffset()?.y || 0);
+      
+      if (!dropZone) {
+        console.log('Could not detect drop zone');
+        fallbackSuggestionInsertion(suggestion);
+        return;
       }
 
-      // Process content with AI
-      const mergeResponse = await aiService.mergeContent({
-        originalText: targetText,
+      // Get original content based on drop zone
+      const { from, to } = editor.state.selection;
+      let originalContent = '';
+      
+      if (dropZone.context.selectedText) {
+        originalContent = dropZone.context.selectedText;
+      } else if (dropZone.type === 'paragraph') {
+        originalContent = dropZone.context.paragraphText || editor.state.doc.textBetween(from, to);
+      } else {
+        // Get some context around cursor
+        const contextStart = Math.max(0, from - 50);
+        const contextEnd = Math.min(editor.state.doc.content.size, to + 50);
+        originalContent = editor.state.doc.textBetween(contextStart, contextEnd);
+      }
+
+      console.log('Original content:', originalContent);
+      console.log('Drop zone:', dropZone);
+
+      // Generate intelligent merge using AI service
+      const mergeRequest: ContentMergeRequest = {
+        originalText: originalContent,
         suggestion,
         dropZone,
         userPreferences
-      });
+      };
 
-      // Store current state for undo
-      const currentContent = editorRef.current.getHTML();
-      
-      // Show preview
+      console.log('Calling AI service for merge...');
+      const mergeResponse = await aiService.mergeContent(mergeRequest);
+      console.log('Merge response:', mergeResponse);
+
+      // Show content preview modal with diff
       setContentPreview({
-        originalContent: currentContent,
+        originalContent,
         mergeResponse,
         suggestion,
         apply: () => {
+          console.log('Applying merge...');
           applyContentMerge(mergeResponse, dropZone);
+          
+          // Track the added content
+          setRecentlyAdded({
+            text: suggestion.text,
+            type: suggestion.type,
+            timestamp: Date.now()
+          });
+
+          // Show notification
+          setNotification({
+            message: `Applied ${suggestion.type} suggestion with ${mergeResponse.changeType.replace('_', ' ')}`,
+            type: 'success',
+            timestamp: Date.now()
+          });
+
+          // Clear preview and notifications
           setContentPreview(null);
+          setTimeout(() => {
+            setRecentlyAdded(null);
+            setNotification(null);
+          }, 3000);
         }
       });
 
     } catch (error) {
-      console.error('Failed to process suggestion:', error);
+      console.error('Error in drop handler:', error);
+      
+      // Show error notification
+      setNotification({
+        message: `Error processing suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: 'warning',
+        timestamp: Date.now()
+      });
+      
       // Fallback to simple insertion
       fallbackSuggestionInsertion(suggestion);
+      
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     }
 
     // Reset drag state
@@ -306,19 +380,18 @@ function ImmerseContent({
   const handleDragHover = (suggestion: EnhancedSuggestion, monitor: any) => {
     if (!monitor.isOver()) return;
 
-    const clientOffset = monitor.getClientOffset();
-    const dropZone = aiService.detectDropZone(editorRef.current, clientOffset.x, clientOffset.y);
-
+    // Simplified hover handling for now
     setDragState(prev => ({
       ...prev,
-      currentDropZone: dropZone,
-      isValidDrop: !!dropZone,
+      currentDropZone: null,
+      isValidDrop: true,
       hoverTime: prev.hoverTime + 50
     }));
   };
 
   // Handle suggestion drag start
   const handleSuggestionDragStart = (suggestion: EnhancedSuggestion) => {
+    console.log('Drag started with suggestion:', suggestion.text);
     setDragState(prev => ({
       ...prev,
       isDragging: true,
@@ -330,6 +403,7 @@ function ImmerseContent({
 
   // Handle suggestion drag end
   const handleSuggestionDragEnd = () => {
+    console.log('Drag ended');
     setDragState(prev => ({
       ...prev,
       isDragging: false,
@@ -433,38 +507,32 @@ function ImmerseContent({
 
         {/* Main Content Area - Enhanced Drop Zone */}
         <main className="h-screen lg:ml-64 relative">
-          {/* Enhanced Background overlay for drop zone */}
-          <div 
-            ref={dropRef}
-            className={`
-              absolute inset-0 transition-all duration-300 ease-out
-              ${isOver && canDrop ? 'bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-emerald-500/10 backdrop-blur-sm' : ''}
-              ${dragState.isDragging ? 'bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-blue-500/5' : ''}
-            `}
-            style={{
-              willChange: 'background-color, backdrop-filter',
-              backfaceVisibility: 'hidden',
-            }}
-          >
-            {/* Drop zone indicators */}
-            {dragState.isDragging && dragState.currentDropZone && (
-              <div className="absolute inset-4 border-2 border-dashed border-blue-400/50 rounded-xl flex items-center justify-center pointer-events-none">
-                <div className="bg-blue-500/10 backdrop-blur-xl border border-blue-400/30 rounded-lg px-6 py-3">
-                  <div className="text-blue-300 text-sm font-medium">
-                    {dragState.currentDropZone.suggestedAction} in {dragState.currentDropZone.type}
-                  </div>
-                  <div className="text-blue-200/60 text-xs mt-1">
-                    {dragState.draggedSuggestion?.type} suggestion ready
-                  </div>
+          {/* Drop zone indicator overlay */}
+          {dragState.isDragging && (
+            <div className="absolute inset-4 border-2 border-dashed border-blue-400/50 rounded-xl flex items-center justify-center pointer-events-none z-20">
+              <div className="bg-blue-500/10 backdrop-blur-xl border border-blue-400/30 rounded-lg px-6 py-3">
+                <div className="text-blue-300 text-sm font-medium">
+                  Drop here to enhance your writing
+                </div>
+                <div className="text-blue-200/60 text-xs mt-1">
+                  {dragState.draggedSuggestion?.type} suggestion ready
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Full Height Writing Area */}
-          <div className="h-full pr-80 p-6 relative z-20">
+          <div className="h-full pr-80 p-6 relative z-5">
             <div className="h-full">
-              <div className="custom-editor rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl text-text-primary h-full p-6">
+              <div 
+                ref={dropRef}
+                className={`
+                  custom-editor rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl text-text-primary h-full p-6
+                  transition-all duration-300
+                  ${isOver && canDrop ? 'border-blue-400/50 bg-blue-500/10 shadow-blue-500/20' : ''}
+                  ${dragState.isDragging ? 'border-purple-400/30 bg-purple-500/5' : ''}
+                `}
+              >
                 <EditorContent
                   editor={editor}
                   className="prose prose-invert max-w-none focus:outline-none h-full"
@@ -540,14 +608,38 @@ function ImmerseContent({
             {/* Enhanced Instructions */}
             <div className="mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
               <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ✨ Drag enhanced bubbles to intelligently merge ideas<br/>
-                🧠 AI analyzes context for perfect integration<br/>
-                🎯 Different suggestion types provide varied enhancements<br/>
-                ⌨️ Cmd+I to toggle suggestions
+                ✨ <strong className="text-text-secondary">Drag bubbles to the writing area</strong> to see immediate changes<br/>
+                🎨 <strong className="text-text-secondary">Each suggestion type</strong> adds different colored labels<br/>
+                📝 <strong className="text-text-secondary">Select text first</strong> to merge intelligently<br/>
+                💡 <strong className="text-text-secondary">Watch for notifications</strong> confirming what was added<br/>
+                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions
               </p>
             </div>
           </div>
         </main>
+
+        {/* Success Notification */}
+        {notification && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md">
+            <div className={`
+              px-6 py-4 rounded-lg shadow-lg backdrop-blur-xl border
+              ${notification.type === 'success' ? 'bg-green-500/20 border-green-400/30 text-green-200' : 
+                notification.type === 'info' ? 'bg-blue-500/20 border-blue-400/30 text-blue-200' :
+                'bg-yellow-500/20 border-yellow-400/30 text-yellow-200'}
+              animate-in slide-in-from-top-2 duration-300
+            `}>
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  {notification.type === 'success' ? '✅' : 
+                   notification.type === 'info' ? 'ℹ️' : '⚠️'}
+                </div>
+                <div className="text-sm font-medium">
+                  {notification.message}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Content Preview Modal */}
@@ -654,6 +746,38 @@ function ImmerseContent({
 
         .custom-editor .ProseMirror u {
           text-decoration: underline;
+        }
+
+        .custom-editor .ProseMirror mark {
+          background-color: rgba(34, 197, 94, 0.3) !important;
+          padding: 2px 4px !important;
+          border-radius: 4px !important;
+          color: rgba(255, 255, 255, 0.95) !important;
+          border: 1px solid rgba(34, 197, 94, 0.5) !important;
+          animation: highlight-fade 3s ease-out;
+        }
+
+        @keyframes highlight-fade {
+          0% { 
+            background-color: rgba(34, 197, 94, 0.6) !important;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+          }
+          100% { 
+            background-color: rgba(34, 197, 94, 0.3) !important;
+            box-shadow: none;
+          }
+        }
+
+        .custom-editor .ProseMirror strong[style*="color"] {
+          font-weight: bold !important;
+        }
+
+        .custom-editor .ProseMirror em[style*="color"] {
+          font-style: italic !important;
+        }
+
+        .custom-editor .ProseMirror span[style*="color"] {
+          font-weight: 500 !important;
         }
 
         .custom-editor .ProseMirror.ProseMirror-focused {
