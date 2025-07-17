@@ -267,6 +267,12 @@ function ImmerseContent({
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   
+  // NEW: Draggable toolbar state
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 }); // Will be set to center on mount
+  const [isToolbarDragging, setIsToolbarDragging] = useState(false);
+  const [toolbarDragStart, setToolbarDragStart] = useState({ x: 0, y: 0 });
+  const [isVerticalLayout, setIsVerticalLayout] = useState(true); // New: layout toggle state
+  
   // Calculate bounds for right panel
   const minPanelWidth = 280; // Minimum width for usability
   const maxPanelWidth = typeof window !== 'undefined' ? window.innerWidth - 400 : 800;
@@ -285,7 +291,78 @@ function ImmerseContent({
     window.addEventListener('resize', updateMaxWidth);
     return () => window.removeEventListener('resize', updateMaxWidth);
   }, [rightPanelWidth, minPanelWidth]);
-  
+
+  // NEW: Load saved panel width from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('immerse-right-panel-width');
+    if (savedWidth) {
+      const width = parseInt(savedWidth, 10);
+      if (width >= minPanelWidth && width <= maxPanelWidth) {
+        setRightPanelWidth(width);
+      }
+    }
+  }, [minPanelWidth, maxPanelWidth]);
+
+  // NEW: Set initial toolbar position to center
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const leftWall = 256; // Just the left sidebar, no padding constraint
+      const rightWall = window.innerWidth - rightPanelWidth; // Right edge, no padding constraint
+      const centerX = (leftWall + rightWall) / 2; // True center between walls
+      const centerY = window.innerHeight / 2;
+      setToolbarPosition({ x: centerX, y: centerY });
+    }
+  }, [rightPanelWidth]);
+
+  // NEW: Toolbar drag handlers
+  const handleToolbarMouseDown = (e: React.MouseEvent) => {
+    setIsToolbarDragging(true);
+    setToolbarDragStart({
+      x: e.clientX - toolbarPosition.x,
+      y: e.clientY - toolbarPosition.y
+    });
+    e.preventDefault();
+  };
+
+  const handleToolbarMouseMove = useCallback((e: MouseEvent) => {
+    if (!isToolbarDragging) return;
+    
+    const newX = e.clientX - toolbarDragStart.x;
+    const newY = e.clientY - toolbarDragStart.y;
+    
+    // No restrictions - can move anywhere on screen
+    setToolbarPosition({
+      x: newX,
+      y: newY
+    });
+  }, [isToolbarDragging, toolbarDragStart]);
+
+  const handleToolbarMouseUp = useCallback(() => {
+    setIsToolbarDragging(false);
+  }, []);
+
+  // NEW: Global mouse event listeners for toolbar dragging
+  useEffect(() => {
+    if (isToolbarDragging) {
+      document.addEventListener('mousemove', handleToolbarMouseMove);
+      document.addEventListener('mouseup', handleToolbarMouseUp);
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleToolbarMouseMove);
+      document.removeEventListener('mouseup', handleToolbarMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleToolbarMouseMove);
+      document.removeEventListener('mouseup', handleToolbarMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isToolbarDragging, handleToolbarMouseMove, handleToolbarMouseUp]);
+
   const [contentPreview, setContentPreview] = useState<{
     originalContent: string;
     mergeResponse: ContentMergeResponse;
@@ -614,14 +691,8 @@ function ImmerseContent({
 
   // NEW: Load saved panel width from localStorage
   useEffect(() => {
-    const savedWidth = localStorage.getItem('immerse-right-panel-width');
-    if (savedWidth) {
-      const width = parseInt(savedWidth, 10);
-      if (width >= minPanelWidth && width <= maxPanelWidth) {
-        setRightPanelWidth(width);
-      }
-    }
-  }, [minPanelWidth, maxPanelWidth]);
+    localStorage.setItem('immerse-right-panel-width', rightPanelWidth.toString());
+  }, [rightPanelWidth]);
 
   // NEW: Save panel width to localStorage
   useEffect(() => {
@@ -937,16 +1008,40 @@ function ImmerseContent({
 
               {/* Enhanced Floating Toolbar - Now relative to writing area */}
               {editor && (
-                <div className="absolute left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
+                <div 
+                  className={`fixed z-30 cursor-grab ${isToolbarDragging ? 'cursor-grabbing' : ''}`}
+                  style={{
+                    left: `${toolbarPosition.x}px`,
+                    top: `${toolbarPosition.y}px`,
+                    transition: isToolbarDragging ? 'none' : 'transform 0.2s ease-out',
+                  }}
+                  onMouseDown={handleToolbarMouseDown}
+                >
                   <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
-                    <div className="flex items-center gap-1 p-2">
+                    <div className={`flex gap-1 p-2 ${isVerticalLayout ? 'flex-col' : 'flex-row'}`}>
+                      {/* Drag handle */}
+                      <div className={`flex ${isVerticalLayout ? 'justify-center py-1 border-b border-gray-600/30 mb-1' : 'items-center px-1 border-r border-gray-600/30 mr-1'}`}>
+                        <div className={`bg-gray-500 rounded-full ${isVerticalLayout ? 'w-4 h-1' : 'w-1 h-4'}`}></div>
+                      </div>
+
+                      {/* Layout toggle button */}
+                      <button
+                        onClick={() => setIsVerticalLayout(!isVerticalLayout)}
+                        className="floating-toolbar-btn text-xs"
+                        title={`Switch to ${isVerticalLayout ? 'horizontal' : 'vertical'} layout`}
+                      >
+                        ↻
+                      </button>
+
+                      <div className={`${isVerticalLayout ? 'h-px w-6 bg-gray-600 my-1' : 'w-px h-6 bg-gray-600 mx-1'}`}></div>
+                      
                       {renderToolbarBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
                       {renderToolbarBtn(<em>I</em>, editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
                       {renderToolbarBtn(<u>U</u>, editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run())}
-                      <div className="w-px h-6 bg-gray-600 mx-1"></div>
+                      <div className={`${isVerticalLayout ? 'h-px w-6 bg-gray-600 my-1' : 'w-px h-6 bg-gray-600 mx-1'}`}></div>
                       {renderToolbarBtn('•', editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run())}
                       {renderToolbarBtn('1.', editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run())}
-                      <div className="w-px h-6 bg-gray-600 mx-1"></div>
+                      <div className={`${isVerticalLayout ? 'h-px w-6 bg-gray-600 my-1' : 'w-px h-6 bg-gray-600 mx-1'}`}></div>
                       {renderToolbarBtn('P', editor.isActive('paragraph'), () => editor.chain().focus().setParagraph().run())}
                       {renderToolbarBtn('H1', editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
                       {renderToolbarBtn('H2', editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
