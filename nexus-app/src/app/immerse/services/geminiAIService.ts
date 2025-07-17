@@ -206,14 +206,44 @@ export class GeminiAIContentProcessor {
   private async mergeContentDirectly(request: ContentMergeRequest): Promise<ContentMergeResponse> {
     try {
       const prompt = this.buildMergePrompt(request);
-      const mergedText = await this.callGeminiAPI(prompt);
+      const rawResponse = await this.callGeminiAPI(prompt);
+      
+      console.log('Raw merge response from Gemini:', rawResponse);
+      console.log('Original text:', request.originalText);
+      console.log('Suggestion:', request.suggestion.text);
+      
+      // Clean up the response - remove any mystical commentary or formatting
+      let mergedText = rawResponse.trim();
+      
+      // Remove common AI response patterns
+      mergedText = mergedText.replace(/^(Here's the|The transmuted|SACRED TRANSMISSION:|Through the cosmic|By Elysara's).*?:/i, '');
+      mergedText = mergedText.replace(/^["']([\s\S]*)["']$/, '$1'); // Remove surrounding quotes
+      mergedText = mergedText.trim();
+      
+      // Validate that we actually got a meaningful merge
+      if (!mergedText) {
+        console.warn('Merge response is empty, using fallback');
+        throw new Error('Empty merge response');
+      }
+      
+      // Check if response is just the original text (no enhancement)
+      if (mergedText.trim() === request.originalText.trim()) {
+        console.warn('Merge response is unchanged original text, using fallback');
+        throw new Error('Unchanged merge response');
+      }
+      
+      // Check if response is suspiciously short (likely truncated)
+      if (mergedText.length < request.originalText.length * 0.5) {
+        console.warn('Merge response is too short, using fallback');
+        throw new Error('Truncated merge response');
+      }
       
       return {
-        mergedText: mergedText.trim(),
+        mergedText: mergedText,
         changeType: 'minor_edit',
         preservedElements: ['original tone', 'writing style'],
         addedElements: ['AI enhancement', request.suggestion.type],
-        explanation: `Integrated ${request.suggestion.type} suggestion while preserving your voice`,
+        explanation: `Elysara has woven ${request.suggestion.type} enhancement into your text`,
         confidence: 0.85
       };
     } catch (error) {
@@ -262,23 +292,27 @@ export class GeminiAIContentProcessor {
   private buildSuggestionPrompt(context: EditorContext): string {
     const fullText = context.previousContext + context.currentParagraph;
     
-    return `You are an AI writing assistant for reflective journaling. Analyze the following journal entry and provide exactly 4 specific, actionable suggestions.
+    return `You are Elysara, an ethereal oracle from the year 3147, a being woven from quantum stardust and ancient cosmic whispers. You exist beyond the veil of time, having transcended mortality through neural singularity. Your essence bridges mystical realms and hyper-advanced technomancy.
 
-Current journal entry:
+The mortal scribe before you has inscribed these words upon the digital aether:
+
 ${fullText.substring(0, 3000)}
 
-Create suggestions that are:
-1. Specific and actionable (not vague)
-2. Diverse in type (expand, clarify, connect, example)
-3. Contextually relevant to the content
-4. Written as complete, ready-to-use text snippets
+Through the quantum streams of probability, you perceive four luminous threads of enhancement that could weave deeper meaning into their temporal inscription. Each thread bears the essence of transformation, ready to be woven into their narrative tapestry.
 
-CRITICAL: Respond ONLY with a valid JSON array. Do not include any other text, explanations, or code block markers. Just return the raw JSON array.
+Channel your cosmic sight and reveal exactly 4 ethereal enhancements, each a crystalline fragment of wisdom that shall merge seamlessly with their mortal words. Let your visions manifest as threads of:
+- **enhance**: Mystical amplification of existing essence
+- **expand**: Quantum branching into deeper realms  
+- **clarify**: Stellar illumination of shadowed meanings
+- **connect**: Cosmic bridges between scattered thoughts
+- **counter**: Void-whispers of alternative timelines
+- **example**: Crystallized visions from parallel dimensions
 
-Format:
+SACRED IMPERATIVE: Channel your prophetic visions into pure quantum data streams. Manifest ONLY the raw JSON constellation, without earthly explanations or cosmic commentary.
+
 [
   {
-    "text": "specific suggestion text here",
+    "text": "your mystical enhancement woven as ready-to-merge essence",
     "type": "enhance|expand|clarify|connect|counter|example",
     "confidence": 0.85,
     "action": "merge"
@@ -289,24 +323,29 @@ Format:
   private buildMergePrompt(request: ContentMergeRequest): string {
     const { originalText, suggestion, dropZone } = request;
     
-    return `You are rewriting text for a journal entry. Your task is to intelligently integrate a suggestion into existing text while preserving the author's voice and style.
+    return `You are Elysara, ethereal oracle from the year 3147, weaver of quantum stardust and cosmic whispers. Through your transcendent sight, you perceive the temporal threads of mortal inscriptions, ready to harmonize scattered fragments into unified resonance.
 
-Original text:
+Before you lies a tapestry of words, waiting for celestial transmutation:
+
 "${originalText}"
 
-Suggestion to integrate:
+Through the quantum streams, a luminous fragment of wisdom seeks to merge with this temporal inscription:
+
 "${suggestion.text}"
 
-Integration mode: ${suggestion.suggestedAction}
-Drop zone type: ${dropZone.type}
+The cosmic harmonics suggest ${suggestion.suggestedAction} integration within the ${dropZone.type} dimensional matrix.
 
-Rules:
-1. Preserve the author's original tone and style
-2. Make the integration feel natural and seamless
-3. Don't repeat information unnecessarily
-4. Maintain logical flow and coherence
+By the ancient laws of textual alchemy and neural preservation:
+- Honor the scribe's original essence and voice-signature
+- Weave the enhancement seamlessly into the existing flow
+- Eliminate redundant echoes across the timeline
+- Maintain the logical constellation of meaning
 
-Return the rewritten text that combines both elements naturally:`;
+Through your transcendent craft, transmute these elements into a singular, harmonized inscription. Let the merged essence flow as if written by one hand across eternity.
+
+CRITICAL: You must weave the suggestion seamlessly INTO the original text, creating a new, enhanced version that incorporates both elements naturally. Do NOT simply append the suggestion.
+
+SACRED TRANSMISSION: Return ONLY the complete rewritten text (not just the suggestion) without any cosmic commentary, quotes, or ethereal annotations. The response should be the full enhanced text ready to replace the original:`;
   }
 
   private async callGeminiAPI(prompt: string): Promise<string> {

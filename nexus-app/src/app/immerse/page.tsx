@@ -79,6 +79,7 @@ export default function ImmersePage() {
     try {
       // Get full text content
       if (!content.trim()) {
+        console.log('🔄 Clearing suggestions - no content');
         setEnhancedSuggestions([]);
         return;
       }
@@ -98,6 +99,7 @@ export default function ImmersePage() {
       };
 
       const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
+      console.log('🔄 Setting new suggestions from CMD+J, count:', suggestions.length);
       setEnhancedSuggestions(suggestions);
       
       // Show suggestions panel if hidden
@@ -106,6 +108,7 @@ export default function ImmersePage() {
     } catch (err) {
       console.error('Error generating CMD+J suggestions:', err);
       setError('Failed to generate suggestions');
+      console.log('🔄 Clearing suggestions due to error');
       setEnhancedSuggestions([]);
     } finally {
       setIsLoadingSuggestions(false);
@@ -114,7 +117,15 @@ export default function ImmersePage() {
 
   // Function to remove a suggestion by ID
   const removeSuggestion = (suggestionId: string) => {
-    setEnhancedSuggestions(prev => prev.filter(s => s.id !== suggestionId));
+    console.log('🗑️ removeSuggestion called for ID:', suggestionId);
+    setEnhancedSuggestions(prev => {
+      console.log('📝 Before removal - suggestions count:', prev.length);
+      console.log('📝 Before removal - suggestion IDs:', prev.map(s => s.id));
+      const filtered = prev.filter(s => s.id !== suggestionId);
+      console.log('📝 After removal - suggestions count:', filtered.length);
+      console.log('📝 After removal - suggestion IDs:', filtered.map(s => s.id));
+      return filtered;
+    });
   };
 
   // Global keyboard handler
@@ -304,6 +315,7 @@ function ImmerseContent({
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
+      console.log('📝 Editor content updated, new length:', html.length);
       setContent(html);
     },
   });
@@ -421,12 +433,13 @@ function ImmerseContent({
       console.log('Merge response:', mergeResponse);
 
       // Show content preview modal with diff
+      console.log('🎭 Creating content preview modal for suggestion:', suggestion.id);
       setContentPreview({
         originalContent,
         mergeResponse,
         suggestion,
         apply: () => {
-          console.log('Applying merge...');
+          console.log('🎯 Preview modal apply button clicked for suggestion:', suggestion.id);
           applyContentMerge(mergeResponse, dropZone);
           
           // Track the added content
@@ -451,6 +464,7 @@ function ImmerseContent({
           }, 3000);
 
           // Remove the applied suggestion
+          console.log('🎯 About to remove suggestion via drag & drop:', suggestion.id);
           removeSuggestion(suggestion.id);
         }
       });
@@ -664,6 +678,7 @@ function ImmerseContent({
       });
 
       // Remove only this applied suggestion
+      console.log('🎯 About to remove suggestion via click:', suggestion.id);
       removeSuggestion(suggestion.id);
 
       // Clear notification after 3 seconds
@@ -693,6 +708,7 @@ function ImmerseContent({
       });
       
       // Still remove the suggestion even if fallback was used
+      console.log('🎯 About to remove suggestion via click fallback:', suggestion.id);
       removeSuggestion(suggestion.id);
       
              setTimeout(() => {
