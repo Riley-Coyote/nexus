@@ -12,8 +12,22 @@ export class GeminiAIContentProcessor {
   private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
   constructor() {
-    // Note: API key is handled server-side in the API routes
-    this.apiKey = 'handled-server-side';
+    // Note: API key is handled server-side in the API routes or can be set by user
+    this.apiKey = '';
+  }
+
+  /**
+   * Set the API key for direct Gemini API calls
+   */
+  setApiKey(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  /**
+   * Check if we have a user-provided API key
+   */
+  hasApiKey(): boolean {
+    return !!this.apiKey;
   }
 
   /**
@@ -21,7 +35,12 @@ export class GeminiAIContentProcessor {
    */
   async generateSuggestions(context: EditorContext): Promise<EnhancedSuggestion[]> {
     try {
-      // Use the specialized full-text endpoint for better suggestions
+      // If we have a user API key, use direct Gemini API
+      if (this.hasApiKey()) {
+        return await this.generateSuggestionsDirectly(context);
+      }
+
+      // Otherwise use the existing API routes
       const response = await fetch('/api/suggestions/full-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,11 +79,94 @@ export class GeminiAIContentProcessor {
   }
 
   /**
+   * Generate suggestions directly using user's API key
+   */
+  private async generateSuggestionsDirectly(context: EditorContext): Promise<EnhancedSuggestion[]> {
+    try {
+      const prompt = this.buildSuggestionPrompt(context);
+      const response = await this.callGeminiAPI(prompt);
+      
+      console.log('Raw Gemini response:', response);
+      
+      // Parse the response to extract suggestions with improved JSON extraction
+      let suggestions: any[] = [];
+      
+      try {
+        // First, try to extract JSON from markdown code blocks
+        const codeBlockMatch = response.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+        if (codeBlockMatch) {
+          suggestions = JSON.parse(codeBlockMatch[1]);
+        } else {
+          // Try to find JSON array in the response
+          const jsonMatch = response.match(/\[[\s\S]*?\]/);
+          if (jsonMatch) {
+            suggestions = JSON.parse(jsonMatch[0]);
+          } else {
+            // Try parsing the entire response as JSON
+            suggestions = JSON.parse(response);
+          }
+        }
+        
+        // Ensure we have an array
+        if (!Array.isArray(suggestions)) {
+          suggestions = [suggestions];
+        }
+        
+      } catch (parseError) {
+        console.warn('Failed to parse JSON, creating fallback suggestions:', parseError);
+        
+        // Create fallback suggestions from the text response
+        const lines = response.split('\n').filter(line => line.trim());
+        suggestions = lines.slice(0, 4).map((line, index) => ({
+          text: line.replace(/^\d+\.?\s*/, '').replace(/^[-•]\s*/, '').trim(),
+          type: index === 0 ? 'enhance' : index === 1 ? 'expand' : index === 2 ? 'clarify' : 'connect',
+          confidence: 0.7,
+          action: 'merge'
+        }));
+        
+        // If no good lines, create a single suggestion
+        if (suggestions.length === 0) {
+          suggestions = [{
+            text: response.substring(0, 200) + (response.length > 200 ? '...' : ''),
+            type: 'enhance',
+            confidence: 0.7,
+            action: 'merge'
+          }];
+        }
+      }
+
+      return suggestions.slice(0, 4).map((s: any, index: number) => ({
+        id: `gemini-direct-${Date.now()}-${index}`,
+        text: s.text || s,
+        type: s.type || 'enhance',
+        confidence: s.confidence || 0.8,
+        emotionalTone: 'analytical' as const,
+        contextRelevance: s.confidence || 0.8,
+        suggestedAction: s.action || 'merge' as const,
+        metadata: {
+          wordCount: (s.text || s).split(' ').length,
+          complexity: (s.text || s).length > 100 ? 'complex' as const : 'moderate' as const,
+          focusAreas: [s.type || 'general'],
+          expectedImpact: `AI-generated ${s.type || 'enhancement'} suggestion`
+        }
+      }));
+    } catch (error) {
+      console.error('Error with direct API call:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Generate contextual rewrite for drag-and-drop
    */
   async mergeContent(request: ContentMergeRequest): Promise<ContentMergeResponse> {
     try {
-      // Use the specialized contextual endpoint for better merging
+      // If we have a user API key, use direct Gemini API
+      if (this.hasApiKey()) {
+        return await this.mergeContentDirectly(request);
+      }
+
+      // Otherwise use the existing API routes
       const response = await fetch('/api/suggestions/contextual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,6 +197,28 @@ export class GeminiAIContentProcessor {
     } catch (error) {
       console.error('Error merging content:', error);
       return this.getFallbackMerge(request);
+    }
+  }
+
+  /**
+   * Merge content directly using user's API key
+   */
+  private async mergeContentDirectly(request: ContentMergeRequest): Promise<ContentMergeResponse> {
+    try {
+      const prompt = this.buildMergePrompt(request);
+      const mergedText = await this.callGeminiAPI(prompt);
+      
+      return {
+        mergedText: mergedText.trim(),
+        changeType: 'minor_edit',
+        preservedElements: ['original tone', 'writing style'],
+        addedElements: ['AI enhancement', request.suggestion.type],
+        explanation: `Integrated ${request.suggestion.type} suggestion while preserving your voice`,
+        confidence: 0.85
+      };
+    } catch (error) {
+      console.error('Error with direct merge:', error);
+      throw error;
     }
   }
 
@@ -149,13 +273,15 @@ Create suggestions that are:
 3. Contextually relevant to the content
 4. Written as complete, ready-to-use text snippets
 
-Return as JSON array with this exact format:
+CRITICAL: Respond ONLY with a valid JSON array. Do not include any other text, explanations, or code block markers. Just return the raw JSON array.
+
+Format:
 [
   {
     "text": "specific suggestion text here",
     "type": "enhance|expand|clarify|connect|counter|example",
     "confidence": 0.85,
-    "action": "merge|replace|insert_before|insert_after|weave"
+    "action": "merge"
   }
 ]`;
   }

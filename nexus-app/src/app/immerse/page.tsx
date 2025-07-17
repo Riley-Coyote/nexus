@@ -32,8 +32,20 @@ export default function ImmersePage() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // API Key management
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
+  
   // Enhanced AI service
   const aiServiceRef = useRef(new GeminiAIContentProcessor());
+
+  // Update AI service with API key when it changes
+  useEffect(() => {
+    if (geminiApiKey) {
+      aiServiceRef.current.setApiKey(geminiApiKey);
+    }
+  }, [geminiApiKey]);
 
   // REMOVED: Automatic suggestion generation - now only triggered by CMD+J
 
@@ -42,9 +54,24 @@ export default function ImmersePage() {
     console.log('Biometric signature:', signature);
   };
 
+  // Handle API key submission
+  const handleApiKeySubmit = () => {
+    if (tempApiKey.trim()) {
+      setGeminiApiKey(tempApiKey.trim());
+      setShowApiKeyModal(false);
+      setTempApiKey('');
+    }
+  };
+
   // Handle CMD+J for full-text suggestions
   const handleCmdJSuggestions = useCallback(async () => {
     if (isLoadingSuggestions) return;
+
+    // Check if API key is needed
+    if (!geminiApiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
 
     setIsLoadingSuggestions(true);
     setError(null);
@@ -83,7 +110,7 @@ export default function ImmersePage() {
     } finally {
       setIsLoadingSuggestions(false);
     }
-  }, [content, isLoadingSuggestions]);
+  }, [content, isLoadingSuggestions, geminiApiKey]);
 
   // Function to remove a suggestion by ID
   const removeSuggestion = (suggestionId: string) => {
@@ -97,26 +124,108 @@ export default function ImmersePage() {
         handleCmdJSuggestions();
         e.preventDefault();
       }
+      // CMD+K to open API key modal
+      if (e.metaKey && e.key.toLowerCase() === 'k') {
+        setShowApiKeyModal(true);
+        e.preventDefault();
+      }
     };
     window.addEventListener('keydown', handleGlobalKey);
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [handleCmdJSuggestions]);
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <ImmerseContent
-        content={content}
-        setContent={setContent}
-        showSuggestions={showSuggestions}
-        setShowSuggestions={setShowSuggestions}
-        enhancedSuggestions={enhancedSuggestions}
-        isLoadingSuggestions={isLoadingSuggestions}
-        error={error}
-        aiService={aiServiceRef.current}
-        onBiometricUpdate={handleBiometricUpdate}
-        removeSuggestion={removeSuggestion}
-      />
-    </DndProvider>
+    <>
+      <DndProvider backend={HTML5Backend}>
+        <ImmerseContent
+          content={content}
+          setContent={setContent}
+          showSuggestions={showSuggestions}
+          setShowSuggestions={setShowSuggestions}
+          enhancedSuggestions={enhancedSuggestions}
+          isLoadingSuggestions={isLoadingSuggestions}
+          error={error}
+          aiService={aiServiceRef.current}
+          onBiometricUpdate={handleBiometricUpdate}
+          removeSuggestion={removeSuggestion}
+          hasApiKey={!!geminiApiKey}
+          onOpenApiKeyModal={() => setShowApiKeyModal(true)}
+        />
+      </DndProvider>
+
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
+          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <span className="text-2xl">🔑</span>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">Gemini API Key</h3>
+              <p className="text-sm text-white/70">
+                Enter your Gemini API key to enable AI suggestions
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <input
+                type="password"
+                value={tempApiKey}
+                onChange={(e) => setTempApiKey(e.target.value)}
+                placeholder="Enter your Gemini API key..."
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-400/50 focus:bg-white/15"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleApiKeySubmit();
+                  }
+                  if (e.key === 'Escape') {
+                    setShowApiKeyModal(false);
+                    setTempApiKey('');
+                  }
+                }}
+                autoFocus
+              />
+              <p className="text-xs text-white/50 mt-2">
+                Your API key will only be stored in memory for this session
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowApiKeyModal(false);
+                  setTempApiKey('');
+                }}
+                className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white/70 hover:bg-white/15 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApiKeySubmit}
+                disabled={!tempApiKey.trim()}
+                className="flex-1 px-4 py-2 bg-blue-500 border border-blue-400 rounded-lg text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Key
+              </button>
+            </div>
+
+            <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-400/30 rounded-lg">
+              <p className="text-xs text-yellow-200">
+                <strong>Tip:</strong> Get your free API key from{' '}
+                <a 
+                  href="https://makersuite.google.com/app/apikey" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="underline hover:text-yellow-100"
+                >
+                  Google AI Studio
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -131,6 +240,8 @@ interface ImmerseContentProps {
   aiService: GeminiAIContentProcessor;
   onBiometricUpdate: (signature: any) => void;
   removeSuggestion: (suggestionId: string) => void;
+  hasApiKey: boolean;
+  onOpenApiKeyModal: () => void;
 }
 
 function ImmerseContent({
@@ -144,6 +255,8 @@ function ImmerseContent({
   aiService,
   onBiometricUpdate,
   removeSuggestion,
+  hasApiKey,
+  onOpenApiKeyModal,
 }: ImmerseContentProps) {
   // Enhanced state management
   const [dragState, setDragState] = useState<DragState>({
@@ -750,6 +863,24 @@ function ImmerseContent({
               WebkitTransform: showSuggestions ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
             }}
           >
+            {/* API Key Status Indicator */}
+            <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-green-400' : 'bg-orange-400'}`}></div>
+                  <span className="text-xs text-white/70">
+                    {hasApiKey ? 'Gemini API Connected' : 'API Key Required'}
+                  </span>
+                </div>
+                <button
+                  onClick={onOpenApiKeyModal}
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                >
+                  {hasApiKey ? 'Change' : 'Set Key'}
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-6">
               {error ? (
                 <div className="liquid-bubble error-bubble">
@@ -770,9 +901,15 @@ function ImmerseContent({
                     <p className="text-text-tertiary text-sm mb-2">
                       No suggestions available
                     </p>
-                    <p className="text-text-quaternary text-xs">
-                      Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to generate AI suggestions
-                    </p>
+                    {hasApiKey ? (
+                      <p className="text-text-quaternary text-xs">
+                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to generate AI suggestions
+                      </p>
+                    ) : (
+                      <p className="text-text-quaternary text-xs">
+                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+K</kbd> to set API key, then <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> for suggestions
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -815,6 +952,7 @@ function ImmerseContent({
                   ✨ <strong className="text-text-secondary">Click bubbles</strong> for smart block rewrite (±2 paragraphs)<br/>
                   🎨 <strong className="text-text-secondary">Drag bubbles to the editor</strong> for preview & fine control<br/>
                   📝 <strong className="text-text-secondary">Position cursor</strong> where you want improvements<br/>
+                  🔑 <strong className="text-text-secondary">Cmd+K</strong> to set Gemini API key<br/>
                   💡 <strong className="text-text-secondary">Applied suggestions disappear</strong> automatically<br/>
                   ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions panel
                 </p>
