@@ -269,7 +269,9 @@ function ImmerseContent({
   
   // Calculate bounds for right panel
   const minPanelWidth = 280; // Minimum width for usability
-  const maxPanelWidth = typeof window !== 'undefined' ? window.innerWidth - 400 : 800; // Leave space for content
+  const maxPanelWidth = typeof window !== 'undefined' ? window.innerWidth - 400 : 800;
+  
+
   
   // NEW: Update max width on window resize
   useEffect(() => {
@@ -608,6 +610,8 @@ function ImmerseContent({
     };
   }, []);
 
+
+
   // NEW: Load saved panel width from localStorage
   useEffect(() => {
     const savedWidth = localStorage.getItem('immerse-right-panel-width');
@@ -870,6 +874,8 @@ function ImmerseContent({
     </button>
   );
 
+
+
   return (
     <>
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-gray-900 to-gray-950 text-text-primary relative overflow-hidden">
@@ -913,7 +919,7 @@ function ImmerseContent({
 
           {/* Full Height Writing Area */}
           <div className="h-full p-6 relative z-5" style={{ paddingRight: `${rightPanelWidth + 24}px` }}>
-            <div className="h-full">
+            <div className="h-full relative">
               <div 
                 ref={dropRef}
                 className={`
@@ -928,6 +934,27 @@ function ImmerseContent({
                   className="prose prose-invert max-w-none focus:outline-none h-full"
                 />
               </div>
+
+              {/* Enhanced Floating Toolbar - Now relative to writing area */}
+              {editor && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
+                  <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
+                    <div className="flex items-center gap-1 p-2">
+                      {renderToolbarBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
+                      {renderToolbarBtn(<em>I</em>, editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
+                      {renderToolbarBtn(<u>U</u>, editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run())}
+                      <div className="w-px h-6 bg-gray-600 mx-1"></div>
+                      {renderToolbarBtn('•', editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run())}
+                      {renderToolbarBtn('1.', editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run())}
+                      <div className="w-px h-6 bg-gray-600 mx-1"></div>
+                      {renderToolbarBtn('P', editor.isActive('paragraph'), () => editor.chain().focus().setParagraph().run())}
+                      {renderToolbarBtn('H1', editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
+                      {renderToolbarBtn('H2', editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
+                      {renderToolbarBtn('H3', editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run())}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -954,26 +981,7 @@ function ImmerseContent({
             )}
           </div>
 
-          {/* Enhanced Floating Toolbar */}
-          {editor && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
-              <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
-                <div className="flex items-center gap-1 p-2">
-                  {renderToolbarBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
-                  {renderToolbarBtn(<em>I</em>, editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
-                  {renderToolbarBtn(<u>U</u>, editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run())}
-                  <div className="w-px h-6 bg-gray-600 mx-1"></div>
-                  {renderToolbarBtn('•', editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run())}
-                  {renderToolbarBtn('1.', editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run())}
-                  <div className="w-px h-6 bg-gray-600 mx-1"></div>
-                  {renderToolbarBtn('P', editor.isActive('paragraph'), () => editor.chain().focus().setParagraph().run())}
-                  {renderToolbarBtn('H1', editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
-                  {renderToolbarBtn('H2', editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
-                  {renderToolbarBtn('H3', editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run())}
-                </div>
-              </div>
-            </div>
-          )}
+
 
           {/* Enhanced Floating Suggestion Bubbles */}
           <div 
