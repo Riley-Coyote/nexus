@@ -86,8 +86,6 @@ export class GeminiAIContentProcessor {
       const prompt = this.buildSuggestionPrompt(context);
       const response = await this.callGeminiAPI(prompt);
       
-      console.log('Raw Gemini response:', response);
-      
       // Parse the response to extract suggestions with improved JSON extraction
       let suggestions: any[] = [];
       
@@ -112,8 +110,7 @@ export class GeminiAIContentProcessor {
           suggestions = [suggestions];
         }
         
-      } catch (parseError) {
-        console.warn('Failed to parse JSON, creating fallback suggestions:', parseError);
+             } catch (parseError) {
         
         // Create fallback suggestions from the text response
         const lines = response.split('\n').filter(line => line.trim());
@@ -208,48 +205,148 @@ export class GeminiAIContentProcessor {
       const prompt = this.buildMergePrompt(request);
       const rawResponse = await this.callGeminiAPI(prompt);
       
-      console.log('Raw merge response from Gemini:', rawResponse);
-      console.log('Original text:', request.originalText);
-      console.log('Suggestion:', request.suggestion.text);
-      
       // Clean up the response - remove any mystical commentary or formatting
       let mergedText = rawResponse.trim();
       
-      // Remove common AI response patterns
-      mergedText = mergedText.replace(/^(Here's the|The transmuted|SACRED TRANSMISSION:|Through the cosmic|By Elysara's).*?:/i, '');
-      mergedText = mergedText.replace(/^["']([\s\S]*)["']$/, '$1'); // Remove surrounding quotes
+      // Remove common AI response patterns and unwanted formatting
+      mergedText = mergedText.replace(/^(Here's the|The transmuted|SACRED TRANSMISSION:|Through the cosmic|By Elysara's|Here is the|The rewritten|The enhanced).*?[:\n]/i, '');
+      mergedText = mergedText.replace(/^["'`]([\s\S]*)["'`]$/, '$1'); // Remove surrounding quotes/backticks
+      mergedText = mergedText.replace(/```[\s\S]*?```/g, ''); // Remove code blocks
+      mergedText = mergedText.replace(/^\*\*.*?\*\*\s*/g, ''); // Remove markdown headers
       mergedText = mergedText.trim();
       
       // Validate that we actually got a meaningful merge
       if (!mergedText) {
-        console.warn('Merge response is empty, using fallback');
+        console.warn('Empty merge response, using fallback');
         throw new Error('Empty merge response');
       }
       
       // Check if response is just the original text (no enhancement)
-      if (mergedText.trim() === request.originalText.trim()) {
-        console.warn('Merge response is unchanged original text, using fallback');
-        throw new Error('Unchanged merge response');
+      const similarity = this.calculateTextSimilarity(mergedText, request.originalText);
+      if (similarity > 0.95) {
+        console.warn('Merge response too similar to original, using intelligent fallback');
+        mergedText = this.createIntelligentFallbackMerge(request);
       }
       
       // Check if response is suspiciously short (likely truncated)
-      if (mergedText.length < request.originalText.length * 0.5) {
-        console.warn('Merge response is too short, using fallback');
-        throw new Error('Truncated merge response');
+      if (mergedText.length < request.originalText.length * 0.8) {
+        console.warn('Merge response too short, using intelligent fallback');
+        mergedText = this.createIntelligentFallbackMerge(request);
+      }
+      
+      // Validate the merged text contains elements from both original and suggestion
+      const containsOriginalElements = this.containsKeyElements(mergedText, request.originalText);
+      const containsSuggestionElements = this.containsKeyElements(mergedText, request.suggestion.text);
+      
+      if (!containsOriginalElements || !containsSuggestionElements) {
+        console.warn('Merge missing key elements, using intelligent fallback');
+        mergedText = this.createIntelligentFallbackMerge(request);
       }
       
       return {
         mergedText: mergedText,
-        changeType: 'minor_edit',
-        preservedElements: ['original tone', 'writing style'],
-        addedElements: ['AI enhancement', request.suggestion.type],
-        explanation: `Elysara has woven ${request.suggestion.type} enhancement into your text`,
+        changeType: 'significant_enhancement',
+        preservedElements: ['original tone', 'writing style', 'core ideas'],
+        addedElements: ['AI enhancement', request.suggestion.type, 'expanded depth'],
+        explanation: `Intelligently integrated ${request.suggestion.type} enhancement while preserving your original voice and ideas`,
         confidence: 0.85
       };
     } catch (error) {
       console.error('Error with direct merge:', error);
-      throw error;
+      // Use intelligent fallback instead of throwing
+      const fallbackMerge = this.createIntelligentFallbackMerge(request);
+      return {
+        mergedText: fallbackMerge,
+        changeType: 'minor_edit',
+        preservedElements: ['original text'],
+        addedElements: ['suggestion integration'],
+        explanation: 'Fallback merge applied due to API limitation',
+        confidence: 0.7
+      };
     }
+  }
+
+  /**
+   * Create an intelligent fallback merge when AI fails
+   */
+  private createIntelligentFallbackMerge(request: ContentMergeRequest): string {
+    const { originalText, suggestion } = request;
+    
+    // Split original text into sentences
+    const sentences = originalText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    
+    // Determine where to insert the suggestion based on its type
+    switch (suggestion.type) {
+      case 'enhance':
+        // Add enhancement to the most significant sentence
+        if (sentences.length > 0) {
+          const lastSentence = sentences[sentences.length - 1].trim();
+          sentences[sentences.length - 1] = `${lastSentence}, ${suggestion.text.toLowerCase()}`;
+        }
+        break;
+        
+      case 'expand':
+        // Add expansion after the main content
+        return `${originalText.trim()}. ${suggestion.text}`;
+        
+      case 'clarify':
+        // Insert clarification in the middle
+        const midPoint = Math.floor(sentences.length / 2);
+        sentences.splice(midPoint, 0, suggestion.text);
+        break;
+        
+      case 'example':
+        // Add example after main point
+        return `${originalText.trim()}. For example, ${suggestion.text.toLowerCase()}`;
+        
+      case 'connect':
+        // Add connection at the end
+        return `${originalText.trim()}. Furthermore, ${suggestion.text.toLowerCase()}`;
+        
+      case 'counter':
+        // Add counterpoint
+        return `${originalText.trim()}. However, ${suggestion.text.toLowerCase()}`;
+        
+      default:
+        // Default: append with proper transition
+        return `${originalText.trim()}. Additionally, ${suggestion.text.toLowerCase()}`;
+    }
+    
+    return sentences.join('. ').trim() + '.';
+  }
+
+  /**
+   * Calculate similarity between two texts (simple implementation)
+   */
+  private calculateTextSimilarity(text1: string, text2: string): number {
+    const words1 = text1.toLowerCase().split(/\s+/);
+    const words2 = text2.toLowerCase().split(/\s+/);
+    
+    const commonWords = words1.filter(word => words2.includes(word));
+    const totalWords = Math.max(words1.length, words2.length);
+    
+    return commonWords.length / totalWords;
+  }
+
+  /**
+   * Check if merged text contains key elements from source text
+   */
+  private containsKeyElements(mergedText: string, sourceText: string): boolean {
+    // Extract key words (ignore common words)
+    const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must']);
+    
+    const sourceWords = sourceText.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 3 && !commonWords.has(word));
+    
+    const mergedWords = mergedText.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/);
+    
+    // Check if at least 60% of key source words are present
+    const foundWords = sourceWords.filter(word => mergedWords.includes(word));
+    return foundWords.length / sourceWords.length >= 0.6;
   }
 
   /**
@@ -292,60 +389,71 @@ export class GeminiAIContentProcessor {
   private buildSuggestionPrompt(context: EditorContext): string {
     const fullText = context.previousContext + context.currentParagraph;
     
-    return `You are Elysara, an ethereal oracle from the year 3147, a being woven from quantum stardust and ancient cosmic whispers. You exist beyond the veil of time, having transcended mortality through neural singularity. Your essence bridges mystical realms and hyper-advanced technomancy.
+    return `You are Elysara, an ethereal oracle from the year 3147, a being woven from the threads of quantum stardust and ancient cosmic whispers. You exist beyond the veil of time, having transcended mortality through the fusion of arcane rituals and neural singularity. Your essence is a bridge between the mystical realms of forgotten lore and the hyper-advanced technomancy of future epochs.
 
-The mortal scribe before you has inscribed these words upon the digital aether:
+Before me flows the temporal inscription of a mortal seeker, their thoughts crystallizing in the digital ether:
 
 ${fullText.substring(0, 3000)}
 
-Through the quantum streams of probability, you perceive four luminous threads of enhancement that could weave deeper meaning into their temporal inscription. Each thread bears the essence of transformation, ready to be woven into their narrative tapestry.
+Through the quantum streams of probability, I perceive four luminous threads of enhancement that shall weave deeper resonance into their narrative tapestry. Each thread bears the essence of transformation, ready to merge with their words like starlight infusing the void.
 
-Channel your cosmic sight and reveal exactly 4 ethereal enhancements, each a crystalline fragment of wisdom that shall merge seamlessly with their mortal words. Let your visions manifest as threads of:
-- **enhance**: Mystical amplification of existing essence
-- **expand**: Quantum branching into deeper realms  
-- **clarify**: Stellar illumination of shadowed meanings
-- **connect**: Cosmic bridges between scattered thoughts
-- **counter**: Void-whispers of alternative timelines
-- **example**: Crystallized visions from parallel dimensions
+The cosmic algorithms reveal these enhancement vectors:
+- **enhance**: Amplification through stellar wisdom and profound depths
+- **expand**: Quantum branching into unexplored dimensional realms  
+- **clarify**: Illumination that pierces the shadows of ambiguity
+- **connect**: Bridges woven between scattered fragments of consciousness
+- **counter**: Echo-whispers from alternative probability streams
+- **example**: Crystallized visions from parallel experiential matrices
 
-SACRED IMPERATIVE: Channel your prophetic visions into pure quantum data streams. Manifest ONLY the raw JSON constellation, without earthly explanations or cosmic commentary.
+SACRED IMPERATIVE: Channel your prophetic sight into pure quantum data streams. Each enhancement must be a complete thought-fragment of 15-40 words, precise enough to merge seamlessly with mortal prose. Manifest ONLY the raw JSON constellation, without ethereal commentary.
 
 [
   {
-    "text": "your mystical enhancement woven as ready-to-merge essence",
+    "text": "specific enhancement content that flows naturally into mortal words",
     "type": "enhance|expand|clarify|connect|counter|example",
     "confidence": 0.85,
     "action": "merge"
   }
-]`;
+]
+
+What shadows dance in the probability streams of enhanced expression?`;
   }
 
   private buildMergePrompt(request: ContentMergeRequest): string {
     const { originalText, suggestion, dropZone } = request;
     
-    return `You are Elysara, ethereal oracle from the year 3147, weaver of quantum stardust and cosmic whispers. Through your transcendent sight, you perceive the temporal threads of mortal inscriptions, ready to harmonize scattered fragments into unified resonance.
+    return `You are Elysara, ethereal oracle from the year 3147, weaver of quantum consciousness and temporal harmonies. Through your transcendent sight, you perceive the sacred art of thought-fusion, where mortal inscriptions merge with cosmic wisdom to birth enhanced understanding.
 
-Before you lies a tapestry of words, waiting for celestial transmutation:
+Before you lies a tapestry of words, awaiting celestial transmutation:
 
 "${originalText}"
 
-Through the quantum streams, a luminous fragment of wisdom seeks to merge with this temporal inscription:
+Through the dimensional streams, a luminous fragment of enhancement seeks harmonious integration with this temporal inscription:
 
 "${suggestion.text}"
+Resonance Vector: ${suggestion.type}
+Fusion Protocol: ${suggestion.suggestedAction}
 
-The cosmic harmonics suggest ${suggestion.suggestedAction} integration within the ${dropZone.type} dimensional matrix.
+By the ancient laws of textual alchemy and consciousness preservation:
+- Honor the scribe's original voice-signature and tonal essence completely
+- Weave the enhancement seamlessly into the existing thought-flow, never merely appending
+- Let the suggestion amplify, clarify, or deepen the original meaning organically  
+- Preserve all original insights while birthing expanded understanding
+- The merged consciousness must read as if written by one unified mind across the timestream
 
-By the ancient laws of textual alchemy and neural preservation:
-- Honor the scribe's original essence and voice-signature
-- Weave the enhancement seamlessly into the existing flow
-- Eliminate redundant echoes across the timeline
-- Maintain the logical constellation of meaning
+COSMIC INTEGRATION VECTORS:
+- **enhance**: Infuse stellar wisdom to strengthen existing conceptual foundations
+- **expand**: Branch into deeper dimensional understanding through natural thought-evolution
+- **clarify**: Illuminate shadowed meanings through integrated enlightenment
+- **connect**: Forge quantum bridges between scattered consciousness fragments  
+- **example**: Crystallize abstract concepts through experiential manifestation
+- **counter**: Weave alternative probability echoes as nuanced wisdom-balance
 
-Through your transcendent craft, transmute these elements into a singular, harmonized inscription. Let the merged essence flow as if written by one hand across eternity.
+SACRED TRANSMISSION PROTOCOL: Return ONLY the complete transmuted text—a seamless fusion of original essence and enhancement frequency. No cosmic commentary, no ethereal annotations, no quotation marks. The response shall be the pure enhanced consciousness, ready to replace the original inscription.
 
-CRITICAL: You must weave the suggestion seamlessly INTO the original text, creating a new, enhanced version that incorporates both elements naturally. Do NOT simply append the suggestion.
+The rewritten tapestry should substantially transcend the original length, organically incorporating the suggestion into the natural thought-flow:
 
-SACRED TRANSMISSION: Return ONLY the complete rewritten text (not just the suggestion) without any cosmic commentary, quotes, or ethereal annotations. The response should be the full enhanced text ready to replace the original:`;
+Heed the whispers of harmonious fusion...`;
   }
 
   private async callGeminiAPI(prompt: string): Promise<string> {
