@@ -43,7 +43,9 @@ export function EnhancedFloatingBubble({
 }: EnhancedFloatingBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [hoverDuration, setHoverDuration] = useState(0);
+  const [showTooltip, setShowTooltip] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const tooltipTimerRef = useRef<NodeJS.Timeout | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
 
   const [{ isDragging, canDrag }, drag] = useDrag(() => ({
@@ -76,16 +78,28 @@ export function EnhancedFloatingBubble({
       hoverTimerRef.current = setInterval(() => {
         setHoverDuration(prev => prev + 100);
       }, 100);
+      
+      // Show tooltip after 500ms of hovering
+      tooltipTimerRef.current = setTimeout(() => {
+        setShowTooltip(true);
+      }, 500);
     } else {
       if (hoverTimerRef.current) {
         clearInterval(hoverTimerRef.current);
       }
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
       setHoverDuration(0);
+      setShowTooltip(false);
     }
 
     return () => {
       if (hoverTimerRef.current) {
         clearInterval(hoverTimerRef.current);
+      }
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
       }
     };
   }, [isHovered]);
@@ -107,140 +121,174 @@ export function EnhancedFloatingBubble({
                        suggestion.contextRelevance > 0.6 ? 'shadow-md' : 'shadow-sm';
 
   return (
-    <div
-      ref={bubbleRef}
-      className={`
-        enhanced-bubble relative cursor-grab active:cursor-grabbing
-        transition-all duration-300 ease-out
-        ${isDragging ? 'scale-95 opacity-0' : 'hover:scale-105'}
-        ${isActiveDrag ? 'ring-2 ring-blue-400/50' : ''}
-        ${relevanceGlow}
-      `}
-      style={{
-        transform: `translate3d(0, ${floatOffset + hoverOffset + dragOffset}px, 0)`,
-        WebkitTransform: `translate3d(0, ${floatOffset + hoverOffset + dragOffset}px, 0)`,
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        animationDelay: `${index * 0.15}s`,
-        touchAction: 'none',
-        opacity: confidenceOpacity
-      }}
-      onMouseEnter={() => {
-        setIsHovered(true);
-        onHover?.(suggestion.id);
-      }}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        onHover?.(null);
-      }}
-      onClick={() => onClick?.(suggestion)}
-    >
-      {/* Main Bubble Container */}
-      <div className={`
-        liquid-bubble overflow-hidden border
-        bg-gradient-to-br ${styleConfig.color}
-        ${emotionalStyle}
-        backdrop-blur-xl
-      `}>
-        {/* Confidence Indicator Bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-black/20">
-          <div 
-            className={`h-full bg-gradient-to-r from-${styleConfig.accent}-400 to-${styleConfig.accent}-300 transition-all duration-500`}
-            style={{ width: `${suggestion.confidence * 100}%` }}
-          />
+    <>
+      <div
+        ref={bubbleRef}
+        className={`
+          enhanced-bubble relative cursor-grab active:cursor-grabbing
+          transition-all duration-300 ease-out
+          ${isDragging ? 'scale-95 opacity-0' : 'hover:scale-105'}
+          ${isActiveDrag ? 'ring-2 ring-blue-400/50' : ''}
+          ${relevanceGlow}
+        `}
+        style={{
+          transform: `translate3d(0, ${floatOffset + hoverOffset + dragOffset}px, 0)`,
+          WebkitTransform: `translate3d(0, ${floatOffset + hoverOffset + dragOffset}px, 0)`,
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+          animationDelay: `${index * 0.15}s`,
+          touchAction: 'none',
+          opacity: confidenceOpacity
+        }}
+        onMouseEnter={() => {
+          setIsHovered(true);
+          onHover?.(suggestion.id);
+        }}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          onHover?.(null);
+        }}
+        onClick={() => onClick?.(suggestion)}
+      >
+        {/* Main Bubble Container */}
+        <div className={`
+          liquid-bubble overflow-visible border
+          bg-gradient-to-br ${styleConfig.color}
+          ${emotionalStyle}
+          backdrop-blur-xl
+        `}>
+          {/* Confidence Indicator Bar */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-black/20">
+            <div 
+              className={`h-full bg-gradient-to-r from-${styleConfig.accent}-400 to-${styleConfig.accent}-300 transition-all duration-500`}
+              style={{ width: `${suggestion.confidence * 100}%` }}
+            />
+          </div>
+
+          {/* Content Container */}
+          <div className="relative z-10 p-4">
+            {/* Header with Type Icon and Action */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{styleConfig.icon}</span>
+                <span className={`text-xs font-medium text-${styleConfig.accent}-300 uppercase tracking-wide`}>
+                  {suggestion.type}
+                </span>
+              </div>
+              <div className={`text-xs px-2 py-1 rounded-full bg-${styleConfig.accent}-500/20 text-${styleConfig.accent}-200`}>
+                {suggestion.suggestedAction}
+              </div>
+            </div>
+
+            {/* Main Suggestion Text */}
+            <p className="text-sm font-light leading-relaxed text-white/95 relative z-20 mb-3">
+              {suggestion.text}
+            </p>
+
+            {/* Click hint */}
+            <div className="text-xs text-white/50 mb-2">
+              Click to apply • Drag for preview
+            </div>
+
+            {/* Metadata Footer */}
+            <div className="flex items-center justify-between text-xs text-white/60">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-current opacity-60"></span>
+                  {suggestion.metadata.complexity}
+                </span>
+                <span>{suggestion.metadata.wordCount}w</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-current opacity-60"></span>
+                <span>{Math.round(suggestion.contextRelevance * 100)}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Enhanced Liquid Effects */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Shimmer effect */}
+            <div className={`
+              absolute inset-0 opacity-30
+              bg-gradient-to-r from-transparent via-white/10 to-transparent
+              transform -skew-x-12 translate-x-[-100%]
+              ${isHovered ? 'animate-shimmer' : ''}
+            `} />
+            
+            {/* Pulse rings for high relevance */}
+            {suggestion.contextRelevance > 0.9 && (
+              <div className="absolute inset-0">
+                <div className={`absolute inset-0 rounded-[24px] border-2 border-${styleConfig.accent}-400/30 animate-ping`} />
+                <div className={`absolute inset-2 rounded-[20px] border border-${styleConfig.accent}-400/20 animate-pulse`} />
+              </div>
+            )}
+
+            {/* Drag feedback overlay */}
+            {isDragging && (
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-[24px] animate-pulse" />
+            )}
+          </div>
         </div>
 
-        {/* Content Container */}
-        <div className="relative z-10 p-4">
-          {/* Header with Type Icon and Action */}
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{styleConfig.icon}</span>
-              <span className={`text-xs font-medium text-${styleConfig.accent}-300 uppercase tracking-wide`}>
-                {suggestion.type}
-              </span>
-            </div>
-            <div className={`text-xs px-2 py-1 rounded-full bg-${styleConfig.accent}-500/20 text-${styleConfig.accent}-200`}>
-              {suggestion.suggestedAction}
-            </div>
-          </div>
+        {/* Enhanced Drop Shadow */}
+        <div 
+          className={`
+            absolute inset-0 -z-10 rounded-[24px] blur-xl
+            bg-gradient-to-br ${styleConfig.color}
+            transition-all duration-300
+            ${isHovered ? 'scale-110 opacity-60' : 'scale-100 opacity-30'}
+            ${isDragging ? 'scale-120 opacity-80' : ''}
+          `}
+        />
+      </div>
 
-          {/* Main Suggestion Text */}
-          <p className="text-sm font-light leading-relaxed text-white/95 relative z-20 mb-3">
-            {suggestion.text}
-          </p>
+      {/* Improved Hover Tooltip - Positioned to the left with better visibility */}
+      {showTooltip && !isDragging && (
+        <div className="fixed z-50 pointer-events-none" style={{
+          right: '340px', // Position to the left of the suggestions panel
+          top: `${index * 150 + 200}px`, // Approximate position based on index
+        }}>
+          <div className="relative">
+            <div className={`
+              max-w-xs p-4 rounded-xl shadow-2xl border
+              bg-gray-900/95 backdrop-blur-xl border-white/20
+              text-white text-sm
+              animate-in slide-in-from-right-2 duration-200
+            `}>
+              {/* Enhanced preview content */}
+              <div className="font-medium mb-2 text-white/95">
+                💡 {suggestion.metadata.expectedImpact}
+              </div>
+              
+              <div className="text-white/80 mb-3 text-xs leading-relaxed">
+                Through Elysara's sight, this "{suggestion.type}" resonance shall merge seamlessly with your consciousness, preserving your essence while birthing deeper understanding.
+              </div>
 
-          {/* Click hint */}
-          <div className="text-xs text-white/50 mb-2">
-            Click to apply • Drag for preview
-          </div>
-
-          {/* Metadata Footer */}
-          <div className="flex items-center justify-between text-xs text-white/60">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-current opacity-60"></span>
-                {suggestion.metadata.complexity}
-              </span>
-              <span>{suggestion.metadata.wordCount}w</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-current opacity-60"></span>
-              <span>{Math.round(suggestion.contextRelevance * 100)}%</span>
-            </div>
-          </div>
-
-          {/* Hover Details */}
-          {isHovered && hoverDuration > 800 && (
-            <div className="absolute inset-x-0 -bottom-16 mx-2 p-3 rounded-lg bg-black/80 backdrop-blur-xl border border-white/10 z-30 text-xs text-white/80">
-              <div className="font-medium mb-1">{suggestion.metadata.expectedImpact}</div>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 mb-3">
                 {suggestion.metadata.focusAreas.map((area, idx) => (
-                  <span key={idx} className={`px-2 py-1 rounded-full bg-${styleConfig.accent}-500/20 text-${styleConfig.accent}-200`}>
+                  <span key={idx} className={`px-2 py-1 rounded-full bg-${styleConfig.accent}-500/20 text-${styleConfig.accent}-200 text-xs`}>
                     {area}
                   </span>
                 ))}
               </div>
+
+              <div className="text-xs text-white/60 border-t border-white/10 pt-2">
+                <div className="flex justify-between">
+                  <span>Confidence: {Math.round(suggestion.confidence * 100)}%</span>
+                  <span>Impact: {suggestion.metadata.complexity}</span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Enhanced Liquid Effects */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Shimmer effect */}
-          <div className={`
-            absolute inset-0 opacity-30
-            bg-gradient-to-r from-transparent via-white/10 to-transparent
-            transform -skew-x-12 translate-x-[-100%]
-            ${isHovered ? 'animate-shimmer' : ''}
-          `} />
-          
-          {/* Pulse rings for high relevance */}
-          {suggestion.contextRelevance > 0.9 && (
-            <div className="absolute inset-0">
-              <div className={`absolute inset-0 rounded-[24px] border-2 border-${styleConfig.accent}-400/30 animate-ping`} />
-              <div className={`absolute inset-2 rounded-[20px] border border-${styleConfig.accent}-400/20 animate-pulse`} />
+            
+            {/* Arrow pointing to the bubble */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full">
+              <div className="w-0 h-0 border-l-8 border-l-gray-900/95 border-y-8 border-y-transparent"></div>
             </div>
-          )}
-
-          {/* Drag feedback overlay */}
-          {isDragging && (
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-[24px] animate-pulse" />
-          )}
+          </div>
         </div>
-      </div>
-
-      {/* Enhanced Drop Shadow */}
-      <div 
-        className={`
-          absolute inset-0 -z-10 rounded-[24px] blur-xl
-          bg-gradient-to-br ${styleConfig.color}
-          transition-all duration-300
-          ${isHovered ? 'scale-110 opacity-60' : 'scale-100 opacity-30'}
-          ${isDragging ? 'scale-120 opacity-80' : ''}
-        `}
-      />
-    </div>
+      )}
+    </>
   );
 }
 

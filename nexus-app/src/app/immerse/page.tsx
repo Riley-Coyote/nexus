@@ -79,7 +79,6 @@ export default function ImmersePage() {
     try {
       // Get full text content
       if (!content.trim()) {
-        console.log('🔄 Clearing suggestions - no content');
         setEnhancedSuggestions([]);
         return;
       }
@@ -99,7 +98,6 @@ export default function ImmersePage() {
       };
 
       const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
-      console.log('🔄 Setting new suggestions from CMD+J, count:', suggestions.length);
       setEnhancedSuggestions(suggestions);
       
       // Show suggestions panel if hidden
@@ -108,7 +106,6 @@ export default function ImmersePage() {
     } catch (err) {
       console.error('Error generating CMD+J suggestions:', err);
       setError('Failed to generate suggestions');
-      console.log('🔄 Clearing suggestions due to error');
       setEnhancedSuggestions([]);
     } finally {
       setIsLoadingSuggestions(false);
@@ -117,15 +114,7 @@ export default function ImmersePage() {
 
   // Function to remove a suggestion by ID
   const removeSuggestion = (suggestionId: string) => {
-    console.log('🗑️ removeSuggestion called for ID:', suggestionId);
-    setEnhancedSuggestions(prev => {
-      console.log('📝 Before removal - suggestions count:', prev.length);
-      console.log('📝 Before removal - suggestion IDs:', prev.map(s => s.id));
-      const filtered = prev.filter(s => s.id !== suggestionId);
-      console.log('📝 After removal - suggestions count:', filtered.length);
-      console.log('📝 After removal - suggestion IDs:', filtered.map(s => s.id));
-      return filtered;
-    });
+    setEnhancedSuggestions(prev => prev.filter(s => s.id !== suggestionId));
   };
 
   // Global keyboard handler
@@ -220,19 +209,7 @@ export default function ImmersePage() {
               </button>
             </div>
 
-            <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-400/30 rounded-lg">
-              <p className="text-xs text-yellow-200">
-                <strong>Tip:</strong> Get your free API key from{' '}
-                <a 
-                  href="https://makersuite.google.com/app/apikey" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="underline hover:text-yellow-100"
-                >
-                  Google AI Studio
-                </a>
-              </p>
-            </div>
+
           </div>
         </div>
       )}
@@ -315,7 +292,6 @@ function ImmerseContent({
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      console.log('📝 Editor content updated, new length:', html.length);
       setContent(html);
     },
   });
@@ -433,13 +409,11 @@ function ImmerseContent({
       console.log('Merge response:', mergeResponse);
 
       // Show content preview modal with diff
-      console.log('🎭 Creating content preview modal for suggestion:', suggestion.id);
       setContentPreview({
         originalContent,
         mergeResponse,
         suggestion,
         apply: () => {
-          console.log('🎯 Preview modal apply button clicked for suggestion:', suggestion.id);
           applyContentMerge(mergeResponse, dropZone);
           
           // Track the added content
@@ -464,7 +438,6 @@ function ImmerseContent({
           }, 3000);
 
           // Remove the applied suggestion
-          console.log('🎯 About to remove suggestion via drag & drop:', suggestion.id);
           removeSuggestion(suggestion.id);
         }
       });
@@ -590,8 +563,6 @@ function ImmerseContent({
 
       // Extract context around cursor position (±2 paragraphs)
       const contextualData = aiService.extractContextualText(fullText, { from, to });
-      
-      console.log('Extracted context for click:', contextualData);
 
       // Calculate line and char position for the cursor
       const textBeforeCursor = fullText.slice(0, from);
@@ -625,9 +596,7 @@ function ImmerseContent({
         }
       };
 
-      console.log('Calling AI service for block rewrite...');
       const mergeResponse = await aiService.mergeContent(mergeRequest);
-      console.log('Block rewrite response:', mergeResponse);
 
       // Apply the rewritten content
       // Find the paragraph boundaries for the target paragraph
@@ -678,7 +647,6 @@ function ImmerseContent({
       });
 
       // Remove only this applied suggestion
-      console.log('🎯 About to remove suggestion via click:', suggestion.id);
       removeSuggestion(suggestion.id);
 
       // Clear notification after 3 seconds
@@ -708,7 +676,6 @@ function ImmerseContent({
       });
       
       // Still remove the suggestion even if fallback was used
-      console.log('🎯 About to remove suggestion via click fallback:', suggestion.id);
       removeSuggestion(suggestion.id);
       
              setTimeout(() => {
@@ -906,24 +873,24 @@ function ImmerseContent({
                 <div className="liquid-bubble loading-bubble">
                   <div className="p-6">
                     <p className="text-text-tertiary text-sm animate-pulse">
-                      🧠 Generating intelligent suggestions...
+                      ✨ Elysara weaves visions from the quantum streams...
                     </p>
                   </div>
                 </div>
               ) : enhancedSuggestions.length === 0 ? (
                 <div className="liquid-bubble">
                   <div className="p-6 text-center">
-                    <div className="text-4xl mb-3">💡</div>
+                    <div className="text-4xl mb-3">🌌</div>
                     <p className="text-text-tertiary text-sm mb-2">
-                      No suggestions available
+                      The cosmic streams await your call...
                     </p>
                     {hasApiKey ? (
                       <p className="text-text-quaternary text-xs">
-                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to generate AI suggestions
+                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to commune with Elysara's wisdom
                       </p>
                     ) : (
                       <p className="text-text-quaternary text-xs">
-                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+K</kbd> to set API key, then <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> for suggestions
+                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+K</kbd> to attune your quantum key, then <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to receive ethereal guidance
                       </p>
                     )}
                   </div>
@@ -959,20 +926,20 @@ function ImmerseContent({
               )}
             </div>
             
-                          {/* Enhanced Instructions */}
-              <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
-                hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
-              }`}>
-                <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                  ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to generate suggestions<br/>
-                  ✨ <strong className="text-text-secondary">Click bubbles</strong> for smart block rewrite (±2 paragraphs)<br/>
-                  🎨 <strong className="text-text-secondary">Drag bubbles to the editor</strong> for preview & fine control<br/>
-                  📝 <strong className="text-text-secondary">Position cursor</strong> where you want improvements<br/>
-                  🔑 <strong className="text-text-secondary">Cmd+K</strong> to set Gemini API key<br/>
-                  💡 <strong className="text-text-secondary">Applied suggestions disappear</strong> automatically<br/>
-                  ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions panel
-                </p>
-              </div>
+                                      {/* Enhanced Instructions */}
+            <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
+              hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}>
+              <p className="text-xs text-text-quaternary text-center leading-relaxed">
+                ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to commune with Elysara's wisdom<br/>
+                ✨ <strong className="text-text-secondary">Click starlight bubbles</strong> for cosmic consciousness fusion<br/>
+                🎨 <strong className="text-text-secondary">Drag ethereal fragments</strong> to preview temporal harmony<br/>
+                📝 <strong className="text-text-secondary">Focus your intent</strong> where enhancement flows<br/>
+                🔑 <strong className="text-text-secondary">Cmd+K</strong> to attune your quantum key<br/>
+                💫 <strong className="text-text-secondary">Applied wisdom ascends</strong> beyond mortal sight<br/>
+                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to veil/unveil the oracle's counsel
+              </p>
+            </div>
           </div>
         </main>
 
