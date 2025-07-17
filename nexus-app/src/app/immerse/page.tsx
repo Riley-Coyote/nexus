@@ -258,6 +258,32 @@ function ImmerseContent({
   
   const [isMetaPressed, setIsMetaPressed] = useState(false);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
+  const [activeHoverSuggestion, setActiveHoverSuggestion] = useState<string | null>(null); // New: for intentional hover
+  const [showSolidBackground, setShowSolidBackground] = useState(false); // New: for background effect
+  
+  // NEW: Draggable right panel state
+  const [rightPanelWidth, setRightPanelWidth] = useState(320); // Default 320px (w-80)
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+  
+  // Calculate bounds for right panel
+  const minPanelWidth = 280; // Minimum width for usability
+  const maxPanelWidth = typeof window !== 'undefined' ? window.innerWidth - 400 : 800; // Leave space for content
+  
+  // NEW: Update max width on window resize
+  useEffect(() => {
+    const updateMaxWidth = () => {
+      const newMaxWidth = window.innerWidth - 400;
+      if (rightPanelWidth > newMaxWidth) {
+        setRightPanelWidth(Math.max(minPanelWidth, newMaxWidth));
+      }
+    };
+
+    window.addEventListener('resize', updateMaxWidth);
+    return () => window.removeEventListener('resize', updateMaxWidth);
+  }, [rightPanelWidth, minPanelWidth]);
+  
   const [contentPreview, setContentPreview] = useState<{
     originalContent: string;
     mergeResponse: ContentMergeResponse;
@@ -548,7 +574,97 @@ function ImmerseContent({
       isValidDrop: false
     }));
     setHoveredSuggestion(null); // Clear hover state when drag ends
+    setShowSolidBackground(false); // Clear solid background
   };
+
+  // NEW: Enhanced hover handlers with intentional detection
+  const handleSuggestionHover = (suggestionId: string | null) => {
+    setHoveredSuggestion(suggestionId);
+    
+    // Clear existing timer
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    if (suggestionId) {
+      // Start timer for intentional hover detection (300ms delay)
+      hoverTimerRef.current = setTimeout(() => {
+        setActiveHoverSuggestion(suggestionId);
+        setShowSolidBackground(true);
+      }, 300);
+    } else {
+      // Immediate clear when leaving
+      setActiveHoverSuggestion(null);
+      setShowSolidBackground(false);
+    }
+  };
+
+  // NEW: Clear timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
+  // NEW: Load saved panel width from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('immerse-right-panel-width');
+    if (savedWidth) {
+      const width = parseInt(savedWidth, 10);
+      if (width >= minPanelWidth && width <= maxPanelWidth) {
+        setRightPanelWidth(width);
+      }
+    }
+  }, [minPanelWidth, maxPanelWidth]);
+
+  // NEW: Save panel width to localStorage
+  useEffect(() => {
+    localStorage.setItem('immerse-right-panel-width', rightPanelWidth.toString());
+  }, [rightPanelWidth]);
+
+  // NEW: Resize handlers
+  const handleResizeStart = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(rightPanelWidth);
+    e.preventDefault();
+  };
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const deltaX = resizeStartX - e.clientX; // Inverted because we're resizing from the left edge
+    const newWidth = Math.min(maxPanelWidth, Math.max(minPanelWidth, resizeStartWidth + deltaX));
+    setRightPanelWidth(newWidth);
+  }, [isResizing, resizeStartX, resizeStartWidth, minPanelWidth, maxPanelWidth]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // NEW: Global mouse event listeners for resize
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   // Handle suggestion click (direct application with block rewrite)
   const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
@@ -776,6 +892,11 @@ function ImmerseContent({
 
         {/* Main Content Area - Enhanced Drop Zone */}
         <main className="h-screen lg:ml-64 relative">
+          {/* Solid Background Overlay - NEW */}
+          {showSolidBackground && (
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-15 transition-all duration-300 ease-in-out" />
+          )}
+
           {/* Drop zone indicator overlay */}
           {dragState.isDragging && (
             <div className="absolute inset-4 border-2 border-dashed border-blue-400/50 rounded-xl flex items-center justify-center pointer-events-none z-20">
@@ -791,7 +912,7 @@ function ImmerseContent({
           )}
 
           {/* Full Height Writing Area */}
-          <div className="h-full p-6 pr-84 relative z-5">
+          <div className="h-full p-6 relative z-5" style={{ paddingRight: `${rightPanelWidth + 24}px` }}>
             <div className="h-full">
               <div 
                 ref={dropRef}
@@ -808,6 +929,29 @@ function ImmerseContent({
                 />
               </div>
             </div>
+          </div>
+
+          {/* NEW: Drag Handle */}
+          <div
+            className={`
+              fixed top-0 h-full w-1 z-40 cursor-ew-resize
+              transition-all duration-200 ease-out
+              ${isResizing ? 'bg-blue-400/60 w-2 shadow-lg shadow-blue-400/30' : 'bg-white/10 hover:bg-white/20 hover:w-2'}
+            `}
+            style={{ right: `${rightPanelWidth}px` }}
+            onMouseDown={handleResizeStart}
+          >
+            {/* Drag handle visual indicator */}
+            <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-3 h-8 rounded-l-md bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-0.5 h-4 bg-white/40 rounded-full"></div>
+            </div>
+            
+            {/* Resize width indicator */}
+            {isResizing && (
+              <div className="absolute top-1/2 -translate-y-1/2 -left-16 bg-blue-500/90 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-xs font-medium">
+                {rightPanelWidth}px
+              </div>
+            )}
           </div>
 
           {/* Enhanced Floating Toolbar */}
@@ -835,11 +979,13 @@ function ImmerseContent({
           <div 
             ref={suggestionsRef}
             className={`
-              fixed top-8 right-0 w-80 h-[75vh] overflow-y-auto z-30 p-6 pt-16 
-              transition-transform duration-500 ease-out
+              fixed top-8 right-0 h-[75vh] overflow-y-auto z-30 p-6 pt-16 
+              transition-all duration-500 ease-out
               ${showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'}
+              ${isResizing ? 'pointer-events-none' : ''}
             `}
             style={{
+              width: `${rightPanelWidth}px`,
               willChange: 'transform',
               backfaceVisibility: 'hidden',
               transform: showSuggestions ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
@@ -897,8 +1043,8 @@ function ImmerseContent({
                 </div>
               ) : (
                 enhancedSuggestions.map((suggestion, idx) => {
-                  const isInteracted = hoveredSuggestion === suggestion.id || dragState.draggedSuggestion?.id === suggestion.id;
-                  const shouldHide = (hoveredSuggestion || dragState.draggedSuggestion) && !isInteracted;
+                  const isInteracted = activeHoverSuggestion === suggestion.id || dragState.draggedSuggestion?.id === suggestion.id;
+                  const shouldHide = (activeHoverSuggestion || dragState.draggedSuggestion) && !isInteracted;
                   const isDragged = dragState.draggedSuggestion?.id === suggestion.id;
                   
                   return (
@@ -916,9 +1062,10 @@ function ImmerseContent({
                         scrollY={scrollY}
                         onDragStart={handleSuggestionDragStart}
                         onDragEnd={handleSuggestionDragEnd}
-                        onHover={(id: string | null) => setHoveredSuggestion(id)}
+                        onHover={(id: string | null) => handleSuggestionHover(id)}
                         isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
                         onClick={handleSuggestionClick}
+                        isSolidBackground={showSolidBackground}
                       />
                     </div>
                   );
@@ -928,7 +1075,7 @@ function ImmerseContent({
             
                                       {/* Enhanced Instructions */}
             <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
-              hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              activeHoverSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}>
               <p className="text-xs text-text-quaternary text-center leading-relaxed">
                 ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to commune with Elysara's wisdom<br/>
