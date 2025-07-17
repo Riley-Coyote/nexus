@@ -11,6 +11,7 @@ interface EnhancedFloatingBubbleProps {
   onHover?: (id: string | null) => void;
   isActiveDrag?: boolean;
   onClick?: (suggestion: EnhancedSuggestion) => void;
+  isSolidBackground?: boolean; // New prop for solid background effect
 }
 
 // Suggestion type icons and colors
@@ -39,7 +40,8 @@ export function EnhancedFloatingBubble({
   onDragEnd,
   onHover,
   isActiveDrag = false,
-  onClick
+  onClick,
+  isSolidBackground = false
 }: EnhancedFloatingBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [hoverDuration, setHoverDuration] = useState(0);
@@ -129,6 +131,7 @@ export function EnhancedFloatingBubble({
           transition-all duration-300 ease-out
           ${isDragging ? 'scale-95 opacity-0' : 'hover:scale-105'}
           ${isActiveDrag ? 'ring-2 ring-blue-400/50' : ''}
+          ${isSolidBackground && isHovered ? 'scale-110 shadow-2xl' : ''}
           ${relevanceGlow}
         `}
         style={{

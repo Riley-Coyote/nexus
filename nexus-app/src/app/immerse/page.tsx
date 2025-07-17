@@ -258,6 +258,111 @@ function ImmerseContent({
   
   const [isMetaPressed, setIsMetaPressed] = useState(false);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
+  const [activeHoverSuggestion, setActiveHoverSuggestion] = useState<string | null>(null); // New: for intentional hover
+  const [showSolidBackground, setShowSolidBackground] = useState(false); // New: for background effect
+  
+  // NEW: Draggable right panel state
+  const [rightPanelWidth, setRightPanelWidth] = useState(320); // Default 320px (w-80)
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+  
+  // NEW: Draggable toolbar state
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 }); // Will be set to center on mount
+  const [isToolbarDragging, setIsToolbarDragging] = useState(false);
+  const [toolbarDragStart, setToolbarDragStart] = useState({ x: 0, y: 0 });
+  const [isVerticalLayout, setIsVerticalLayout] = useState(true); // New: layout toggle state
+  
+  // Calculate bounds for right panel
+  const minPanelWidth = 280; // Minimum width for usability
+  const maxPanelWidth = typeof window !== 'undefined' ? window.innerWidth - 400 : 800;
+  
+
+  
+  // NEW: Update max width on window resize
+  useEffect(() => {
+    const updateMaxWidth = () => {
+      const newMaxWidth = window.innerWidth - 400;
+      if (rightPanelWidth > newMaxWidth) {
+        setRightPanelWidth(Math.max(minPanelWidth, newMaxWidth));
+      }
+    };
+
+    window.addEventListener('resize', updateMaxWidth);
+    return () => window.removeEventListener('resize', updateMaxWidth);
+  }, [rightPanelWidth, minPanelWidth]);
+
+  // NEW: Load saved panel width from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('immerse-right-panel-width');
+    if (savedWidth) {
+      const width = parseInt(savedWidth, 10);
+      if (width >= minPanelWidth && width <= maxPanelWidth) {
+        setRightPanelWidth(width);
+      }
+    }
+  }, [minPanelWidth, maxPanelWidth]);
+
+  // NEW: Set initial toolbar position to center
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const leftWall = 256; // Just the left sidebar, no padding constraint
+      const rightWall = window.innerWidth - rightPanelWidth; // Right edge, no padding constraint
+      const centerX = (leftWall + rightWall) / 2; // True center between walls
+      const centerY = window.innerHeight / 2;
+      setToolbarPosition({ x: centerX, y: centerY });
+    }
+  }, [rightPanelWidth]);
+
+  // NEW: Toolbar drag handlers
+  const handleToolbarMouseDown = (e: React.MouseEvent) => {
+    setIsToolbarDragging(true);
+    setToolbarDragStart({
+      x: e.clientX - toolbarPosition.x,
+      y: e.clientY - toolbarPosition.y
+    });
+    e.preventDefault();
+  };
+
+  const handleToolbarMouseMove = useCallback((e: MouseEvent) => {
+    if (!isToolbarDragging) return;
+    
+    const newX = e.clientX - toolbarDragStart.x;
+    const newY = e.clientY - toolbarDragStart.y;
+    
+    // No restrictions - can move anywhere on screen
+    setToolbarPosition({
+      x: newX,
+      y: newY
+    });
+  }, [isToolbarDragging, toolbarDragStart]);
+
+  const handleToolbarMouseUp = useCallback(() => {
+    setIsToolbarDragging(false);
+  }, []);
+
+  // NEW: Global mouse event listeners for toolbar dragging
+  useEffect(() => {
+    if (isToolbarDragging) {
+      document.addEventListener('mousemove', handleToolbarMouseMove);
+      document.addEventListener('mouseup', handleToolbarMouseUp);
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleToolbarMouseMove);
+      document.removeEventListener('mouseup', handleToolbarMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleToolbarMouseMove);
+      document.removeEventListener('mouseup', handleToolbarMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isToolbarDragging, handleToolbarMouseMove, handleToolbarMouseUp]);
+
   const [contentPreview, setContentPreview] = useState<{
     originalContent: string;
     mergeResponse: ContentMergeResponse;
@@ -548,7 +653,93 @@ function ImmerseContent({
       isValidDrop: false
     }));
     setHoveredSuggestion(null); // Clear hover state when drag ends
+    setShowSolidBackground(false); // Clear solid background
   };
+
+  // NEW: Enhanced hover handlers with intentional detection
+  const handleSuggestionHover = (suggestionId: string | null) => {
+    setHoveredSuggestion(suggestionId);
+    
+    // Clear existing timer
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    if (suggestionId) {
+      // Start timer for intentional hover detection (300ms delay)
+      hoverTimerRef.current = setTimeout(() => {
+        setActiveHoverSuggestion(suggestionId);
+        setShowSolidBackground(true);
+      }, 300);
+    } else {
+      // Immediate clear when leaving
+      setActiveHoverSuggestion(null);
+      setShowSolidBackground(false);
+    }
+  };
+
+  // NEW: Clear timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
+
+
+  // NEW: Load saved panel width from localStorage
+  useEffect(() => {
+    localStorage.setItem('immerse-right-panel-width', rightPanelWidth.toString());
+  }, [rightPanelWidth]);
+
+  // NEW: Save panel width to localStorage
+  useEffect(() => {
+    localStorage.setItem('immerse-right-panel-width', rightPanelWidth.toString());
+  }, [rightPanelWidth]);
+
+  // NEW: Resize handlers
+  const handleResizeStart = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(rightPanelWidth);
+    e.preventDefault();
+  };
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const deltaX = resizeStartX - e.clientX; // Inverted because we're resizing from the left edge
+    const newWidth = Math.min(maxPanelWidth, Math.max(minPanelWidth, resizeStartWidth + deltaX));
+    setRightPanelWidth(newWidth);
+  }, [isResizing, resizeStartX, resizeStartWidth, minPanelWidth, maxPanelWidth]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // NEW: Global mouse event listeners for resize
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   // Handle suggestion click (direct application with block rewrite)
   const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
@@ -754,6 +945,8 @@ function ImmerseContent({
     </button>
   );
 
+
+
   return (
     <>
       <div className="min-h-screen w-full bg-gradient-to-br from-black via-gray-900 to-gray-950 text-text-primary relative overflow-hidden">
@@ -776,6 +969,11 @@ function ImmerseContent({
 
         {/* Main Content Area - Enhanced Drop Zone */}
         <main className="h-screen lg:ml-64 relative">
+          {/* Solid Background Overlay - NEW */}
+          {showSolidBackground && (
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-15 transition-all duration-300 ease-in-out" />
+          )}
+
           {/* Drop zone indicator overlay */}
           {dragState.isDragging && (
             <div className="absolute inset-4 border-2 border-dashed border-blue-400/50 rounded-xl flex items-center justify-center pointer-events-none z-20">
@@ -791,8 +989,8 @@ function ImmerseContent({
           )}
 
           {/* Full Height Writing Area */}
-          <div className="h-full p-6 pr-84 relative z-5">
-            <div className="h-full">
+          <div className="h-full p-6 relative z-5" style={{ paddingRight: `${rightPanelWidth + 24}px` }}>
+            <div className="h-full relative">
               <div 
                 ref={dropRef}
                 className={`
@@ -807,39 +1005,90 @@ function ImmerseContent({
                   className="prose prose-invert max-w-none focus:outline-none h-full"
                 />
               </div>
+
+              {/* Enhanced Floating Toolbar - Now relative to writing area */}
+              {editor && (
+                <div 
+                  className={`fixed z-30 cursor-grab ${isToolbarDragging ? 'cursor-grabbing' : ''}`}
+                  style={{
+                    left: `${toolbarPosition.x}px`,
+                    top: `${toolbarPosition.y}px`,
+                    transition: isToolbarDragging ? 'none' : 'transform 0.2s ease-out',
+                  }}
+                  onMouseDown={handleToolbarMouseDown}
+                >
+                  <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
+                    <div className={`flex gap-1 p-2 ${isVerticalLayout ? 'flex-col' : 'flex-row'}`}>
+                      {/* Drag handle */}
+                      <div className={`flex ${isVerticalLayout ? 'justify-center py-1 border-b border-gray-600/30 mb-1' : 'items-center px-1 border-r border-gray-600/30 mr-1'}`}>
+                        <div className={`bg-gray-500 rounded-full ${isVerticalLayout ? 'w-4 h-1' : 'w-1 h-4'}`}></div>
+                      </div>
+
+                      {/* Layout toggle button */}
+                      <button
+                        onClick={() => setIsVerticalLayout(!isVerticalLayout)}
+                        className="floating-toolbar-btn text-xs"
+                        title={`Switch to ${isVerticalLayout ? 'horizontal' : 'vertical'} layout`}
+                      >
+                        ↻
+                      </button>
+
+                      <div className={`${isVerticalLayout ? 'h-px w-6 bg-gray-600 my-1' : 'w-px h-6 bg-gray-600 mx-1'}`}></div>
+                      
+                      {renderToolbarBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
+                      {renderToolbarBtn(<em>I</em>, editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
+                      {renderToolbarBtn(<u>U</u>, editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run())}
+                      <div className={`${isVerticalLayout ? 'h-px w-6 bg-gray-600 my-1' : 'w-px h-6 bg-gray-600 mx-1'}`}></div>
+                      {renderToolbarBtn('•', editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run())}
+                      {renderToolbarBtn('1.', editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run())}
+                      <div className={`${isVerticalLayout ? 'h-px w-6 bg-gray-600 my-1' : 'w-px h-6 bg-gray-600 mx-1'}`}></div>
+                      {renderToolbarBtn('P', editor.isActive('paragraph'), () => editor.chain().focus().setParagraph().run())}
+                      {renderToolbarBtn('H1', editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
+                      {renderToolbarBtn('H2', editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
+                      {renderToolbarBtn('H3', editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run())}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Enhanced Floating Toolbar */}
-          {editor && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-[75%] -translate-y-1/2 z-30">
-              <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
-                <div className="flex items-center gap-1 p-2">
-                  {renderToolbarBtn(<strong>B</strong>, editor.isActive('bold'), () => editor.chain().focus().toggleBold().run())}
-                  {renderToolbarBtn(<em>I</em>, editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run())}
-                  {renderToolbarBtn(<u>U</u>, editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run())}
-                  <div className="w-px h-6 bg-gray-600 mx-1"></div>
-                  {renderToolbarBtn('•', editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run())}
-                  {renderToolbarBtn('1.', editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run())}
-                  <div className="w-px h-6 bg-gray-600 mx-1"></div>
-                  {renderToolbarBtn('P', editor.isActive('paragraph'), () => editor.chain().focus().setParagraph().run())}
-                  {renderToolbarBtn('H1', editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
-                  {renderToolbarBtn('H2', editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
-                  {renderToolbarBtn('H3', editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run())}
-                </div>
-              </div>
+          {/* NEW: Drag Handle */}
+          <div
+            className={`
+              fixed top-0 h-full w-1 z-40 cursor-ew-resize
+              transition-all duration-200 ease-out
+              ${isResizing ? 'bg-blue-400/60 w-2 shadow-lg shadow-blue-400/30' : 'bg-white/10 hover:bg-white/20 hover:w-2'}
+            `}
+            style={{ right: `${rightPanelWidth}px` }}
+            onMouseDown={handleResizeStart}
+          >
+            {/* Drag handle visual indicator */}
+            <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-3 h-8 rounded-l-md bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-0.5 h-4 bg-white/40 rounded-full"></div>
             </div>
-          )}
+            
+            {/* Resize width indicator */}
+            {isResizing && (
+              <div className="absolute top-1/2 -translate-y-1/2 -left-16 bg-blue-500/90 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-xs font-medium">
+                {rightPanelWidth}px
+              </div>
+            )}
+          </div>
+
+
 
           {/* Enhanced Floating Suggestion Bubbles */}
           <div 
             ref={suggestionsRef}
             className={`
-              fixed top-8 right-0 w-80 h-[75vh] overflow-y-auto z-30 p-6 pt-16 
-              transition-transform duration-500 ease-out
+              fixed top-8 right-0 h-[75vh] overflow-y-auto z-30 p-6 pt-16 
+              transition-all duration-500 ease-out
               ${showSuggestions ? 'transform translate-y-0' : 'transform -translate-y-full'}
+              ${isResizing ? 'pointer-events-none' : ''}
             `}
             style={{
+              width: `${rightPanelWidth}px`,
               willChange: 'transform',
               backfaceVisibility: 'hidden',
               transform: showSuggestions ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
@@ -897,8 +1146,8 @@ function ImmerseContent({
                 </div>
               ) : (
                 enhancedSuggestions.map((suggestion, idx) => {
-                  const isInteracted = hoveredSuggestion === suggestion.id || dragState.draggedSuggestion?.id === suggestion.id;
-                  const shouldHide = (hoveredSuggestion || dragState.draggedSuggestion) && !isInteracted;
+                  const isInteracted = activeHoverSuggestion === suggestion.id || dragState.draggedSuggestion?.id === suggestion.id;
+                  const shouldHide = (activeHoverSuggestion || dragState.draggedSuggestion) && !isInteracted;
                   const isDragged = dragState.draggedSuggestion?.id === suggestion.id;
                   
                   return (
@@ -916,9 +1165,10 @@ function ImmerseContent({
                         scrollY={scrollY}
                         onDragStart={handleSuggestionDragStart}
                         onDragEnd={handleSuggestionDragEnd}
-                        onHover={(id: string | null) => setHoveredSuggestion(id)}
+                        onHover={(id: string | null) => handleSuggestionHover(id)}
                         isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
                         onClick={handleSuggestionClick}
+                        isSolidBackground={showSolidBackground}
                       />
                     </div>
                   );
@@ -928,7 +1178,7 @@ function ImmerseContent({
             
                                       {/* Enhanced Instructions */}
             <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
-              hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              activeHoverSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}>
               <p className="text-xs text-text-quaternary text-center leading-relaxed">
                 ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to commune with Elysara's wisdom<br/>
