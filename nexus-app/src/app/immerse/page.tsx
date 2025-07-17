@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, useRef, Dispatch, SetStateAction, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -35,46 +35,7 @@ export default function ImmersePage() {
   // Enhanced AI service
   const aiServiceRef = useRef(new GeminiAIContentProcessor());
 
-  // Generate enhanced suggestions when content changes
-  useEffect(() => {
-    const generateSuggestions = async () => {
-      if (!content.trim()) {
-        setEnhancedSuggestions([]);
-        return;
-      }
-
-      setIsLoadingSuggestions(true);
-      setError(null);
-
-      try {
-        // Create editor context for AI
-        const editorContext: EditorContext = {
-          currentParagraph: content.split('\n').pop() || '',
-          previousContext: content.substring(0, Math.max(0, content.length - 200)),
-          nextContext: '',
-          selectionRange: { from: 0, to: 0 },
-          cursorPosition: { line: 1, char: content.length },
-          documentStats: {
-            wordCount: content.split(/\s+/).length,
-            paragraphCount: content.split('\n').length,
-            estimatedReadingTime: Math.ceil(content.split(/\s+/).length / 200)
-          }
-        };
-
-        const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
-        setEnhancedSuggestions(suggestions);
-      } catch (err) {
-        setError('Failed to generate enhanced suggestions');
-        // Fallback to empty suggestions
-        setEnhancedSuggestions([]);
-      } finally {
-        setIsLoadingSuggestions(false);
-      }
-    };
-
-    const debounceTimer = setTimeout(generateSuggestions, 3000);
-    return () => clearTimeout(debounceTimer);
-  }, [content]);
+  // REMOVED: Automatic suggestion generation - now only triggered by CMD+J
 
   // Biometric update handler
   const handleBiometricUpdate = (signature: any) => {
@@ -82,7 +43,7 @@ export default function ImmersePage() {
   };
 
   // Handle CMD+J for full-text suggestions
-  const handleCmdJSuggestions = async () => {
+  const handleCmdJSuggestions = useCallback(async () => {
     if (isLoadingSuggestions) return;
 
     setIsLoadingSuggestions(true);
@@ -122,6 +83,11 @@ export default function ImmersePage() {
     } finally {
       setIsLoadingSuggestions(false);
     }
+  }, [content, isLoadingSuggestions]);
+
+  // Function to remove a suggestion by ID
+  const removeSuggestion = (suggestionId: string) => {
+    setEnhancedSuggestions(prev => prev.filter(s => s.id !== suggestionId));
   };
 
   // Global keyboard handler
@@ -134,7 +100,7 @@ export default function ImmersePage() {
     };
     window.addEventListener('keydown', handleGlobalKey);
     return () => window.removeEventListener('keydown', handleGlobalKey);
-  }, [content, isLoadingSuggestions]);
+  }, [handleCmdJSuggestions]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -148,6 +114,7 @@ export default function ImmersePage() {
         error={error}
         aiService={aiServiceRef.current}
         onBiometricUpdate={handleBiometricUpdate}
+        removeSuggestion={removeSuggestion}
       />
     </DndProvider>
   );
@@ -163,6 +130,7 @@ interface ImmerseContentProps {
   error: string | null;
   aiService: GeminiAIContentProcessor;
   onBiometricUpdate: (signature: any) => void;
+  removeSuggestion: (suggestionId: string) => void;
 }
 
 function ImmerseContent({
@@ -175,6 +143,7 @@ function ImmerseContent({
   error,
   aiService,
   onBiometricUpdate,
+  removeSuggestion,
 }: ImmerseContentProps) {
   // Enhanced state management
   const [dragState, setDragState] = useState<DragState>({
@@ -367,6 +336,9 @@ function ImmerseContent({
             setRecentlyAdded(null);
             setNotification(null);
           }, 3000);
+
+          // Remove the applied suggestion
+          removeSuggestion(suggestion.id);
         }
       });
 
@@ -476,6 +448,144 @@ function ImmerseContent({
       isValidDrop: false
     }));
     setHoveredSuggestion(null); // Clear hover state when drag ends
+  };
+
+  // Handle suggestion click (direct application with block rewrite)
+  const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
+    if (!editorRef.current) return;
+
+    const editor = editorRef.current;
+    
+    try {
+      // Get current cursor position and document content
+      const { from, to } = editor.state.selection;
+      const fullText = editor.state.doc.textContent;
+
+      // Extract context around cursor position (±2 paragraphs)
+      const contextualData = aiService.extractContextualText(fullText, { from, to });
+      
+      console.log('Extracted context for click:', contextualData);
+
+      // Calculate line and char position for the cursor
+      const textBeforeCursor = fullText.slice(0, from);
+      const lines = textBeforeCursor.split('\n');
+      const line = lines.length;
+      const char = lines[lines.length - 1].length;
+
+      // Create a simplified drop zone for click application
+      const dropZone: DropZone = {
+        type: 'paragraph',
+        position: { line, char },
+        context: {
+          beforeText: contextualData.beforeContext,
+          selectedText: from !== to ? editor.state.doc.textBetween(from, to) : '',
+          afterText: contextualData.afterContext,
+          paragraphText: contextualData.targetText
+        },
+        suggestedAction: 'merge'
+      };
+
+      // Generate intelligent merge using AI service
+      const mergeRequest: ContentMergeRequest = {
+        originalText: contextualData.fullContext,
+        suggestion,
+        dropZone,
+        userPreferences: {
+          writingStyle: 'conversational',
+          preferredEditTypes: [suggestion.type],
+          boldnessLevel: 'moderate',
+          voicePreservation: 0.8
+        }
+      };
+
+      console.log('Calling AI service for block rewrite...');
+      const mergeResponse = await aiService.mergeContent(mergeRequest);
+      console.log('Block rewrite response:', mergeResponse);
+
+      // Apply the rewritten content
+      // Find the paragraph boundaries for the target paragraph
+      const paragraphs = fullText.split(/\n\s*\n/);
+      let currentPos = 0;
+      let targetParagraphIndex = -1;
+
+      // Find which paragraph contains our cursor
+      for (let i = 0; i < paragraphs.length; i++) {
+        const paragraphEnd = currentPos + paragraphs[i].length;
+        if (from >= currentPos && from <= paragraphEnd) {
+          targetParagraphIndex = i;
+          break;
+        }
+        currentPos = paragraphEnd + 2; // +2 for \n\n
+      }
+
+      if (targetParagraphIndex === -1) targetParagraphIndex = 0;
+
+      // Calculate the actual document positions for the context block (±2 paragraphs)
+      const startIndex = Math.max(0, targetParagraphIndex - 2);
+      const endIndex = Math.min(paragraphs.length - 1, targetParagraphIndex + 2);
+      
+      // Calculate document positions
+      let blockStart = 0;
+      for (let i = 0; i < startIndex; i++) {
+        blockStart += paragraphs[i].length + 2; // +2 for \n\n
+      }
+      
+      let blockEnd = blockStart;
+      for (let i = startIndex; i <= endIndex; i++) {
+        blockEnd += paragraphs[i].length;
+        if (i < endIndex) blockEnd += 2; // +2 for \n\n
+      }
+
+      // Replace the entire context block with the rewritten version
+      editor.chain()
+        .focus()
+        .deleteRange({ from: blockStart, to: blockEnd })
+        .insertContent(mergeResponse.mergedText)
+        .run();
+
+      // Show notification
+      setNotification({
+        message: `Applied ${suggestion.type} suggestion with block rewrite`,
+        type: 'success',
+        timestamp: Date.now()
+      });
+
+      // Remove only this applied suggestion
+      removeSuggestion(suggestion.id);
+
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error applying block rewrite:', error);
+      
+      // Fallback to simple insertion if AI service fails
+      const { from, to } = editor.state.selection;
+      const isSelection = from !== to;
+      
+      if (isSelection) {
+        const selectedText = editor.state.doc.textBetween(from, to);
+        const mergedText = `${selectedText} ${suggestion.text}`;
+        editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
+      } else {
+        editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+      }
+
+      setNotification({
+        message: 'Applied suggestion with simple insertion (AI service unavailable)',
+        type: 'warning',
+        timestamp: Date.now()
+      });
+      
+      // Still remove the suggestion even if fallback was used
+      removeSuggestion(suggestion.id);
+      
+             setTimeout(() => {
+         setNotification(null);
+       }, 3000);
+     }
   };
 
   // Keyboard handlers
@@ -653,6 +763,18 @@ function ImmerseContent({
                     </p>
                   </div>
                 </div>
+              ) : enhancedSuggestions.length === 0 ? (
+                <div className="liquid-bubble">
+                  <div className="p-6 text-center">
+                    <div className="text-4xl mb-3">💡</div>
+                    <p className="text-text-tertiary text-sm mb-2">
+                      No suggestions available
+                    </p>
+                    <p className="text-text-quaternary text-xs">
+                      Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to generate AI suggestions
+                    </p>
+                  </div>
+                </div>
               ) : (
                 enhancedSuggestions.map((suggestion, idx) => {
                   const isInteracted = hoveredSuggestion === suggestion.id || dragState.draggedSuggestion?.id === suggestion.id;
@@ -676,6 +798,7 @@ function ImmerseContent({
                         onDragEnd={handleSuggestionDragEnd}
                         onHover={(id: string | null) => setHoveredSuggestion(id)}
                         isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
+                        onClick={handleSuggestionClick}
                       />
                     </div>
                   );
@@ -688,11 +811,12 @@ function ImmerseContent({
                 hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
               }`}>
                 <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                  ✨ <strong className="text-text-secondary">Drag bubbles to the writing area</strong> to see immediate changes<br/>
-                  🎨 <strong className="text-text-secondary">Each suggestion type</strong> adds different colored labels<br/>
-                  📝 <strong className="text-text-secondary">Select text first</strong> to merge intelligently<br/>
-                  💡 <strong className="text-text-secondary">Watch for notifications</strong> confirming what was added<br/>
-                  ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions
+                  ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to generate suggestions<br/>
+                  ✨ <strong className="text-text-secondary">Click bubbles</strong> for smart block rewrite (±2 paragraphs)<br/>
+                  🎨 <strong className="text-text-secondary">Drag bubbles to the editor</strong> for preview & fine control<br/>
+                  📝 <strong className="text-text-secondary">Position cursor</strong> where you want improvements<br/>
+                  💡 <strong className="text-text-secondary">Applied suggestions disappear</strong> automatically<br/>
+                  ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions panel
                 </p>
               </div>
           </div>
