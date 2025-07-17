@@ -10,6 +10,7 @@ interface EnhancedFloatingBubbleProps {
   onDragEnd?: () => void;
   onHover?: (id: string | null) => void;
   isActiveDrag?: boolean;
+  onClick?: (suggestion: EnhancedSuggestion) => void;
 }
 
 // Suggestion type icons and colors
@@ -37,7 +38,8 @@ export function EnhancedFloatingBubble({
   onDragStart,
   onDragEnd,
   onHover,
-  isActiveDrag = false
+  isActiveDrag = false,
+  onClick
 }: EnhancedFloatingBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [hoverDuration, setHoverDuration] = useState(0);
@@ -131,6 +133,7 @@ export function EnhancedFloatingBubble({
         setIsHovered(false);
         onHover?.(null);
       }}
+      onClick={() => onClick?.(suggestion)}
     >
       {/* Main Bubble Container */}
       <div className={`
@@ -166,6 +169,11 @@ export function EnhancedFloatingBubble({
           <p className="text-sm font-light leading-relaxed text-white/95 relative z-20 mb-3">
             {suggestion.text}
           </p>
+
+          {/* Click hint */}
+          <div className="text-xs text-white/50 mb-2">
+            Click to apply • Drag for preview
+          </div>
 
           {/* Metadata Footer */}
           <div className="flex items-center justify-between text-xs text-white/60">

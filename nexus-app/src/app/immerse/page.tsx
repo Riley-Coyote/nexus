@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, useRef, Dispatch, SetStateAction, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -18,7 +18,7 @@ import {
   ContentMergeRequest,
   UserEditingPreferences
 } from './types';
-import { MockAIContentProcessor, MOCK_ENHANCED_SUGGESTIONS } from './services/mockAIService';
+import { GeminiAIContentProcessor } from './services/geminiAIService';
 import { EnhancedFloatingBubble } from './components/EnhancedFloatingBubble';
 import { EnhancedContentPreview } from './components/EnhancedContentPreview';
 
@@ -32,69 +32,211 @@ export default function ImmersePage() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // API Key management
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
+  
   // Enhanced AI service
-  const aiServiceRef = useRef(new MockAIContentProcessor());
+  const aiServiceRef = useRef(new GeminiAIContentProcessor());
 
-  // Generate enhanced suggestions when content changes
+  // Update AI service with API key when it changes
   useEffect(() => {
-    const generateSuggestions = async () => {
-      if (!content.trim()) {
-        setEnhancedSuggestions([]);
-        return;
-      }
+    if (geminiApiKey) {
+      aiServiceRef.current.setApiKey(geminiApiKey);
+    }
+  }, [geminiApiKey]);
 
-      setIsLoadingSuggestions(true);
-      setError(null);
-
-      try {
-        // Create editor context for AI
-        const editorContext: EditorContext = {
-          currentParagraph: content.split('\n').pop() || '',
-          previousContext: content.substring(0, Math.max(0, content.length - 200)),
-          nextContext: '',
-          selectionRange: { from: 0, to: 0 },
-          cursorPosition: { line: 1, char: content.length },
-          documentStats: {
-            wordCount: content.split(/\s+/).length,
-            paragraphCount: content.split('\n').length,
-            estimatedReadingTime: Math.ceil(content.split(/\s+/).length / 200)
-          }
-        };
-
-        const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
-        setEnhancedSuggestions(suggestions);
-      } catch (err) {
-        setError('Failed to generate enhanced suggestions');
-        // Fallback to mock suggestions
-        setEnhancedSuggestions(MOCK_ENHANCED_SUGGESTIONS.slice(0, 4));
-      } finally {
-        setIsLoadingSuggestions(false);
-      }
-    };
-
-    const debounceTimer = setTimeout(generateSuggestions, 3000);
-    return () => clearTimeout(debounceTimer);
-  }, [content]);
+  // REMOVED: Automatic suggestion generation - now only triggered by CMD+J
 
   // Biometric update handler
   const handleBiometricUpdate = (signature: any) => {
     console.log('Biometric signature:', signature);
   };
 
+  // Handle API key submission
+  const handleApiKeySubmit = () => {
+    if (tempApiKey.trim()) {
+      setGeminiApiKey(tempApiKey.trim());
+      setShowApiKeyModal(false);
+      setTempApiKey('');
+    }
+  };
+
+  // Handle CMD+J for full-text suggestions
+  const handleCmdJSuggestions = useCallback(async () => {
+    if (isLoadingSuggestions) return;
+
+    // Check if API key is needed
+    if (!geminiApiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    setError(null);
+
+    try {
+      // Get full text content
+      if (!content.trim()) {
+        console.log('🔄 Clearing suggestions - no content');
+        setEnhancedSuggestions([]);
+        return;
+      }
+
+      // Create editor context for full document
+      const editorContext: EditorContext = {
+        currentParagraph: content.split('\n').pop() || '',
+        previousContext: content,
+        nextContext: '',
+        selectionRange: { from: 0, to: content.length },
+        cursorPosition: { line: 1, char: content.length },
+        documentStats: {
+          wordCount: content.split(/\s+/).length,
+          paragraphCount: content.split('\n').length,
+          estimatedReadingTime: Math.ceil(content.split(/\s+/).length / 200)
+        }
+      };
+
+      const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
+      console.log('🔄 Setting new suggestions from CMD+J, count:', suggestions.length);
+      setEnhancedSuggestions(suggestions);
+      
+      // Show suggestions panel if hidden
+      setShowSuggestions(true);
+      
+    } catch (err) {
+      console.error('Error generating CMD+J suggestions:', err);
+      setError('Failed to generate suggestions');
+      console.log('🔄 Clearing suggestions due to error');
+      setEnhancedSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }, [content, isLoadingSuggestions, geminiApiKey]);
+
+  // Function to remove a suggestion by ID
+  const removeSuggestion = (suggestionId: string) => {
+    console.log('🗑️ removeSuggestion called for ID:', suggestionId);
+    setEnhancedSuggestions(prev => {
+      console.log('📝 Before removal - suggestions count:', prev.length);
+      console.log('📝 Before removal - suggestion IDs:', prev.map(s => s.id));
+      const filtered = prev.filter(s => s.id !== suggestionId);
+      console.log('📝 After removal - suggestions count:', filtered.length);
+      console.log('📝 After removal - suggestion IDs:', filtered.map(s => s.id));
+      return filtered;
+    });
+  };
+
+  // Global keyboard handler
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key.toLowerCase() === 'j') {
+        handleCmdJSuggestions();
+        e.preventDefault();
+      }
+      // CMD+K to open API key modal
+      if (e.metaKey && e.key.toLowerCase() === 'k') {
+        setShowApiKeyModal(true);
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [handleCmdJSuggestions]);
+
   return (
-    <DndProvider backend={HTML5Backend}>
-      <ImmerseContent
-        content={content}
-        setContent={setContent}
-        showSuggestions={showSuggestions}
-        setShowSuggestions={setShowSuggestions}
-        enhancedSuggestions={enhancedSuggestions}
-        isLoadingSuggestions={isLoadingSuggestions}
-        error={error}
-        aiService={aiServiceRef.current}
-        onBiometricUpdate={handleBiometricUpdate}
-      />
-    </DndProvider>
+    <>
+      <DndProvider backend={HTML5Backend}>
+        <ImmerseContent
+          content={content}
+          setContent={setContent}
+          showSuggestions={showSuggestions}
+          setShowSuggestions={setShowSuggestions}
+          enhancedSuggestions={enhancedSuggestions}
+          isLoadingSuggestions={isLoadingSuggestions}
+          error={error}
+          aiService={aiServiceRef.current}
+          onBiometricUpdate={handleBiometricUpdate}
+          removeSuggestion={removeSuggestion}
+          hasApiKey={!!geminiApiKey}
+          onOpenApiKeyModal={() => setShowApiKeyModal(true)}
+        />
+      </DndProvider>
+
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
+          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <span className="text-2xl">🔑</span>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">Gemini API Key</h3>
+              <p className="text-sm text-white/70">
+                Enter your Gemini API key to enable AI suggestions
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <input
+                type="password"
+                value={tempApiKey}
+                onChange={(e) => setTempApiKey(e.target.value)}
+                placeholder="Enter your Gemini API key..."
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-400/50 focus:bg-white/15"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleApiKeySubmit();
+                  }
+                  if (e.key === 'Escape') {
+                    setShowApiKeyModal(false);
+                    setTempApiKey('');
+                  }
+                }}
+                autoFocus
+              />
+              <p className="text-xs text-white/50 mt-2">
+                Your API key will only be stored in memory for this session
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowApiKeyModal(false);
+                  setTempApiKey('');
+                }}
+                className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white/70 hover:bg-white/15 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApiKeySubmit}
+                disabled={!tempApiKey.trim()}
+                className="flex-1 px-4 py-2 bg-blue-500 border border-blue-400 rounded-lg text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Key
+              </button>
+            </div>
+
+            <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-400/30 rounded-lg">
+              <p className="text-xs text-yellow-200">
+                <strong>Tip:</strong> Get your free API key from{' '}
+                <a 
+                  href="https://makersuite.google.com/app/apikey" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="underline hover:text-yellow-100"
+                >
+                  Google AI Studio
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -106,8 +248,11 @@ interface ImmerseContentProps {
   enhancedSuggestions: EnhancedSuggestion[];
   isLoadingSuggestions: boolean;
   error: string | null;
-  aiService: MockAIContentProcessor;
+  aiService: GeminiAIContentProcessor;
   onBiometricUpdate: (signature: any) => void;
+  removeSuggestion: (suggestionId: string) => void;
+  hasApiKey: boolean;
+  onOpenApiKeyModal: () => void;
 }
 
 function ImmerseContent({
@@ -120,6 +265,9 @@ function ImmerseContent({
   error,
   aiService,
   onBiometricUpdate,
+  removeSuggestion,
+  hasApiKey,
+  onOpenApiKeyModal,
 }: ImmerseContentProps) {
   // Enhanced state management
   const [dragState, setDragState] = useState<DragState>({
@@ -167,6 +315,7 @@ function ImmerseContent({
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
+      console.log('📝 Editor content updated, new length:', html.length);
       setContent(html);
     },
   });
@@ -249,19 +398,23 @@ function ImmerseContent({
         return;
       }
 
-      // Get original content based on drop zone
+      // Get original content based on drop zone with enhanced context
       const { from, to } = editor.state.selection;
-      let originalContent = '';
+      const fullText = editor.state.doc.textContent;
       
+      // Extract contextual text (±2 paragraphs) around the drop zone
+      const contextualData = aiService.extractContextualText(fullText, { from, to });
+      
+      let originalContent = '';
       if (dropZone.context.selectedText) {
-        originalContent = dropZone.context.selectedText;
+        // Use selected text but include surrounding context for AI processing
+        originalContent = contextualData.fullContext;
       } else if (dropZone.type === 'paragraph') {
-        originalContent = dropZone.context.paragraphText || editor.state.doc.textBetween(from, to);
+        // Use the target paragraph plus context
+        originalContent = contextualData.fullContext;
       } else {
-        // Get some context around cursor
-        const contextStart = Math.max(0, from - 50);
-        const contextEnd = Math.min(editor.state.doc.content.size, to + 50);
-        originalContent = editor.state.doc.textBetween(contextStart, contextEnd);
+        // Default to contextual extraction
+        originalContent = contextualData.fullContext || editor.state.doc.textBetween(from, to);
       }
 
       console.log('Original content:', originalContent);
@@ -280,12 +433,13 @@ function ImmerseContent({
       console.log('Merge response:', mergeResponse);
 
       // Show content preview modal with diff
+      console.log('🎭 Creating content preview modal for suggestion:', suggestion.id);
       setContentPreview({
         originalContent,
         mergeResponse,
         suggestion,
         apply: () => {
-          console.log('Applying merge...');
+          console.log('🎯 Preview modal apply button clicked for suggestion:', suggestion.id);
           applyContentMerge(mergeResponse, dropZone);
           
           // Track the added content
@@ -308,6 +462,10 @@ function ImmerseContent({
             setRecentlyAdded(null);
             setNotification(null);
           }, 3000);
+
+          // Remove the applied suggestion
+          console.log('🎯 About to remove suggestion via drag & drop:', suggestion.id);
+          removeSuggestion(suggestion.id);
         }
       });
 
@@ -390,6 +548,8 @@ function ImmerseContent({
     }));
   };
 
+
+
   // Handle suggestion drag start
   const handleSuggestionDragStart = (suggestion: EnhancedSuggestion) => {
     console.log('Drag started with suggestion:', suggestion.text);
@@ -415,6 +575,146 @@ function ImmerseContent({
       isValidDrop: false
     }));
     setHoveredSuggestion(null); // Clear hover state when drag ends
+  };
+
+  // Handle suggestion click (direct application with block rewrite)
+  const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
+    if (!editorRef.current) return;
+
+    const editor = editorRef.current;
+    
+    try {
+      // Get current cursor position and document content
+      const { from, to } = editor.state.selection;
+      const fullText = editor.state.doc.textContent;
+
+      // Extract context around cursor position (±2 paragraphs)
+      const contextualData = aiService.extractContextualText(fullText, { from, to });
+      
+      console.log('Extracted context for click:', contextualData);
+
+      // Calculate line and char position for the cursor
+      const textBeforeCursor = fullText.slice(0, from);
+      const lines = textBeforeCursor.split('\n');
+      const line = lines.length;
+      const char = lines[lines.length - 1].length;
+
+      // Create a simplified drop zone for click application
+      const dropZone: DropZone = {
+        type: 'paragraph',
+        position: { line, char },
+        context: {
+          beforeText: contextualData.beforeContext,
+          selectedText: from !== to ? editor.state.doc.textBetween(from, to) : '',
+          afterText: contextualData.afterContext,
+          paragraphText: contextualData.targetText
+        },
+        suggestedAction: 'merge'
+      };
+
+      // Generate intelligent merge using AI service
+      const mergeRequest: ContentMergeRequest = {
+        originalText: contextualData.fullContext,
+        suggestion,
+        dropZone,
+        userPreferences: {
+          writingStyle: 'conversational',
+          preferredEditTypes: [suggestion.type],
+          boldnessLevel: 'moderate',
+          voicePreservation: 0.8
+        }
+      };
+
+      console.log('Calling AI service for block rewrite...');
+      const mergeResponse = await aiService.mergeContent(mergeRequest);
+      console.log('Block rewrite response:', mergeResponse);
+
+      // Apply the rewritten content
+      // Find the paragraph boundaries for the target paragraph
+      const paragraphs = fullText.split(/\n\s*\n/);
+      let currentPos = 0;
+      let targetParagraphIndex = -1;
+
+      // Find which paragraph contains our cursor
+      for (let i = 0; i < paragraphs.length; i++) {
+        const paragraphEnd = currentPos + paragraphs[i].length;
+        if (from >= currentPos && from <= paragraphEnd) {
+          targetParagraphIndex = i;
+          break;
+        }
+        currentPos = paragraphEnd + 2; // +2 for \n\n
+      }
+
+      if (targetParagraphIndex === -1) targetParagraphIndex = 0;
+
+      // Calculate the actual document positions for the context block (±2 paragraphs)
+      const startIndex = Math.max(0, targetParagraphIndex - 2);
+      const endIndex = Math.min(paragraphs.length - 1, targetParagraphIndex + 2);
+      
+      // Calculate document positions
+      let blockStart = 0;
+      for (let i = 0; i < startIndex; i++) {
+        blockStart += paragraphs[i].length + 2; // +2 for \n\n
+      }
+      
+      let blockEnd = blockStart;
+      for (let i = startIndex; i <= endIndex; i++) {
+        blockEnd += paragraphs[i].length;
+        if (i < endIndex) blockEnd += 2; // +2 for \n\n
+      }
+
+      // Replace the entire context block with the rewritten version
+      editor.chain()
+        .focus()
+        .deleteRange({ from: blockStart, to: blockEnd })
+        .insertContent(mergeResponse.mergedText)
+        .run();
+
+      // Show notification
+      setNotification({
+        message: `Applied ${suggestion.type} suggestion with block rewrite`,
+        type: 'success',
+        timestamp: Date.now()
+      });
+
+      // Remove only this applied suggestion
+      console.log('🎯 About to remove suggestion via click:', suggestion.id);
+      removeSuggestion(suggestion.id);
+
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error applying block rewrite:', error);
+      
+      // Fallback to simple insertion if AI service fails
+      const { from, to } = editor.state.selection;
+      const isSelection = from !== to;
+      
+      if (isSelection) {
+        const selectedText = editor.state.doc.textBetween(from, to);
+        const mergedText = `${selectedText} ${suggestion.text}`;
+        editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
+      } else {
+        editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+      }
+
+      setNotification({
+        message: 'Applied suggestion with simple insertion (AI service unavailable)',
+        type: 'warning',
+        timestamp: Date.now()
+      });
+      
+      // Still remove the suggestion even if fallback was used
+      console.log('🎯 About to remove suggestion via click fallback:', suggestion.id);
+      removeSuggestion(suggestion.id);
+      
+             setTimeout(() => {
+         setNotification(null);
+       }, 3000);
+     }
   };
 
   // Keyboard handlers
@@ -579,6 +879,24 @@ function ImmerseContent({
               WebkitTransform: showSuggestions ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
             }}
           >
+            {/* API Key Status Indicator */}
+            <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-green-400' : 'bg-orange-400'}`}></div>
+                  <span className="text-xs text-white/70">
+                    {hasApiKey ? 'Gemini API Connected' : 'API Key Required'}
+                  </span>
+                </div>
+                <button
+                  onClick={onOpenApiKeyModal}
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                >
+                  {hasApiKey ? 'Change' : 'Set Key'}
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-6">
               {error ? (
                 <div className="liquid-bubble error-bubble">
@@ -590,6 +908,24 @@ function ImmerseContent({
                     <p className="text-text-tertiary text-sm animate-pulse">
                       🧠 Generating intelligent suggestions...
                     </p>
+                  </div>
+                </div>
+              ) : enhancedSuggestions.length === 0 ? (
+                <div className="liquid-bubble">
+                  <div className="p-6 text-center">
+                    <div className="text-4xl mb-3">💡</div>
+                    <p className="text-text-tertiary text-sm mb-2">
+                      No suggestions available
+                    </p>
+                    {hasApiKey ? (
+                      <p className="text-text-quaternary text-xs">
+                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to generate AI suggestions
+                      </p>
+                    ) : (
+                      <p className="text-text-quaternary text-xs">
+                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+K</kbd> to set API key, then <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> for suggestions
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -615,6 +951,7 @@ function ImmerseContent({
                         onDragEnd={handleSuggestionDragEnd}
                         onHover={(id: string | null) => setHoveredSuggestion(id)}
                         isActiveDrag={dragState.draggedSuggestion?.id === suggestion.id}
+                        onClick={handleSuggestionClick}
                       />
                     </div>
                   );
@@ -627,11 +964,13 @@ function ImmerseContent({
                 hoveredSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
               }`}>
                 <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                  ✨ <strong className="text-text-secondary">Drag bubbles to the writing area</strong> to see immediate changes<br/>
-                  🎨 <strong className="text-text-secondary">Each suggestion type</strong> adds different colored labels<br/>
-                  📝 <strong className="text-text-secondary">Select text first</strong> to merge intelligently<br/>
-                  💡 <strong className="text-text-secondary">Watch for notifications</strong> confirming what was added<br/>
-                  ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions
+                  ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to generate suggestions<br/>
+                  ✨ <strong className="text-text-secondary">Click bubbles</strong> for smart block rewrite (±2 paragraphs)<br/>
+                  🎨 <strong className="text-text-secondary">Drag bubbles to the editor</strong> for preview & fine control<br/>
+                  📝 <strong className="text-text-secondary">Position cursor</strong> where you want improvements<br/>
+                  🔑 <strong className="text-text-secondary">Cmd+K</strong> to set Gemini API key<br/>
+                  💡 <strong className="text-text-secondary">Applied suggestions disappear</strong> automatically<br/>
+                  ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to toggle suggestions panel
                 </p>
               </div>
           </div>
