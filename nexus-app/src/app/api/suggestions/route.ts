@@ -9,14 +9,24 @@ export async function POST(request: Request) {
   
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `You are an AI writing assistant. Provide 4 helpful suggestions to improve or expand the user's journal entry. Current entry: ${content.substring(0, 1000)}`
+              text: `You are an AI writing assistant for a reflective journal. Analyze the content and provide exactly 4 concise, actionable suggestions to enhance the writing. Each suggestion should be one clear sentence that can be directly integrated.
+
+Current journal entry: ${content.substring(0, 2000)}
+
+Provide suggestions that:
+1. Enhance clarity or depth
+2. Add specific examples or connections
+3. Improve flow or structure
+4. Expand on interesting ideas
+
+Format: Return each suggestion on a new line, no numbering or bullets.`
             }]
           }]
         })

@@ -18,7 +18,7 @@ import {
   ContentMergeRequest,
   UserEditingPreferences
 } from './types';
-import { MockAIContentProcessor, MOCK_ENHANCED_SUGGESTIONS } from './services/mockAIService';
+import { GeminiAIContentProcessor } from './services/geminiAIService';
 import { EnhancedFloatingBubble } from './components/EnhancedFloatingBubble';
 import { EnhancedContentPreview } from './components/EnhancedContentPreview';
 
@@ -33,7 +33,7 @@ export default function ImmersePage() {
   const [error, setError] = useState<string | null>(null);
   
   // Enhanced AI service
-  const aiServiceRef = useRef(new MockAIContentProcessor());
+  const aiServiceRef = useRef(new GeminiAIContentProcessor());
 
   // Generate enhanced suggestions when content changes
   useEffect(() => {
@@ -65,8 +65,8 @@ export default function ImmersePage() {
         setEnhancedSuggestions(suggestions);
       } catch (err) {
         setError('Failed to generate enhanced suggestions');
-        // Fallback to mock suggestions
-        setEnhancedSuggestions(MOCK_ENHANCED_SUGGESTIONS.slice(0, 4));
+        // Fallback to empty suggestions
+        setEnhancedSuggestions([]);
       } finally {
         setIsLoadingSuggestions(false);
       }
@@ -80,6 +80,61 @@ export default function ImmersePage() {
   const handleBiometricUpdate = (signature: any) => {
     console.log('Biometric signature:', signature);
   };
+
+  // Handle CMD+J for full-text suggestions
+  const handleCmdJSuggestions = async () => {
+    if (isLoadingSuggestions) return;
+
+    setIsLoadingSuggestions(true);
+    setError(null);
+
+    try {
+      // Get full text content
+      if (!content.trim()) {
+        setEnhancedSuggestions([]);
+        return;
+      }
+
+      // Create editor context for full document
+      const editorContext: EditorContext = {
+        currentParagraph: content.split('\n').pop() || '',
+        previousContext: content,
+        nextContext: '',
+        selectionRange: { from: 0, to: content.length },
+        cursorPosition: { line: 1, char: content.length },
+        documentStats: {
+          wordCount: content.split(/\s+/).length,
+          paragraphCount: content.split('\n').length,
+          estimatedReadingTime: Math.ceil(content.split(/\s+/).length / 200)
+        }
+      };
+
+      const suggestions = await aiServiceRef.current.generateSuggestions(editorContext);
+      setEnhancedSuggestions(suggestions);
+      
+      // Show suggestions panel if hidden
+      setShowSuggestions(true);
+      
+    } catch (err) {
+      console.error('Error generating CMD+J suggestions:', err);
+      setError('Failed to generate suggestions');
+      setEnhancedSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // Global keyboard handler
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key.toLowerCase() === 'j') {
+        handleCmdJSuggestions();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [content, isLoadingSuggestions]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -106,7 +161,7 @@ interface ImmerseContentProps {
   enhancedSuggestions: EnhancedSuggestion[];
   isLoadingSuggestions: boolean;
   error: string | null;
-  aiService: MockAIContentProcessor;
+  aiService: GeminiAIContentProcessor;
   onBiometricUpdate: (signature: any) => void;
 }
 
@@ -249,19 +304,23 @@ function ImmerseContent({
         return;
       }
 
-      // Get original content based on drop zone
+      // Get original content based on drop zone with enhanced context
       const { from, to } = editor.state.selection;
-      let originalContent = '';
+      const fullText = editor.state.doc.textContent;
       
+      // Extract contextual text (±2 paragraphs) around the drop zone
+      const contextualData = aiService.extractContextualText(fullText, { from, to });
+      
+      let originalContent = '';
       if (dropZone.context.selectedText) {
-        originalContent = dropZone.context.selectedText;
+        // Use selected text but include surrounding context for AI processing
+        originalContent = contextualData.fullContext;
       } else if (dropZone.type === 'paragraph') {
-        originalContent = dropZone.context.paragraphText || editor.state.doc.textBetween(from, to);
+        // Use the target paragraph plus context
+        originalContent = contextualData.fullContext;
       } else {
-        // Get some context around cursor
-        const contextStart = Math.max(0, from - 50);
-        const contextEnd = Math.min(editor.state.doc.content.size, to + 50);
-        originalContent = editor.state.doc.textBetween(contextStart, contextEnd);
+        // Default to contextual extraction
+        originalContent = contextualData.fullContext || editor.state.doc.textBetween(from, to);
       }
 
       console.log('Original content:', originalContent);
@@ -389,6 +448,8 @@ function ImmerseContent({
       hoverTime: prev.hoverTime + 50
     }));
   };
+
+
 
   // Handle suggestion drag start
   const handleSuggestionDragStart = (suggestion: EnhancedSuggestion) => {
