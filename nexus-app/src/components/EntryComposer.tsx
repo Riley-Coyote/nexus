@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Globe } from 'lucide-react';
+import { Globe, Atom } from 'lucide-react';
 import { debounce } from '@/lib/utils/performance';
 import RichTextEditor from './RichTextEditor';
 
@@ -165,8 +165,9 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
             <button
               type="button"
               onClick={handleImmerseClick}
-              className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-white/10 text-text-secondary hover:bg-white/20"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-white/10 text-text-secondary hover:bg-white/20 hover:scale-105"
             >
+              <Atom className="w-4 h-4" />
               Immerse
             </button>
 
