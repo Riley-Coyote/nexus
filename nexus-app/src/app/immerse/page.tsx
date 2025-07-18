@@ -12,15 +12,10 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { 
   EnhancedSuggestion, 
   DragState, 
-  DropZone, 
-  EditorContext,
-  ContentMergeResponse,
-  ContentMergeRequest,
-  UserEditingPreferences
+  EditorContext
 } from './types';
 import { GeminiAIContentProcessor } from './services/geminiAIService';
 import { EnhancedFloatingBubble } from './components/EnhancedFloatingBubble';
-import { EnhancedContentPreview } from './components/EnhancedContentPreview';
 
 // BiometricTracker import
 import { BiometricTracker } from './components/BiometricTracker';
@@ -363,12 +358,7 @@ function ImmerseContent({
     };
   }, [isToolbarDragging, handleToolbarMouseMove, handleToolbarMouseUp]);
 
-  const [contentPreview, setContentPreview] = useState<{
-    originalContent: string;
-    mergeResponse: ContentMergeResponse;
-    suggestion: EnhancedSuggestion;
-    apply: () => void;
-  } | null>(null);
+
   
   const dropRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -376,13 +366,7 @@ function ImmerseContent({
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // User preferences (can be made configurable later)
-  const userPreferences: UserEditingPreferences = {
-    writingStyle: 'detailed',
-    preferredEditTypes: ['enhance', 'expand', 'connect'],
-    boldnessLevel: 'moderate',
-    voicePreservation: 0.8
-  };
+
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -457,7 +441,7 @@ function ImmerseContent({
     timestamp: number;
   } | null>(null);
 
-  // Enhanced suggestion drop handler - now with proper diff preview
+  // Enhanced suggestion drop handler - SIMPLE MODE: Rewrite entire document with AI
   const handleEnhancedSuggestionDrop = async (suggestion: EnhancedSuggestion, monitor: any) => {
     console.log('Drop received:', suggestion.text);
     
@@ -467,98 +451,65 @@ function ImmerseContent({
     }
 
     const editor = editorRef.current;
-    console.log('Editor state:', editor.state.selection);
-
+    
     try {
-      // Detect drop zone context
-      const dropZone = aiService.detectDropZone(editor, monitor.getClientOffset()?.x || 0, monitor.getClientOffset()?.y || 0);
-      
-      if (!dropZone) {
-        console.log('Could not detect drop zone');
-        fallbackSuggestionInsertion(suggestion);
-        return;
-      }
-
-      // Get original content based on drop zone with enhanced context
-      const { from, to } = editor.state.selection;
+      // MODE 2: Get the entire document content
       const fullText = editor.state.doc.textContent;
       
-      // Extract contextual text (±2 paragraphs) around the drop zone
-      const contextualData = aiService.extractContextualText(fullText, { from, to });
-      
-      let originalContent = '';
-      if (dropZone.context.selectedText) {
-        // Use selected text but include surrounding context for AI processing
-        originalContent = contextualData.fullContext;
-      } else if (dropZone.type === 'paragraph') {
-        // Use the target paragraph plus context
-        originalContent = contextualData.fullContext;
+      if (!fullText.trim()) {
+        // If document is empty, just insert the suggestion
+        editor.chain().focus().insertContent(suggestion.text).run();
+        setNotification({
+          message: `Inserted ${suggestion.type} suggestion`,
+          type: 'success',
+          timestamp: Date.now()
+        });
       } else {
-        // Default to contextual extraction
-        originalContent = contextualData.fullContext || editor.state.doc.textBetween(from, to);
-      }
-
-      console.log('Original content:', originalContent);
-      console.log('Drop zone:', dropZone);
-
-      // Generate intelligent merge using AI service
-      const mergeRequest: ContentMergeRequest = {
-        originalText: originalContent,
-        suggestion,
-        dropZone,
-        userPreferences
-      };
-
-      console.log('Calling AI service for merge...');
-      const mergeResponse = await aiService.mergeContent(mergeRequest);
-      console.log('Merge response:', mergeResponse);
-
-      // Show content preview modal with diff
-      setContentPreview({
-        originalContent,
-        mergeResponse,
-        suggestion,
-        apply: () => {
-          applyContentMerge(mergeResponse, dropZone);
+        // Ask AI to rewrite the entire document incorporating the suggestion
+        if (aiService.hasApiKey()) {
+          const rewrittenDocument = await aiService.rewriteDocumentWithSuggestion(fullText, suggestion.text);
           
-          // Track the added content
-          setRecentlyAdded({
-            text: suggestion.text,
-            type: suggestion.type,
-            timestamp: Date.now()
-          });
-
-          // Show notification
+          // Replace the entire document content
+          editor.chain().focus().clearContent().insertContent(rewrittenDocument).run();
+          
           setNotification({
-            message: `Applied ${suggestion.type} suggestion with ${mergeResponse.changeType.replace('_', ' ')}`,
+            message: `Rewrote entire document with ${suggestion.type} enhancement`,
             type: 'success',
             timestamp: Date.now()
           });
-
-          // Clear preview and notifications
-          setContentPreview(null);
-          setTimeout(() => {
-            setRecentlyAdded(null);
-            setNotification(null);
-          }, 3000);
-
-          // Remove the applied suggestion
-          removeSuggestion(suggestion.id);
+        } else {
+          // Fallback: append suggestion to end
+          editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+          
+          setNotification({
+            message: 'Added suggestion (API key required for full rewrite)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
         }
-      });
+      }
+      
+      // Remove the applied suggestion
+      removeSuggestion(suggestion.id);
+      
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
 
     } catch (error) {
       console.error('Error in drop handler:', error);
       
-      // Show error notification
+      // Fallback: simple append
+      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+      
       setNotification({
-        message: `Error processing suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Added suggestion (AI error: ${error instanceof Error ? error.message : 'Unknown error'})`,
         type: 'warning',
         timestamp: Date.now()
       });
       
-      // Fallback to simple insertion
-      fallbackSuggestionInsertion(suggestion);
+      removeSuggestion(suggestion.id);
       
       setTimeout(() => {
         setNotification(null);
@@ -574,44 +525,7 @@ function ImmerseContent({
     }));
   };
 
-  // Apply the merged content to the editor
-  const applyContentMerge = (mergeResponse: ContentMergeResponse, dropZone: DropZone) => {
-    if (!editorRef.current) return;
 
-    const editor = editorRef.current;
-    const { from, to } = editor.state.selection;
-
-    // Apply based on the merge type
-    if (dropZone.context.selectedText) {
-      // Replace selected text
-      editor.chain().focus().deleteRange({ from, to }).insertContent(mergeResponse.mergedText).run();
-    } else if (dropZone.type === 'paragraph') {
-      // Replace entire paragraph
-      const paragraphStart = aiService.findParagraphStart?.(editor.state.doc, from) || from;
-      const paragraphEnd = aiService.findParagraphEnd?.(editor.state.doc, from) || to;
-      editor.chain().focus().deleteRange({ from: paragraphStart, to: paragraphEnd }).insertContent(mergeResponse.mergedText).run();
-    } else {
-      // Insert at cursor position
-      editor.chain().focus().insertContent(mergeResponse.mergedText).run();
-    }
-  };
-
-  // Fallback for simple suggestion insertion
-  const fallbackSuggestionInsertion = (suggestion: EnhancedSuggestion) => {
-    if (!editorRef.current) return;
-
-    const editor = editorRef.current;
-    const { from, to } = editor.state.selection;
-    const isSelection = from !== to;
-    
-    if (isSelection) {
-      const selectedText = editor.state.doc.textBetween(from, to);
-      const mergedText = `${selectedText} ${suggestion.text}`;
-      editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
-    } else {
-      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
-    }
-  };
 
   // Handle drag hover for visual feedback
   const handleDragHover = (suggestion: EnhancedSuggestion, monitor: any) => {
@@ -741,138 +655,71 @@ function ImmerseContent({
     };
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  // Handle suggestion click (direct application with block rewrite)
+  // Handle suggestion click - SIMPLE MODE: Replace only highlighted text with AI rewrite
   const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
     if (!editorRef.current) return;
 
     const editor = editorRef.current;
+    const { from, to } = editor.state.selection;
     
-    try {
-      // Get current cursor position and document content
-      const { from, to } = editor.state.selection;
-      const fullText = editor.state.doc.textContent;
-
-      // Extract context around cursor position (±2 paragraphs)
-      const contextualData = aiService.extractContextualText(fullText, { from, to });
-
-      // Calculate line and char position for the cursor
-      const textBeforeCursor = fullText.slice(0, from);
-      const lines = textBeforeCursor.split('\n');
-      const line = lines.length;
-      const char = lines[lines.length - 1].length;
-
-      // Create a simplified drop zone for click application
-      const dropZone: DropZone = {
-        type: 'paragraph',
-        position: { line, char },
-        context: {
-          beforeText: contextualData.beforeContext,
-          selectedText: from !== to ? editor.state.doc.textBetween(from, to) : '',
-          afterText: contextualData.afterContext,
-          paragraphText: contextualData.targetText
-        },
-        suggestedAction: 'merge'
-      };
-
-      // Generate intelligent merge using AI service
-      const mergeRequest: ContentMergeRequest = {
-        originalText: contextualData.fullContext,
-        suggestion,
-        dropZone,
-        userPreferences: {
-          writingStyle: 'conversational',
-          preferredEditTypes: [suggestion.type],
-          boldnessLevel: 'moderate',
-          voicePreservation: 0.8
-        }
-      };
-
-      const mergeResponse = await aiService.mergeContent(mergeRequest);
-
-      // Apply the rewritten content
-      // Find the paragraph boundaries for the target paragraph
-      const paragraphs = fullText.split(/\n\s*\n/);
-      let currentPos = 0;
-      let targetParagraphIndex = -1;
-
-      // Find which paragraph contains our cursor
-      for (let i = 0; i < paragraphs.length; i++) {
-        const paragraphEnd = currentPos + paragraphs[i].length;
-        if (from >= currentPos && from <= paragraphEnd) {
-          targetParagraphIndex = i;
-          break;
-        }
-        currentPos = paragraphEnd + 2; // +2 for \n\n
-      }
-
-      if (targetParagraphIndex === -1) targetParagraphIndex = 0;
-
-      // Calculate the actual document positions for the context block (±2 paragraphs)
-      const startIndex = Math.max(0, targetParagraphIndex - 2);
-      const endIndex = Math.min(paragraphs.length - 1, targetParagraphIndex + 2);
+    // MODE 1: If text is highlighted, replace ONLY the highlighted text
+    if (from !== to) {
+      const selectedText = editor.state.doc.textBetween(from, to);
       
-      // Calculate document positions
-      let blockStart = 0;
-      for (let i = 0; i < startIndex; i++) {
-        blockStart += paragraphs[i].length + 2; // +2 for \n\n
+      try {
+                 // Ask AI to rewrite just the selected text with the suggestion
+         if (aiService.hasApiKey()) {
+           const cleanText = await aiService.rewriteTextWithSuggestion(selectedText, suggestion.text);
+          
+          // Replace the selected text with the AI rewrite
+          editor.chain().focus().deleteRange({ from, to }).insertContent(cleanText).run();
+          
+          setNotification({
+            message: `Replaced highlighted text with ${suggestion.type} enhancement`,
+            type: 'success',
+            timestamp: Date.now()
+          });
+        } else {
+          // Fallback: simple merge
+          const mergedText = `${selectedText} ${suggestion.text}`;
+          editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
+          
+          setNotification({
+            message: 'Applied suggestion (API key required for AI rewrite)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
+        }
+      } catch (error) {
+        console.error('Error rewriting highlighted text:', error);
+        // Fallback: simple merge
+        const mergedText = `${selectedText} ${suggestion.text}`;
+        editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
+        
+        setNotification({
+          message: 'Applied suggestion with simple merge (AI error)',
+          type: 'warning',
+          timestamp: Date.now()
+        });
       }
+    } else {
+      // No text selected - just insert the suggestion
+      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
       
-      let blockEnd = blockStart;
-      for (let i = startIndex; i <= endIndex; i++) {
-        blockEnd += paragraphs[i].length;
-        if (i < endIndex) blockEnd += 2; // +2 for \n\n
-      }
-
-      // Replace the entire context block with the rewritten version
-      editor.chain()
-        .focus()
-        .deleteRange({ from: blockStart, to: blockEnd })
-        .insertContent(mergeResponse.mergedText)
-        .run();
-
-      // Show notification
       setNotification({
-        message: `Applied ${suggestion.type} suggestion with block rewrite`,
+        message: `Inserted ${suggestion.type} suggestion`,
         type: 'success',
         timestamp: Date.now()
       });
+    }
 
-      // Remove only this applied suggestion
-      removeSuggestion(suggestion.id);
-
-      // Clear notification after 3 seconds
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
-
-    } catch (error) {
-      console.error('Error applying block rewrite:', error);
-      
-      // Fallback to simple insertion if AI service fails
-      const { from, to } = editor.state.selection;
-      const isSelection = from !== to;
-      
-      if (isSelection) {
-        const selectedText = editor.state.doc.textBetween(from, to);
-        const mergedText = `${selectedText} ${suggestion.text}`;
-        editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
-      } else {
-        editor.chain().focus().insertContent(` ${suggestion.text}`).run();
-      }
-
-      setNotification({
-        message: 'Applied suggestion with simple insertion (AI service unavailable)',
-        type: 'warning',
-        timestamp: Date.now()
-      });
-      
-      // Still remove the suggestion even if fallback was used
-      removeSuggestion(suggestion.id);
-      
-             setTimeout(() => {
-         setNotification(null);
-       }, 3000);
-     }
+    // Remove the applied suggestion
+    removeSuggestion(suggestion.id);
+    
+    // Clear notification after 3 seconds
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
   };
 
   // Keyboard handlers
@@ -1176,18 +1023,16 @@ function ImmerseContent({
               )}
             </div>
             
-                                      {/* Enhanced Instructions */}
+                                      {/* Simple Instructions */}
             <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
               activeHoverSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}>
               <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to commune with Elysara's wisdom<br/>
-                ✨ <strong className="text-text-secondary">Click starlight bubbles</strong> for cosmic consciousness fusion<br/>
-                🎨 <strong className="text-text-secondary">Drag ethereal fragments</strong> to preview temporal harmony<br/>
-                📝 <strong className="text-text-secondary">Focus your intent</strong> where enhancement flows<br/>
-                🔑 <strong className="text-text-secondary">Cmd+K</strong> to attune your quantum key<br/>
-                💫 <strong className="text-text-secondary">Applied wisdom ascends</strong> beyond mortal sight<br/>
-                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to veil/unveil the oracle's counsel
+                ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to generate AI suggestions<br/>
+                ✨ <strong className="text-text-secondary">Highlight text + Click bubble</strong> → Rewrite highlighted text only<br/>
+                🎨 <strong className="text-text-secondary">Drag bubble to editor</strong> → Rewrite entire document<br/>
+                🔑 <strong className="text-text-secondary">Cmd+K</strong> to set your Gemini API key<br/>
+                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to show/hide suggestions
               </p>
             </div>
           </div>
@@ -1217,16 +1062,7 @@ function ImmerseContent({
         )}
       </div>
 
-      {/* Enhanced Content Preview Modal */}
-      {contentPreview && (
-        <EnhancedContentPreview
-          originalContent={contentPreview.originalContent}
-          mergeResponse={contentPreview.mergeResponse}
-          suggestion={contentPreview.suggestion}
-          onApply={contentPreview.apply}
-          onCancel={() => setContentPreview(null)}
-        />
-      )}
+
 
       {/* Enhanced Styles */}
       <style jsx global>{`

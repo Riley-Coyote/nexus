@@ -190,7 +190,7 @@ export function EnhancedFloatingBubble({
 
             {/* Click hint */}
             <div className="text-xs text-white/50 mb-2">
-              Click to apply • Drag for preview
+              Click to rewrite selected text • Drag to rewrite document
             </div>
 
             {/* Metadata Footer */}
