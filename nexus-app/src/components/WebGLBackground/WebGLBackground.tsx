@@ -66,18 +66,22 @@ const throttle = (func: Function, delay: number) => {
 export default function WebGLBackground({ className = '' }: WebGLBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pathname = usePathname();
+  const skipRender = pathname?.startsWith('/immerse');
   const [isVisible, setIsVisible] = useState(true);
   const lastInteractionRef = useRef(Date.now()); // Use ref instead of state to avoid closure issues
-  
-  // Don't render on /immerse path
-  if (pathname?.startsWith('/immerse')) {
-    console.log('🚫 WebGL Background: Skipping /immerse route');
-    return null;
-  }
-
-  console.log('🌌 WebGL Background: Component mounting for path:', pathname);
 
   useEffect(() => {
+    if (skipRender) {
+      // If we're skipping render, there's nothing to initialize but we still want previous
+      // resources (if any) disposed. Returning here ensures cleanup from the prior effect run.
+      console.log('🚫 WebGL Background: Skipping /immerse route – cleaning up WebGL resources');
+      return () => {
+        /* No-op – prior cleanup handled by previous return function */
+      };
+    }
+
+    console.log('🌌 WebGL Background: Initializing WebGL for path:', pathname);
+
     let scene: any, camera: any, renderer: any, material: any, mesh: any;
     let uniforms: any;
     let animationId: number;
@@ -316,21 +320,17 @@ export default function WebGLBackground({ className = '' }: WebGLBackgroundProps
           
           // Always render when should render OR during initial startup
           if ((shouldRender || !isShaderReady) && renderer && scene && camera) {
-            // Render first to ensure shader compilation
+            // Now render the frame (u_time will be updated in onBeforeRender)
             renderer.render(scene, camera);
-            
-            // Update uniforms once the shader is confirmed ready
-            if (isShaderReady && uniforms) {
-              try {
-                uniforms.u_time.value = clock.getElapsedTime() * 1000;
-              } catch (error) {
-                console.warn('WebGL uniform update failed:', error);
-                // Attempt to re-validate shader on error
-                isShaderReady = validateShaderProgram();
-              }
-            }
           }
         }
+
+        // Update u_time each frame just-in-time before the shader uses the program.
+        mesh.onBeforeRender = () => {
+          if (isShaderReady && uniforms) {
+            uniforms.u_time.value = clock.getElapsedTime() * 1000;
+          }
+        };
 
         // Start animation
         animate();
@@ -340,6 +340,8 @@ export default function WebGLBackground({ className = '' }: WebGLBackgroundProps
           if (validateShaderProgram()) {
             isShaderReady = true;
             console.log(`✅ WebGL Background: Shader compiled successfully (${performanceLevel} quality)`);
+
+            // (Removed explicit renderer.compile call to keep program and uniform locations stable)
           } else {
             // Retry after a short delay
             setTimeout(checkShaderReady, 50);
@@ -428,7 +430,11 @@ export default function WebGLBackground({ className = '' }: WebGLBackgroundProps
         cleanupFn();
       }
     };
-  }, []);
+  }, [skipRender, pathname]);
+
+  if (skipRender) {
+    return null;
+  }
 
   return (
     <>

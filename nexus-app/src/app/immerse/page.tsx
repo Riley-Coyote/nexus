@@ -24,10 +24,26 @@ import { BiometricTracker } from './components/BiometricTracker';
 // NEW: Import for entry submission
 import { dataService } from '@/lib/services/dataService';
 import { useAuth } from '@/hooks/useAuth';
+import Header from '@/components/Header';
+import { JournalMode, ViewMode } from '@/lib/types';
+
+// Utility throttle to optimize mousemove handler
+const throttle = (fn: (...args: any[]) => void, limit: number) => {
+  let inThrottle: boolean;
+  return function(this: any, ...args: any[]) {
+    if (!inThrottle) {
+      fn.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+};
 
 export default function ImmersePage() {
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showNav, setShowNav] = useState(false);
+  const navRef = useRef<HTMLDivElement | null>(null);
   const [enhancedSuggestions, setEnhancedSuggestions] = useState<EnhancedSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,8 +163,42 @@ export default function ImmersePage() {
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [handleCmdJSuggestions]);
 
+  /* ---------------- Navigation reveal / hide logic ---------------- */
+  useEffect(() => {
+    const handleMouseMove = throttle((e: MouseEvent) => {
+      const y = e.clientY;
+      const navHeight = navRef.current?.offsetHeight || 80;
+
+      if (y <= 10) {
+        // Near top edge – reveal nav
+        setShowNav(true);
+      } else if (y > navHeight + 20) {
+        // Moved away – hide nav
+        setShowNav(false);
+      }
+    }, 50); // 20fps throttling
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   return (
     <>
+      {/* Edge-reveal Navigation Bar */}
+      <div
+        ref={navRef}
+        className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 backdrop-blur-md bg-black/30 ${
+          showNav ? 'translate-y-0' : '-translate-y-full'
+        }`}
+        onMouseLeave={() => setShowNav(false)}
+      >
+        <Header
+          currentMode={'logbook'}
+          currentView={'feed' as ViewMode}
+          currentUser={user || undefined}
+          hideNavigation={false}
+        />
+      </div>
       <DndProvider backend={HTML5Backend}>
         <ImmerseContent
           content={content}
