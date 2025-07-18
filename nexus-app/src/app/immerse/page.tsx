@@ -271,13 +271,18 @@ export default function ImmersePage() {
 
       {/* API Key Modal */}
       {showApiKeyModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
+        <div 
+          className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="api-key-modal-title"
+        >
           <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="text-center mb-6">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
                 <span className="text-2xl">🔑</span>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Gemini API Key</h3>
+              <h3 id="api-key-modal-title" className="text-xl font-semibold text-white mb-2">Gemini API Key</h3>
               <p className="text-sm text-white/70">
                 Enter your Gemini API key to enable AI suggestions
               </p>
@@ -448,13 +453,18 @@ function EntryCreationModal({ isOpen, onClose, currentContent, user }: EntryCrea
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="entry-creation-title"
+    >
       <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="text-center mb-6">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-500/20 flex items-center justify-center">
             <span className="text-2xl">✨</span>
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">Create New Entry</h3>
+          <h3 id="entry-creation-title" className="text-xl font-semibold text-white mb-2">Create New Entry</h3>
           <p className="text-sm text-white/70">
             Capture your thoughts, insights, or dream experiences
           </p>

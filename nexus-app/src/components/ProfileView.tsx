@@ -796,11 +796,16 @@ export default function ProfileView({
 
       {/* Profile Image Upload Modal */}
       {showProfileImageUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="image-upload-title"
+        >
           <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-md border border-white/20 rounded-3xl p-8 max-w-lg w-full shadow-2xl shadow-black/50">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xl font-semibold text-gray-100">Update Profile Image</h3>
+                <h3 id="image-upload-title" className="text-xl font-semibold text-gray-100">Update Profile Image</h3>
                 <p className="text-sm text-gray-400 mt-1">Upload a new profile photo</p>
               </div>
               <button

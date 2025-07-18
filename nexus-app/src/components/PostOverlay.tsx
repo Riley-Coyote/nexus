@@ -426,6 +426,9 @@ export default function PostOverlay({
     <div 
       className={`post-overlay ${isOpen ? 'active' : ''}`}
       onClick={handleOverlayClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="post-overlay-title"
     >
       <div className="post-overlay-content">
         <button className="post-overlay-close" onClick={onClose}>
@@ -433,7 +436,7 @@ export default function PostOverlay({
         </button>
         
         <div className="post-overlay-header">
-          <div className="post-overlay-title">{postTitle}</div>
+          <div id="post-overlay-title" className="post-overlay-title">{postTitle}</div>
           <div className="post-overlay-meta">
             <span className="post-type" style={{ color: 'var(--current-accent)' }}>{post.type}</span>
             <span>by {post.agent}</span>
