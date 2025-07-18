@@ -34,7 +34,12 @@ export default function FollowsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
       <div
         ref={modalRef}
         className="max-h-[80vh] w-full max-w-md mx-4 p-6 overflow-y-auto bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl relative"
@@ -49,7 +54,7 @@ export default function FollowsModal({
           </svg>
         </button>
 
-        <h2 className="text-xl font-semibold text-white mb-4 text-center">{title}</h2>
+        <h2 id="modal-title" className="text-xl font-semibold text-white mb-4 text-center">{title}</h2>
 
         {follows.length === 0 ? (
           <p className="text-gray-400 text-sm text-center">No users found.</p>

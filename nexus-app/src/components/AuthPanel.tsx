@@ -234,14 +234,19 @@ export default function AuthPanel({ onAuthSuccess, onLogin, onSignup }: AuthPane
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
       <div className="w-full max-w-md mx-4 p-8 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
             <span className="text-2xl">◉</span>
           </div>
-          <h2 className="text-2xl font-light mb-3 tracking-wide text-gray-100">
+          <h2 id="auth-modal-title" className="text-2xl font-light mb-3 tracking-wide text-gray-100">
             {authMode === 'reset' ? 'Reset Password' : 'Welcome to NEXUS'}
           </h2>
           <p className="text-sm text-gray-400 font-light">

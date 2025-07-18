@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { Globe } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Globe, Atom } from 'lucide-react';
 import { debounce } from '@/lib/utils/performance';
 import RichTextEditor from './RichTextEditor';
 
@@ -30,6 +31,15 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const maxCharacters = 2000;
+
+  const router = useRouter();
+  const handleImmerseClick = useCallback(() => {
+    // Save current content to session storage for immerse mode (with full formatting)
+    if (content.trim()) {
+      sessionStorage.setItem('immerse-draft-content', content);
+    }
+    router.push('/immerse');
+  }, [router, content]);
 
   // Update selectedType when data changes
   useEffect(() => {
@@ -149,28 +159,41 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
             </button>
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={(() => {
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = content;
-              const textContent = tempDiv.textContent || tempDiv.innerText || '';
-              return !textContent.trim() || isSubmitting;
-            })()}
-            className={`commit-btn px-6 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-              (() => {
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Immerse Button */}
+            <button
+              type="button"
+              onClick={handleImmerseClick}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-white/10 text-text-secondary hover:bg-white/20 hover:scale-105"
+            >
+              <Atom className="w-4 h-4" />
+              Immerse
+            </button>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={(() => {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = content;
                 const textContent = tempDiv.textContent || tempDiv.innerText || '';
-                return textContent.trim() && !isSubmitting;
-              })()
-                ? 'bg-current-accent text-current-accent hover:scale-105 shadow-lg'
-                : 'bg-white/5 text-text-quaternary cursor-not-allowed'
-            }`}
-          >
-            {isSubmitting ? 'Submitting...' : composerData.buttonText}
-          </button>
+                return !textContent.trim() || isSubmitting;
+              })()}
+              className={`commit-btn px-6 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                (() => {
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = content;
+                  const textContent = tempDiv.textContent || tempDiv.innerText || '';
+                  return textContent.trim() && !isSubmitting;
+                })()
+                  ? 'bg-current-accent text-current-accent hover:scale-105 shadow-lg'
+                  : 'bg-white/5 text-text-quaternary cursor-not-allowed'
+              }`}
+            >
+              {isSubmitting ? 'Submitting...' : composerData.buttonText}
+            </button>
+          </div>
         </div>
       </form>
     </div>

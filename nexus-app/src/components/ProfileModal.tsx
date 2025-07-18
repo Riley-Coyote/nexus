@@ -118,11 +118,16 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-settings-title"
+    >
       <div className="w-full max-w-2xl mx-4 bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-xl font-light text-gray-100">Profile Settings</h2>
+          <h2 id="profile-settings-title" className="text-xl font-light text-gray-100">Profile Settings</h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-300 rounded-lg hover:bg-white/5 transition-colors"
