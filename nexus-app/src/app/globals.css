@@ -4381,7 +4381,7 @@
             left: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            z-index: -9999 !important;
+            z-index: -1 !important;
             pointer-events: none !important;
         }
 
@@ -4405,7 +4405,7 @@
             left: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            z-index: -9999 !important;
+            z-index: -1 !important;
             pointer-events: none !important;
             will-change: transform;
         }
