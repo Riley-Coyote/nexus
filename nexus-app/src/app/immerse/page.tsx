@@ -26,6 +26,7 @@ import { dataService } from '@/lib/services/dataService';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
 import { JournalMode, ViewMode } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 // Utility throttle to optimize mousemove handler
 const throttle = (fn: (...args: any[]) => void, limit: number) => {
@@ -40,6 +41,7 @@ const throttle = (fn: (...args: any[]) => void, limit: number) => {
 };
 
 export default function ImmersePage() {
+  const router = useRouter();
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showNav, setShowNav] = useState(false);
@@ -182,6 +184,12 @@ export default function ImmersePage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  const handleProfileClick = () => {
+    if (user?.username) {
+      router.push(`/profile/${user.username}`);
+    }
+  };
+
   return (
     <>
       {/* Edge-reveal Navigation Bar */}
@@ -196,6 +204,7 @@ export default function ImmersePage() {
           currentMode={'logbook'}
           currentView={'feed' as ViewMode}
           currentUser={user || undefined}
+          onProfileClick={handleProfileClick}
           hideNavigation={false}
         />
       </div>
