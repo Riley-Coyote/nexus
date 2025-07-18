@@ -903,7 +903,7 @@ function ImmerseContent({
             apply: () => {
               editor.chain().focus().clearContent().insertContent(rewrittenDocument).run();
               setNotification({
-                message: `Rewrote entire document with ${suggestion.type} enhancement`,
+                message: `Infused entire document with ${suggestion.type} enhancement`,
                 type: 'success',
                 timestamp: Date.now()
               });
@@ -917,7 +917,7 @@ function ImmerseContent({
           editor.chain().focus().insertContent(` ${suggestion.text}`).run();
           
           setNotification({
-            message: 'Added suggestion (API key required for full rewrite)',
+            message: 'Added suggestion (API key required for full infusion)',
             type: 'warning',
             timestamp: Date.now()
           });
@@ -1120,7 +1120,7 @@ function ImmerseContent({
           const mergedText = `${selectedText} ${suggestion.text}`;
           editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
           setNotification({
-            message: 'Applied suggestion (API key required for AI rewrite)',
+            message: 'Applied suggestion (API key required for AI infusion)',
             type: 'warning',
             timestamp: Date.now()
           });
