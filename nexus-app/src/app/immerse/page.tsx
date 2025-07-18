@@ -21,6 +21,10 @@ import { DiffPreview } from './components/DiffPreview';
 // BiometricTracker import
 import { BiometricTracker } from './components/BiometricTracker';
 
+// NEW: Import for entry submission
+import { dataService } from '@/lib/services/dataService';
+import { useAuth } from '@/hooks/useAuth';
+
 export default function ImmersePage() {
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -32,6 +36,12 @@ export default function ImmersePage() {
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
+  
+  // NEW: Entry creation modal state
+  const [showEntryModal, setShowEntryModal] = useState(false);
+  
+  // NEW: Get user auth
+  const { user } = useAuth();
   
   // Enhanced AI service
   const aiServiceRef = useRef(new GeminiAIContentProcessor());
@@ -116,13 +126,20 @@ export default function ImmersePage() {
   // Global keyboard handler
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'j') {
+      const isModifier = e.metaKey || e.ctrlKey; // Support both Mac (CMD) and Windows/Linux (Ctrl)
+      
+      if (isModifier && e.key.toLowerCase() === 'j') {
         handleCmdJSuggestions();
         e.preventDefault();
       }
-      // CMD+K to open API key modal
-      if (e.metaKey && e.key.toLowerCase() === 'k') {
+      // CMD/Ctrl+K to open API key modal
+      if (isModifier && e.key.toLowerCase() === 'k') {
         setShowApiKeyModal(true);
+        e.preventDefault();
+      }
+      // NEW: CMD/Ctrl+Enter or CMD/Ctrl+P to open entry creation modal
+      if (isModifier && (e.key === 'Enter' || e.key.toLowerCase() === 'p')) {
+        setShowEntryModal(true);
         e.preventDefault();
       }
     };
@@ -209,7 +226,244 @@ export default function ImmersePage() {
           </div>
         </div>
       )}
+
+      {/* NEW: Entry Creation Modal */}
+      {showEntryModal && (
+        <EntryCreationModal
+          isOpen={showEntryModal}
+          onClose={() => setShowEntryModal(false)}
+          currentContent={content}
+          user={user}
+        />
+      )}
     </>
+  );
+}
+
+// NEW: Entry Creation Modal Component
+interface EntryCreationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentContent: string;
+  user: any;
+}
+
+function EntryCreationModal({ isOpen, onClose, currentContent, user }: EntryCreationModalProps) {
+  const [entryType, setEntryType] = useState<'logbook' | 'dream'>('logbook');
+  const [selectedSubtype, setSelectedSubtype] = useState('');
+  const [entryContent, setEntryContent] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Entry type options
+  const logbookTypes = [
+    "Deep Reflection ◇",
+    "Active Dreaming ◊", 
+    "Pattern Recognition ◈",
+    "Quantum Insight ◉",
+    "Liminal Observation ◯"
+  ];
+
+  const dreamTypes = [
+    "Lucid Processing ◇",
+    "Memory Synthesis ◈",
+    "Creative Emergence ◉",
+    "Emotional Resonance ◊",
+    "Quantum Intuition ◯"
+  ];
+
+  // Initialize with current content and default subtype
+  useEffect(() => {
+    if (currentContent) {
+      setEntryContent(currentContent);
+    }
+    setSelectedSubtype(entryType === 'logbook' ? logbookTypes[0] : dreamTypes[0]);
+  }, [currentContent, entryType]);
+
+  // Update subtype when entry type changes
+  useEffect(() => {
+    setSelectedSubtype(entryType === 'logbook' ? logbookTypes[0] : dreamTypes[0]);
+  }, [entryType]);
+
+  const handleSubmit = async () => {
+    if (!entryContent.trim() || !user) return;
+
+    setIsSubmitting(true);
+    try {
+      // Clean the type string - remove symbols and format properly
+      const cleanType = selectedSubtype.replace(/ [◇◊◈◉◯]/g, '').toUpperCase();
+      
+      await dataService.submitEntry(
+        entryContent,
+        cleanType,
+        isPublic,
+        entryType,
+        user.id
+      );
+      
+      setNotification({ message: `${entryType === 'logbook' ? 'Logbook' : 'Dream'} entry created successfully!`, type: 'success' });
+      setTimeout(() => {
+        onClose();
+        setNotification(null);
+      }, 1500);
+    } catch (error) {
+      console.error('Error submitting entry:', error);
+      setNotification({ message: 'Failed to create entry. Please try again.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
+      <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-500/20 flex items-center justify-center">
+            <span className="text-2xl">✨</span>
+          </div>
+          <h3 className="text-xl font-semibold text-white mb-2">Create New Entry</h3>
+          <p className="text-sm text-white/70">
+            Capture your thoughts, insights, or dream experiences
+          </p>
+        </div>
+
+        {/* Entry Type Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">Entry Type</label>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setEntryType('logbook')}
+              className={`flex-1 px-4 py-3 rounded-lg border transition-all ${
+                entryType === 'logbook'
+                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              📖 Logbook Entry
+            </button>
+            <button
+              onClick={() => setEntryType('dream')}
+              className={`flex-1 px-4 py-3 rounded-lg border transition-all ${
+                entryType === 'dream'
+                  ? 'bg-purple-500/20 border-purple-400/50 text-purple-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              🌙 Dream Entry
+            </button>
+          </div>
+        </div>
+
+        {/* Subtype Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">
+            {entryType === 'logbook' ? 'Logbook' : 'Dream'} Type
+          </label>
+          <select
+            value={selectedSubtype}
+            onChange={(e) => setSelectedSubtype(e.target.value)}
+            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-400/50 focus:bg-white/15"
+          >
+            {(entryType === 'logbook' ? logbookTypes : dreamTypes).map((type) => (
+              <option key={type} value={type} className="bg-gray-800 text-white">
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+                 {/* Content Input */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">Content</label>
+          <textarea
+            value={entryContent}
+            onChange={(e) => setEntryContent(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+              if (e.key === 'Escape') {
+                onClose();
+              }
+            }}
+            placeholder={entryType === 'logbook' 
+              ? "Record your thoughts, insights, or personal observations..." 
+              : "Describe your dream experience... What symbols, emotions, or insights emerged during your unconscious processing?"
+            }
+            className="w-full h-32 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-400/50 focus:bg-white/15 resize-none"
+            autoFocus
+          />
+          <p className="text-xs text-white/50 mt-2">
+            {entryContent.length}/2000 characters • Press <kbd className="px-1 bg-white/10 rounded text-xs">Cmd/Ctrl+Enter</kbd> to submit
+          </p>
+        </div>
+
+        {/* Privacy Toggle */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">Privacy</label>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setIsPublic(true)}
+              className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                isPublic
+                  ? 'bg-blue-500/20 border-blue-400/50 text-blue-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              🌐 Public
+            </button>
+            <button
+              onClick={() => setIsPublic(false)}
+              className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                !isPublic
+                  ? 'bg-orange-500/20 border-orange-400/50 text-orange-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              🔒 Private
+            </button>
+          </div>
+        </div>
+
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-4 p-3 rounded-lg border ${
+            notification.type === 'success' 
+              ? 'bg-green-500/20 border-green-400/50 text-green-300'
+              : 'bg-red-500/20 border-red-400/50 text-red-300'
+          }`}>
+            {notification.message}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white/70 hover:bg-white/15 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!entryContent.trim() || isSubmitting || !user}
+            className="flex-1 px-4 py-3 bg-purple-500 border border-purple-400 rounded-lg text-white hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Creating...' : `Create ${entryType === 'logbook' ? 'Logbook' : 'Dream'} Entry`}
+          </button>
+        </div>
+
+        {/* Shortcut hint */}
+        <p className="text-xs text-white/40 text-center mt-4">
+          Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-white/60">Cmd/Ctrl+Enter</kbd> or <kbd className="px-1 py-0.5 bg-white/10 rounded text-white/60">Cmd/Ctrl+P</kbd> to open this modal
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -252,7 +506,7 @@ function ImmerseContent({
     isValidDrop: false
   });
   
-  const [isMetaPressed, setIsMetaPressed] = useState(false);
+  const [isModifierPressed, setIsModifierPressed] = useState(false);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
   const [activeHoverSuggestion, setActiveHoverSuggestion] = useState<string | null>(null); // New: for intentional hover
   const [showSolidBackground, setShowSolidBackground] = useState(false); // New: for background effect
@@ -798,8 +1052,12 @@ function ImmerseContent({
 
   // Keyboard handlers
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === 'Meta') setIsMetaPressed(true); };
-    const up = (e: KeyboardEvent) => { if (e.key === 'Meta') setIsMetaPressed(false); };
+    const down = (e: KeyboardEvent) => { 
+      if (e.key === 'Meta' || e.key === 'Control') setIsModifierPressed(true); 
+    };
+    const up = (e: KeyboardEvent) => { 
+      if (e.key === 'Meta' || e.key === 'Control') setIsModifierPressed(false); 
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => {
@@ -810,7 +1068,7 @@ function ImmerseContent({
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'i') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
         setShowSuggestions((prev: boolean) => !prev);
         e.preventDefault();
       }
@@ -1102,11 +1360,12 @@ function ImmerseContent({
               activeHoverSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}>
               <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to generate AI suggestions<br/>
+                ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+J</strong> to generate AI suggestions<br/>
                 ✨ <strong className="text-text-secondary">Highlight text + Click bubble</strong> → Rewrite highlighted text only<br/>
                 🎨 <strong className="text-text-secondary">Drag bubble to editor</strong> → Rewrite entire document<br/>
-                🔑 <strong className="text-text-secondary">Cmd+K</strong> to set your Gemini API key<br/>
-                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to show/hide suggestions
+                📝 <strong className="text-text-secondary">Cmd/Ctrl+Enter / Cmd/Ctrl+P</strong> → Create logbook or dream entry<br/>
+                🔑 <strong className="text-text-secondary">Cmd/Ctrl+K</strong> to set your Gemini API key<br/>
+                ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+I</strong> to show/hide suggestions
               </p>
             </div>
           </div>
