@@ -28,7 +28,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-deep-void">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="text-text-secondary mb-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto"></div>
@@ -70,7 +70,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   // Show error state
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen bg-deep-void">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center max-w-md p-6">
           <div className="text-red-400 mb-4 text-lg">Authentication Error</div>
           <div className="text-text-secondary text-sm mb-6">{error}</div>
