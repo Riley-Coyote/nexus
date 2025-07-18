@@ -1453,7 +1453,7 @@ function ImmerseContent({
                       </p>
                     ) : (
                       <p className="text-text-quaternary text-xs">
-                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+K</kbd> to attune your quantum key, then <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to receive ethereal guidance
+                       
                       </p>
                     )}
                   </div>
@@ -1494,14 +1494,29 @@ function ImmerseContent({
             <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
               activeHoverSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}>
-              <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+J</strong> to generate AI suggestions<br/>
-                ✨ <strong className="text-text-secondary">Highlight text + Click bubble</strong> → Rewrite highlighted text only<br/>
-                🎨 <strong className="text-text-secondary">Drag bubble to editor</strong> → Rewrite entire document<br/>
-                📝 <strong className="text-text-secondary">Cmd/Ctrl+Enter / Cmd/Ctrl+P</strong> → Create logbook or dream entry<br/>
-                🔑 <strong className="text-text-secondary">Cmd/Ctrl+K</strong> to set your Gemini API key<br/>
-                ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+I</strong> to show/hide suggestions
-              </p>
+              <div className="text-xs text-text-quaternary text-left leading-relaxed space-y-1">
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+J</strong> to generate AI suggestions
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ✨ <strong className="text-text-secondary">Highlight text + Click bubble</strong> → Infuse into highlighted text only
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ✨ <strong className="text-text-secondary">Click bubble</strong> →  Appends to cursor position.
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  🎨 <strong className="text-text-secondary">Drag bubble to editor</strong> → Infuse into entire document
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  📝 <strong className="text-text-secondary">Cmd/Ctrl+Enter / Cmd/Ctrl+P</strong> → Create logbook or dream entry
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  🔑 <strong className="text-text-secondary">Cmd/Ctrl+K</strong> to set your Gemini API key
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+I</strong> to show/hide suggestions
+                </div>
+              </div>
             </div>
           </div>
         </main>
