@@ -34,8 +34,12 @@ const EntryComposer = memo(function EntryComposer({ data, onSubmit }: EntryCompo
 
   const router = useRouter();
   const handleImmerseClick = useCallback(() => {
+    // Save current content to session storage for immerse mode (with full formatting)
+    if (content.trim()) {
+      sessionStorage.setItem('immerse-draft-content', content);
+    }
     router.push('/immerse');
-  }, [router]);
+  }, [router, content]);
 
   // Update selectedType when data changes
   useEffect(() => {

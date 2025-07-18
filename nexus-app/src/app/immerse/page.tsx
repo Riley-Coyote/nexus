@@ -194,6 +194,16 @@ export default function ImmersePage() {
     }
   };
 
+  // Load draft content from session storage (from EntryComposer)
+  useEffect(() => {
+    const draftContent = sessionStorage.getItem('immerse-draft-content');
+    if (draftContent) {
+      setContent(draftContent);
+      // Clear the draft after loading
+      sessionStorage.removeItem('immerse-draft-content');
+    }
+  }, []);
+
   // Mobile detection and handling
   useEffect(() => {
     const checkMobile = () => {
