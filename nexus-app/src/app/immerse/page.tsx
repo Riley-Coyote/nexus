@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef, Dispatch, SetStateAction, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, Dispatch, SetStateAction, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -577,11 +577,10 @@ function ImmerseContent({
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   
   // NEW: Draggable toolbar state
-  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 }); // Will be updated after mount
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 }); // Will be set to center on mount
   const [isToolbarDragging, setIsToolbarDragging] = useState(false);
   const [toolbarDragStart, setToolbarDragStart] = useState({ x: 0, y: 0 });
-  const [isVerticalLayout, setIsVerticalLayout] = useState(true); // New: layout toggle state
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [isVerticalLayout, setIsVerticalLayout] = useState(false); // New: layout toggle state - default horizontal
   
   // Calculate bounds for right panel
   const minPanelWidth = 280; // Minimum width for usability
@@ -613,26 +612,20 @@ function ImmerseContent({
     }
   }, [minPanelWidth, maxPanelWidth]);
 
-  // NEW: Position toolbar at bottom-right corner of writing area
-  const computeToolbarPosition = () => {
-    const editorElement = dropRef.current;
-    const tbElement = toolbarRef.current;
-    if (!editorElement || !tbElement) return;
-
-    const editorRect = editorElement.getBoundingClientRect();
-    const tbRect = tbElement.getBoundingClientRect();
-
-    const padding = 16; // margin from edges
-    const x = editorRect.right - tbRect.width - padding;
-    const y = editorRect.bottom - tbRect.height - padding;
-
-    setToolbarPosition({ x, y });
-  };
-
-  useLayoutEffect(() => {
-    computeToolbarPosition();
-    window.addEventListener('resize', computeToolbarPosition);
-    return () => window.removeEventListener('resize', computeToolbarPosition);
+  // NEW: Set initial toolbar position to bottom left of writing column
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const leftSidebarWidth = 256; // Left sidebar width
+      const writingAreaPadding = 24; // Padding inside writing area
+      const margin = 20; // Margin from edges
+      const toolbarHeight = isVerticalLayout ? 200 : 48; // Approximate toolbar height
+      
+      // Position at bottom left of writing column
+      const bottomLeftX = leftSidebarWidth + writingAreaPadding + margin;
+      const bottomLeftY = window.innerHeight - toolbarHeight - margin;
+      
+      setToolbarPosition({ x: bottomLeftX, y: bottomLeftY });
+    }
   }, [rightPanelWidth, isVerticalLayout]);
 
   // NEW: Toolbar drag handlers
@@ -1267,10 +1260,7 @@ function ImmerseContent({
                   }}
                   onMouseDown={handleToolbarMouseDown}
                 >
-                  <div
-                    ref={toolbarRef}
-                    className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg"
-                  >
+                  <div className="floating-toolbar bg-gray-900/90 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg">
                     <div className={`flex gap-1 p-2 ${isVerticalLayout ? 'flex-col' : 'flex-row'}`}>
                       {/* Drag handle */}
                       <div className={`flex ${isVerticalLayout ? 'justify-center py-1 border-b border-gray-600/30 mb-1' : 'items-center px-1 border-r border-gray-600/30 mr-1'}`}>
