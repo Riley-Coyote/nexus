@@ -67,6 +67,24 @@ Return only the rewritten document, preserving the original structure and flow w
   }
 
   /**
+   * Generate content based on a suggestion - public method
+   */
+  async generateContentFromSuggestion(suggestionText: string, suggestionType: string): Promise<string> {
+    if (!this.hasApiKey()) {
+      throw new Error('API key required');
+    }
+
+    const prompt = `Based on this ${suggestionType} suggestion: "${suggestionText}", generate a complete, well-written paragraph or section that develops this idea fully. 
+
+Make it natural, engaging, and ready to be inserted into a document. Do not include any commentary, just return the generated content that expands on the suggestion.`;
+    
+    const response = await this.callGeminiAPI(prompt);
+    
+    // Clean up the response
+    return response.trim().replace(/^["']|["']$/g, '');
+  }
+
+  /**
    * Generate contextual suggestions based on editor state
    */
   async generateSuggestions(context: EditorContext): Promise<EnhancedSuggestion[]> {

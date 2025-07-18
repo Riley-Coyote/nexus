@@ -16,6 +16,7 @@ import {
 } from './types';
 import { GeminiAIContentProcessor } from './services/geminiAIService';
 import { EnhancedFloatingBubble } from './components/EnhancedFloatingBubble';
+import { DiffPreview } from './components/DiffPreview';
 
 // BiometricTracker import
 import { BiometricTracker } from './components/BiometricTracker';
@@ -441,6 +442,15 @@ function ImmerseContent({
     timestamp: number;
   } | null>(null);
 
+  // Diff preview state
+  const [diffPreview, setDiffPreview] = useState<{
+    originalText: string;
+    newText: string;
+    suggestion: EnhancedSuggestion;
+    isDocumentRewrite: boolean;
+    apply: () => void;
+  } | null>(null);
+
   // Enhanced suggestion drop handler - SIMPLE MODE: Rewrite entire document with AI
   const handleEnhancedSuggestionDrop = async (suggestion: EnhancedSuggestion, monitor: any) => {
     console.log('Drop received:', suggestion.text);
@@ -457,25 +467,61 @@ function ImmerseContent({
       const fullText = editor.state.doc.textContent;
       
       if (!fullText.trim()) {
-        // If document is empty, just insert the suggestion
-        editor.chain().focus().insertContent(suggestion.text).run();
-        setNotification({
-          message: `Inserted ${suggestion.type} suggestion`,
-          type: 'success',
-          timestamp: Date.now()
-        });
+        // If document is empty, generate content from suggestion
+        if (aiService.hasApiKey()) {
+          const generatedContent = await aiService.generateContentFromSuggestion(suggestion.text, suggestion.type);
+          
+          // Show diff preview
+          setDiffPreview({
+            originalText: "[Empty document]",
+            newText: generatedContent,
+            suggestion,
+            isDocumentRewrite: false,
+            apply: () => {
+              editor.chain().focus().insertContent(generatedContent).run();
+              setNotification({
+                message: `Generated content from ${suggestion.type} suggestion`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
+          });
+        } else {
+          // Fallback: insert raw suggestion
+          editor.chain().focus().insertContent(suggestion.text).run();
+          setNotification({
+            message: 'Inserted suggestion (API key required for content generation)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
+        }
       } else {
         // Ask AI to rewrite the entire document incorporating the suggestion
         if (aiService.hasApiKey()) {
           const rewrittenDocument = await aiService.rewriteDocumentWithSuggestion(fullText, suggestion.text);
           
-          // Replace the entire document content
-          editor.chain().focus().clearContent().insertContent(rewrittenDocument).run();
-          
-          setNotification({
-            message: `Rewrote entire document with ${suggestion.type} enhancement`,
-            type: 'success',
-            timestamp: Date.now()
+          // Show diff preview for document rewrite
+          setDiffPreview({
+            originalText: fullText,
+            newText: rewrittenDocument,
+            suggestion,
+            isDocumentRewrite: true,
+            apply: () => {
+              editor.chain().focus().clearContent().insertContent(rewrittenDocument).run();
+              setNotification({
+                message: `Rewrote entire document with ${suggestion.type} enhancement`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
           });
         } else {
           // Fallback: append suggestion to end
@@ -486,16 +532,11 @@ function ImmerseContent({
             type: 'warning',
             timestamp: Date.now()
           });
+          
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
         }
       }
-      
-      // Remove the applied suggestion
-      removeSuggestion(suggestion.id);
-      
-      // Clear notification after 3 seconds
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
 
     } catch (error) {
       console.error('Error in drop handler:', error);
@@ -510,10 +551,7 @@ function ImmerseContent({
       });
       
       removeSuggestion(suggestion.id);
-      
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
+      setTimeout(() => setNotification(null), 3000);
     }
 
     // Reset drag state
@@ -655,71 +693,107 @@ function ImmerseContent({
     };
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  // Handle suggestion click - SIMPLE MODE: Replace only highlighted text with AI rewrite
+    // Handle suggestion click - SIMPLE MODE: Replace only highlighted text with AI rewrite
   const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
     if (!editorRef.current) return;
 
     const editor = editorRef.current;
     const { from, to } = editor.state.selection;
     
-    // MODE 1: If text is highlighted, replace ONLY the highlighted text
-    if (from !== to) {
-      const selectedText = editor.state.doc.textBetween(from, to);
-      
-      try {
-                 // Ask AI to rewrite just the selected text with the suggestion
-         if (aiService.hasApiKey()) {
-           const cleanText = await aiService.rewriteTextWithSuggestion(selectedText, suggestion.text);
+    try {
+      // MODE 1: If text is highlighted, replace ONLY the highlighted text
+      if (from !== to) {
+        const selectedText = editor.state.doc.textBetween(from, to);
+        
+        if (aiService.hasApiKey()) {
+          const rewrittenText = await aiService.rewriteTextWithSuggestion(selectedText, suggestion.text);
           
-          // Replace the selected text with the AI rewrite
-          editor.chain().focus().deleteRange({ from, to }).insertContent(cleanText).run();
-          
-          setNotification({
-            message: `Replaced highlighted text with ${suggestion.type} enhancement`,
-            type: 'success',
-            timestamp: Date.now()
+          // Show diff preview
+          setDiffPreview({
+            originalText: selectedText,
+            newText: rewrittenText,
+            suggestion,
+            isDocumentRewrite: false,
+            apply: () => {
+              editor.chain().focus().deleteRange({ from, to }).insertContent(rewrittenText).run();
+              setNotification({
+                message: `Replaced highlighted text with ${suggestion.type} enhancement`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
           });
         } else {
-          // Fallback: simple merge
+          // Fallback without preview
           const mergedText = `${selectedText} ${suggestion.text}`;
           editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
-          
           setNotification({
             message: 'Applied suggestion (API key required for AI rewrite)',
             type: 'warning',
             timestamp: Date.now()
           });
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
         }
-      } catch (error) {
-        console.error('Error rewriting highlighted text:', error);
-        // Fallback: simple merge
+      } else {
+        // No text selected - generate content based on suggestion
+        if (aiService.hasApiKey()) {
+          const generatedContent = await aiService.generateContentFromSuggestion(suggestion.text, suggestion.type);
+          
+          // Show diff preview with empty original
+          setDiffPreview({
+            originalText: "[Cursor position - new content will be inserted here]",
+            newText: generatedContent,
+            suggestion,
+            isDocumentRewrite: false,
+            apply: () => {
+              editor.chain().focus().insertContent(generatedContent).run();
+              setNotification({
+                message: `Generated and inserted ${suggestion.type} content`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
+          });
+        } else {
+          // Fallback: just insert the raw suggestion
+          editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+          setNotification({
+            message: 'Inserted suggestion (API key required for content generation)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing suggestion:', error);
+      
+      // Fallback handling
+      if (from !== to) {
+        const selectedText = editor.state.doc.textBetween(from, to);
         const mergedText = `${selectedText} ${suggestion.text}`;
         editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
-        
-        setNotification({
-          message: 'Applied suggestion with simple merge (AI error)',
-          type: 'warning',
-          timestamp: Date.now()
-        });
+      } else {
+        editor.chain().focus().insertContent(` ${suggestion.text}`).run();
       }
-    } else {
-      // No text selected - just insert the suggestion
-      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
       
       setNotification({
-        message: `Inserted ${suggestion.type} suggestion`,
-        type: 'success',
+        message: `Applied suggestion with fallback (AI error: ${error instanceof Error ? error.message : 'Unknown'})`,
+        type: 'warning',
         timestamp: Date.now()
       });
+      
+      removeSuggestion(suggestion.id);
+      setTimeout(() => setNotification(null), 3000);
     }
-
-    // Remove the applied suggestion
-    removeSuggestion(suggestion.id);
-    
-    // Clear notification after 3 seconds
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
   };
 
   // Keyboard handlers
@@ -1062,7 +1136,17 @@ function ImmerseContent({
         )}
       </div>
 
-
+      {/* Diff Preview Modal */}
+      {diffPreview && (
+        <DiffPreview
+          originalText={diffPreview.originalText}
+          newText={diffPreview.newText}
+          suggestion={diffPreview.suggestion}
+          isDocumentRewrite={diffPreview.isDocumentRewrite}
+          onApply={diffPreview.apply}
+          onCancel={() => setDiffPreview(null)}
+        />
+      )}
 
       {/* Enhanced Styles */}
       <style jsx global>{`
