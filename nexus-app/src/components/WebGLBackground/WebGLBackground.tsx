@@ -341,7 +341,17 @@ export default function WebGLBackground({ className = '' }: WebGLBackgroundProps
             isShaderReady = true;
             console.log(`✅ WebGL Background: Shader compiled successfully (${performanceLevel} quality)`);
 
-            // (Removed explicit renderer.compile call to keep program and uniform locations stable)
+            // Force Three.js to refresh uniform locations so they match the final linked program
+            if (material) {
+              material.needsUpdate = true; // triggers uniform cache refresh on next render
+            }
+
+            // Optionally compile once more to ensure the program & locations are final
+            try {
+              renderer.compile(scene, camera);
+            } catch (err) {
+              console.warn('WebGL Background: final compile after shader ready failed', err);
+            }
           } else {
             // Retry after a short delay
             setTimeout(checkShaderReady, 50);
