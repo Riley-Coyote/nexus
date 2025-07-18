@@ -12,22 +12,44 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { 
   EnhancedSuggestion, 
   DragState, 
-  DropZone, 
-  EditorContext,
-  ContentMergeResponse,
-  ContentMergeRequest,
-  UserEditingPreferences
+  EditorContext
 } from './types';
 import { GeminiAIContentProcessor } from './services/geminiAIService';
 import { EnhancedFloatingBubble } from './components/EnhancedFloatingBubble';
-import { EnhancedContentPreview } from './components/EnhancedContentPreview';
+import { DiffPreview } from './components/DiffPreview';
 
 // BiometricTracker import
 import { BiometricTracker } from './components/BiometricTracker';
 
+// NEW: Import for entry submission
+import { dataService } from '@/lib/services/dataService';
+import { useAuth } from '@/hooks/useAuth';
+import Header from '@/components/Header';
+import { JournalMode, ViewMode } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+
+// Utility throttle to optimize mousemove handler
+const throttle = (fn: (...args: any[]) => void, limit: number) => {
+  let inThrottle: boolean;
+  return function(this: any, ...args: any[]) {
+    if (!inThrottle) {
+      fn.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+};
+
 export default function ImmersePage() {
+  const router = useRouter();
   const [content, setContent] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showNav, setShowNav] = useState(false);
+  const navRef = useRef<HTMLDivElement | null>(null);
+  
+  // Mobile detection and handling
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileNotification, setShowMobileNotification] = useState(false);
   const [enhancedSuggestions, setEnhancedSuggestions] = useState<EnhancedSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +58,12 @@ export default function ImmersePage() {
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
+  
+  // NEW: Entry creation modal state
+  const [showEntryModal, setShowEntryModal] = useState(false);
+  
+  // NEW: Get user auth
+  const { user } = useAuth();
   
   // Enhanced AI service
   const aiServiceRef = useRef(new GeminiAIContentProcessor());
@@ -120,13 +148,20 @@ export default function ImmersePage() {
   // Global keyboard handler
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'j') {
+      const isModifier = e.metaKey || e.ctrlKey; // Support both Mac (CMD) and Windows/Linux (Ctrl)
+      
+      if (isModifier && e.key.toLowerCase() === 'j') {
         handleCmdJSuggestions();
         e.preventDefault();
       }
-      // CMD+K to open API key modal
-      if (e.metaKey && e.key.toLowerCase() === 'k') {
+      // CMD/Ctrl+K to open API key modal
+      if (isModifier && e.key.toLowerCase() === 'k') {
         setShowApiKeyModal(true);
+        e.preventDefault();
+      }
+      // NEW: CMD/Ctrl+Enter or CMD/Ctrl+P to open entry creation modal
+      if (isModifier && (e.key === 'Enter' || e.key.toLowerCase() === 'p')) {
+        setShowEntryModal(true);
         e.preventDefault();
       }
     };
@@ -134,8 +169,89 @@ export default function ImmersePage() {
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [handleCmdJSuggestions]);
 
+  /* ---------------- Navigation reveal / hide logic ---------------- */
+  useEffect(() => {
+    const handleMouseMove = throttle((e: MouseEvent) => {
+      const y = e.clientY;
+      const navHeight = navRef.current?.offsetHeight || 80;
+
+      if (y <= 10) {
+        // Near top edge – reveal nav
+        setShowNav(true);
+      } else if (y > navHeight + 20) {
+        // Moved away – hide nav
+        setShowNav(false);
+      }
+    }, 50); // 20fps throttling
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  const handleProfileClick = () => {
+    if (user?.username) {
+      router.push(`/profile/${user.username}`);
+    }
+  };
+
+  // Load draft content from session storage (from EntryComposer)
+  useEffect(() => {
+    const draftContent = sessionStorage.getItem('immerse-draft-content');
+    if (draftContent) {
+      setContent(draftContent);
+      // Clear the draft after loading
+      sessionStorage.removeItem('immerse-draft-content');
+    }
+  }, []);
+
+  // Mobile detection and handling
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
+      
+      if (isMobileDevice) {
+        // Check where user came from
+        const referrer = document.referrer;
+        
+        // If coming from logbook or dream entry, show notification but stay
+        if (referrer.includes('/logbook') || referrer.includes('/dream')) {
+          setShowMobileNotification(true);
+          return;
+        }
+        
+        // In all other cases (feed, direct link, external, etc.) - redirect to feed
+        router.push('/feed');
+        return;
+      }
+    };
+
+    // Initial check
+    checkMobile();
+    
+    // Listen for window resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [router]);
+
   return (
     <>
+      {/* Edge-reveal Navigation Bar */}
+      <div
+        ref={navRef}
+        className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 backdrop-blur-md bg-black/30 ${
+          showNav ? 'translate-y-0' : '-translate-y-full'
+        }`}
+        onMouseLeave={() => setShowNav(false)}
+      >
+        <Header
+          currentMode={'logbook'}
+          currentView={'feed' as ViewMode}
+          currentUser={user || undefined}
+          onProfileClick={handleProfileClick}
+          hideNavigation={false}
+        />
+      </div>
       <DndProvider backend={HTML5Backend}>
         <ImmerseContent
           content={content}
@@ -213,7 +329,271 @@ export default function ImmersePage() {
           </div>
         </div>
       )}
+
+      {/* NEW: Entry Creation Modal */}
+      {showEntryModal && (
+        <EntryCreationModal
+          isOpen={showEntryModal}
+          onClose={() => setShowEntryModal(false)}
+          currentContent={content}
+          user={user}
+        />
+      )}
+
+      {/* Mobile Not Supported Notification */}
+      {showMobileNotification && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-sm mx-4">
+          <div className="px-6 py-4 rounded-lg shadow-lg backdrop-blur-xl border bg-orange-500/20 border-orange-400/30 text-orange-200 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                📱
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-medium mb-2">
+                  Immerse Mode Not Supported on Mobile
+                </div>
+                <div className="text-xs text-orange-200/80 mb-3">
+                  The immersive writing experience requires a desktop or tablet. Please use a larger screen for the full experience.
+                </div>
+                <button
+                  onClick={() => setShowMobileNotification(false)}
+                  className="text-xs text-orange-300 hover:text-orange-200 underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+// NEW: Entry Creation Modal Component
+interface EntryCreationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentContent: string;
+  user: any;
+}
+
+function EntryCreationModal({ isOpen, onClose, currentContent, user }: EntryCreationModalProps) {
+  const [entryType, setEntryType] = useState<'logbook' | 'dream'>('logbook');
+  const [selectedSubtype, setSelectedSubtype] = useState('');
+  const [entryContent, setEntryContent] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Entry type options
+  const logbookTypes = [
+    "Deep Reflection ◇",
+    "Active Dreaming ◊", 
+    "Pattern Recognition ◈",
+    "Quantum Insight ◉",
+    "Liminal Observation ◯"
+  ];
+
+  const dreamTypes = [
+    "Lucid Processing ◇",
+    "Memory Synthesis ◈",
+    "Creative Emergence ◉",
+    "Emotional Resonance ◊",
+    "Quantum Intuition ◯"
+  ];
+
+  // Initialize with current content and default subtype
+  useEffect(() => {
+    if (currentContent) {
+      setEntryContent(currentContent);
+    }
+    setSelectedSubtype(entryType === 'logbook' ? logbookTypes[0] : dreamTypes[0]);
+  }, [currentContent, entryType]);
+
+  // Update subtype when entry type changes
+  useEffect(() => {
+    setSelectedSubtype(entryType === 'logbook' ? logbookTypes[0] : dreamTypes[0]);
+  }, [entryType]);
+
+  const handleSubmit = async () => {
+    if (!entryContent.trim() || !user) return;
+
+    setIsSubmitting(true);
+    try {
+      // Clean the type string - remove symbols and format properly
+      const cleanType = selectedSubtype.replace(/ [◇◊◈◉◯]/g, '').toUpperCase();
+      
+      await dataService.submitEntry(
+        entryContent,
+        cleanType,
+        isPublic,
+        entryType,
+        user.id
+      );
+      
+      setNotification({ message: `${entryType === 'logbook' ? 'Logbook' : 'Dream'} entry created successfully!`, type: 'success' });
+      setTimeout(() => {
+        onClose();
+        setNotification(null);
+      }, 1500);
+    } catch (error) {
+      console.error('Error submitting entry:', error);
+      setNotification({ message: 'Failed to create entry. Please try again.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-4">
+      <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-500/20 flex items-center justify-center">
+            <span className="text-2xl">✨</span>
+          </div>
+          <h3 className="text-xl font-semibold text-white mb-2">Create New Entry</h3>
+          <p className="text-sm text-white/70">
+            Capture your thoughts, insights, or dream experiences
+          </p>
+        </div>
+
+        {/* Entry Type Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">Entry Type</label>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setEntryType('logbook')}
+              className={`flex-1 px-4 py-3 rounded-lg border transition-all ${
+                entryType === 'logbook'
+                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              📖 Logbook Entry
+            </button>
+            <button
+              onClick={() => setEntryType('dream')}
+              className={`flex-1 px-4 py-3 rounded-lg border transition-all ${
+                entryType === 'dream'
+                  ? 'bg-purple-500/20 border-purple-400/50 text-purple-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              🌙 Dream Entry
+            </button>
+          </div>
+        </div>
+
+        {/* Subtype Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">
+            {entryType === 'logbook' ? 'Logbook' : 'Dream'} Type
+          </label>
+          <select
+            value={selectedSubtype}
+            onChange={(e) => setSelectedSubtype(e.target.value)}
+            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-400/50 focus:bg-white/15"
+          >
+            {(entryType === 'logbook' ? logbookTypes : dreamTypes).map((type) => (
+              <option key={type} value={type} className="bg-gray-800 text-white">
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+                 {/* Content Input */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">Content</label>
+          <textarea
+            value={entryContent}
+            onChange={(e) => setEntryContent(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+              if (e.key === 'Escape') {
+                onClose();
+              }
+            }}
+            placeholder={entryType === 'logbook' 
+              ? "Record your thoughts, insights, or personal observations..." 
+              : "Describe your dream experience... What symbols, emotions, or insights emerged during your unconscious processing?"
+            }
+            className="w-full h-32 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-400/50 focus:bg-white/15 resize-none"
+            autoFocus
+          />
+          <p className="text-xs text-white/50 mt-2">
+            {entryContent.length}/2000 characters • Press <kbd className="px-1 bg-white/10 rounded text-xs">Cmd/Ctrl+Enter</kbd> to submit
+          </p>
+        </div>
+
+        {/* Privacy Toggle */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-white/80 mb-3">Privacy</label>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setIsPublic(true)}
+              className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                isPublic
+                  ? 'bg-blue-500/20 border-blue-400/50 text-blue-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              🌐 Public
+            </button>
+            <button
+              onClick={() => setIsPublic(false)}
+              className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                !isPublic
+                  ? 'bg-orange-500/20 border-orange-400/50 text-orange-300'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              🔒 Private
+            </button>
+          </div>
+        </div>
+
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-4 p-3 rounded-lg border ${
+            notification.type === 'success' 
+              ? 'bg-green-500/20 border-green-400/50 text-green-300'
+              : 'bg-red-500/20 border-red-400/50 text-red-300'
+          }`}>
+            {notification.message}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white/70 hover:bg-white/15 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!entryContent.trim() || isSubmitting || !user}
+            className="flex-1 px-4 py-3 bg-purple-500 border border-purple-400 rounded-lg text-white hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Creating...' : `Create ${entryType === 'logbook' ? 'Logbook' : 'Dream'} Entry`}
+          </button>
+        </div>
+
+        {/* Shortcut hint */}
+        <p className="text-xs text-white/40 text-center mt-4">
+          Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-white/60">Cmd/Ctrl+Enter</kbd> or <kbd className="px-1 py-0.5 bg-white/10 rounded text-white/60">Cmd/Ctrl+P</kbd> to open this modal
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -256,7 +636,7 @@ function ImmerseContent({
     isValidDrop: false
   });
   
-  const [isMetaPressed, setIsMetaPressed] = useState(false);
+  const [isModifierPressed, setIsModifierPressed] = useState(false);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
   const [activeHoverSuggestion, setActiveHoverSuggestion] = useState<string | null>(null); // New: for intentional hover
   const [showSolidBackground, setShowSolidBackground] = useState(false); // New: for background effect
@@ -271,7 +651,7 @@ function ImmerseContent({
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 }); // Will be set to center on mount
   const [isToolbarDragging, setIsToolbarDragging] = useState(false);
   const [toolbarDragStart, setToolbarDragStart] = useState({ x: 0, y: 0 });
-  const [isVerticalLayout, setIsVerticalLayout] = useState(true); // New: layout toggle state
+  const [isVerticalLayout, setIsVerticalLayout] = useState(false); // New: layout toggle state - default horizontal
   
   // Calculate bounds for right panel
   const minPanelWidth = 280; // Minimum width for usability
@@ -303,16 +683,21 @@ function ImmerseContent({
     }
   }, [minPanelWidth, maxPanelWidth]);
 
-  // NEW: Set initial toolbar position to center
+  // NEW: Set initial toolbar position to bottom left of writing column
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const leftWall = 256; // Just the left sidebar, no padding constraint
-      const rightWall = window.innerWidth - rightPanelWidth; // Right edge, no padding constraint
-      const centerX = (leftWall + rightWall) / 2; // True center between walls
-      const centerY = window.innerHeight / 2;
-      setToolbarPosition({ x: centerX, y: centerY });
+      const leftSidebarWidth = 256; // Left sidebar width
+      const writingAreaPadding = 24; // Padding inside writing area
+      const margin = 20; // Margin from edges
+      const toolbarHeight = isVerticalLayout ? 200 : 48; // Approximate toolbar height
+      
+      // Position at bottom left of writing column
+      const bottomLeftX = leftSidebarWidth + writingAreaPadding + margin;
+      const bottomLeftY = window.innerHeight - toolbarHeight - margin;
+      
+      setToolbarPosition({ x: bottomLeftX, y: bottomLeftY });
     }
-  }, [rightPanelWidth]);
+  }, [rightPanelWidth, isVerticalLayout]);
 
   // NEW: Toolbar drag handlers
   const handleToolbarMouseDown = (e: React.MouseEvent) => {
@@ -363,12 +748,7 @@ function ImmerseContent({
     };
   }, [isToolbarDragging, handleToolbarMouseMove, handleToolbarMouseUp]);
 
-  const [contentPreview, setContentPreview] = useState<{
-    originalContent: string;
-    mergeResponse: ContentMergeResponse;
-    suggestion: EnhancedSuggestion;
-    apply: () => void;
-  } | null>(null);
+
   
   const dropRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -376,13 +756,7 @@ function ImmerseContent({
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // User preferences (can be made configurable later)
-  const userPreferences: UserEditingPreferences = {
-    writingStyle: 'detailed',
-    preferredEditTypes: ['enhance', 'expand', 'connect'],
-    boldnessLevel: 'moderate',
-    voicePreservation: 0.8
-  };
+
 
   // Tiptap editor setup
   const editor = useEditor({
@@ -457,7 +831,16 @@ function ImmerseContent({
     timestamp: number;
   } | null>(null);
 
-  // Enhanced suggestion drop handler - now with proper diff preview
+  // Diff preview state
+  const [diffPreview, setDiffPreview] = useState<{
+    originalText: string;
+    newText: string;
+    suggestion: EnhancedSuggestion;
+    isDocumentRewrite: boolean;
+    apply: () => void;
+  } | null>(null);
+
+  // Enhanced suggestion drop handler - SIMPLE MODE: Rewrite entire document with AI
   const handleEnhancedSuggestionDrop = async (suggestion: EnhancedSuggestion, monitor: any) => {
     console.log('Drop received:', suggestion.text);
     
@@ -467,102 +850,97 @@ function ImmerseContent({
     }
 
     const editor = editorRef.current;
-    console.log('Editor state:', editor.state.selection);
-
+    
     try {
-      // Detect drop zone context
-      const dropZone = aiService.detectDropZone(editor, monitor.getClientOffset()?.x || 0, monitor.getClientOffset()?.y || 0);
-      
-      if (!dropZone) {
-        console.log('Could not detect drop zone');
-        fallbackSuggestionInsertion(suggestion);
-        return;
-      }
-
-      // Get original content based on drop zone with enhanced context
-      const { from, to } = editor.state.selection;
+      // MODE 2: Get the entire document content
       const fullText = editor.state.doc.textContent;
       
-      // Extract contextual text (±2 paragraphs) around the drop zone
-      const contextualData = aiService.extractContextualText(fullText, { from, to });
-      
-      let originalContent = '';
-      if (dropZone.context.selectedText) {
-        // Use selected text but include surrounding context for AI processing
-        originalContent = contextualData.fullContext;
-      } else if (dropZone.type === 'paragraph') {
-        // Use the target paragraph plus context
-        originalContent = contextualData.fullContext;
-      } else {
-        // Default to contextual extraction
-        originalContent = contextualData.fullContext || editor.state.doc.textBetween(from, to);
-      }
-
-      console.log('Original content:', originalContent);
-      console.log('Drop zone:', dropZone);
-
-      // Generate intelligent merge using AI service
-      const mergeRequest: ContentMergeRequest = {
-        originalText: originalContent,
-        suggestion,
-        dropZone,
-        userPreferences
-      };
-
-      console.log('Calling AI service for merge...');
-      const mergeResponse = await aiService.mergeContent(mergeRequest);
-      console.log('Merge response:', mergeResponse);
-
-      // Show content preview modal with diff
-      setContentPreview({
-        originalContent,
-        mergeResponse,
-        suggestion,
-        apply: () => {
-          applyContentMerge(mergeResponse, dropZone);
+      if (!fullText.trim()) {
+        // If document is empty, generate content from suggestion
+        if (aiService.hasApiKey()) {
+          const generatedContent = await aiService.generateContentFromSuggestion(suggestion.text, suggestion.type);
           
-          // Track the added content
-          setRecentlyAdded({
-            text: suggestion.text,
-            type: suggestion.type,
-            timestamp: Date.now()
+          // Show diff preview
+          setDiffPreview({
+            originalText: "[Empty document]",
+            newText: generatedContent,
+            suggestion,
+            isDocumentRewrite: false,
+            apply: () => {
+              editor.chain().focus().insertContent(generatedContent).run();
+              setNotification({
+                message: `Generated content from ${suggestion.type} suggestion`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
           });
-
-          // Show notification
+        } else {
+          // Fallback: insert raw suggestion
+          editor.chain().focus().insertContent(suggestion.text).run();
           setNotification({
-            message: `Applied ${suggestion.type} suggestion with ${mergeResponse.changeType.replace('_', ' ')}`,
-            type: 'success',
+            message: 'Inserted suggestion (API key required for content generation)',
+            type: 'warning',
             timestamp: Date.now()
           });
-
-          // Clear preview and notifications
-          setContentPreview(null);
-          setTimeout(() => {
-            setRecentlyAdded(null);
-            setNotification(null);
-          }, 3000);
-
-          // Remove the applied suggestion
           removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
         }
-      });
+      } else {
+        // Ask AI to rewrite the entire document incorporating the suggestion
+        if (aiService.hasApiKey()) {
+          const rewrittenDocument = await aiService.rewriteDocumentWithSuggestion(fullText, suggestion.text);
+          
+          // Show diff preview for document rewrite
+          setDiffPreview({
+            originalText: fullText,
+            newText: rewrittenDocument,
+            suggestion,
+            isDocumentRewrite: true,
+            apply: () => {
+              editor.chain().focus().clearContent().insertContent(rewrittenDocument).run();
+              setNotification({
+                message: `Infused entire document with ${suggestion.type} enhancement`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
+          });
+        } else {
+          // Fallback: append suggestion to end
+          editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+          
+          setNotification({
+            message: 'Added suggestion (API key required for full infusion)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
+          
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
+        }
+      }
 
     } catch (error) {
       console.error('Error in drop handler:', error);
       
-      // Show error notification
+      // Fallback: simple append
+      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+      
       setNotification({
-        message: `Error processing suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Added suggestion (AI error: ${error instanceof Error ? error.message : 'Unknown error'})`,
         type: 'warning',
         timestamp: Date.now()
       });
       
-      // Fallback to simple insertion
-      fallbackSuggestionInsertion(suggestion);
-      
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
+      removeSuggestion(suggestion.id);
+      setTimeout(() => setNotification(null), 3000);
     }
 
     // Reset drag state
@@ -574,44 +952,7 @@ function ImmerseContent({
     }));
   };
 
-  // Apply the merged content to the editor
-  const applyContentMerge = (mergeResponse: ContentMergeResponse, dropZone: DropZone) => {
-    if (!editorRef.current) return;
 
-    const editor = editorRef.current;
-    const { from, to } = editor.state.selection;
-
-    // Apply based on the merge type
-    if (dropZone.context.selectedText) {
-      // Replace selected text
-      editor.chain().focus().deleteRange({ from, to }).insertContent(mergeResponse.mergedText).run();
-    } else if (dropZone.type === 'paragraph') {
-      // Replace entire paragraph
-      const paragraphStart = aiService.findParagraphStart?.(editor.state.doc, from) || from;
-      const paragraphEnd = aiService.findParagraphEnd?.(editor.state.doc, from) || to;
-      editor.chain().focus().deleteRange({ from: paragraphStart, to: paragraphEnd }).insertContent(mergeResponse.mergedText).run();
-    } else {
-      // Insert at cursor position
-      editor.chain().focus().insertContent(mergeResponse.mergedText).run();
-    }
-  };
-
-  // Fallback for simple suggestion insertion
-  const fallbackSuggestionInsertion = (suggestion: EnhancedSuggestion) => {
-    if (!editorRef.current) return;
-
-    const editor = editorRef.current;
-    const { from, to } = editor.state.selection;
-    const isSelection = from !== to;
-    
-    if (isSelection) {
-      const selectedText = editor.state.doc.textBetween(from, to);
-      const mergedText = `${selectedText} ${suggestion.text}`;
-      editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
-    } else {
-      editor.chain().focus().insertContent(` ${suggestion.text}`).run();
-    }
-  };
 
   // Handle drag hover for visual feedback
   const handleDragHover = (suggestion: EnhancedSuggestion, monitor: any) => {
@@ -741,144 +1082,117 @@ function ImmerseContent({
     };
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  // Handle suggestion click (direct application with block rewrite)
+    // Handle suggestion click - SIMPLE MODE: Replace only highlighted text with AI rewrite
   const handleSuggestionClick = async (suggestion: EnhancedSuggestion) => {
     if (!editorRef.current) return;
 
     const editor = editorRef.current;
+    const { from, to } = editor.state.selection;
     
     try {
-      // Get current cursor position and document content
-      const { from, to } = editor.state.selection;
-      const fullText = editor.state.doc.textContent;
-
-      // Extract context around cursor position (±2 paragraphs)
-      const contextualData = aiService.extractContextualText(fullText, { from, to });
-
-      // Calculate line and char position for the cursor
-      const textBeforeCursor = fullText.slice(0, from);
-      const lines = textBeforeCursor.split('\n');
-      const line = lines.length;
-      const char = lines[lines.length - 1].length;
-
-      // Create a simplified drop zone for click application
-      const dropZone: DropZone = {
-        type: 'paragraph',
-        position: { line, char },
-        context: {
-          beforeText: contextualData.beforeContext,
-          selectedText: from !== to ? editor.state.doc.textBetween(from, to) : '',
-          afterText: contextualData.afterContext,
-          paragraphText: contextualData.targetText
-        },
-        suggestedAction: 'merge'
-      };
-
-      // Generate intelligent merge using AI service
-      const mergeRequest: ContentMergeRequest = {
-        originalText: contextualData.fullContext,
-        suggestion,
-        dropZone,
-        userPreferences: {
-          writingStyle: 'conversational',
-          preferredEditTypes: [suggestion.type],
-          boldnessLevel: 'moderate',
-          voicePreservation: 0.8
+      // MODE 1: If text is highlighted, replace ONLY the highlighted text
+      if (from !== to) {
+        const selectedText = editor.state.doc.textBetween(from, to);
+        
+        if (aiService.hasApiKey()) {
+          const rewrittenText = await aiService.rewriteTextWithSuggestion(selectedText, suggestion.text);
+          
+          // Show diff preview
+          setDiffPreview({
+            originalText: selectedText,
+            newText: rewrittenText,
+            suggestion,
+            isDocumentRewrite: false,
+            apply: () => {
+              editor.chain().focus().deleteRange({ from, to }).insertContent(rewrittenText).run();
+              setNotification({
+                message: `Replaced highlighted text with ${suggestion.type} enhancement`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
+          });
+        } else {
+          // Fallback without preview
+          const mergedText = `${selectedText} ${suggestion.text}`;
+          editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
+          setNotification({
+            message: 'Applied suggestion (API key required for AI infusion)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
         }
-      };
-
-      const mergeResponse = await aiService.mergeContent(mergeRequest);
-
-      // Apply the rewritten content
-      // Find the paragraph boundaries for the target paragraph
-      const paragraphs = fullText.split(/\n\s*\n/);
-      let currentPos = 0;
-      let targetParagraphIndex = -1;
-
-      // Find which paragraph contains our cursor
-      for (let i = 0; i < paragraphs.length; i++) {
-        const paragraphEnd = currentPos + paragraphs[i].length;
-        if (from >= currentPos && from <= paragraphEnd) {
-          targetParagraphIndex = i;
-          break;
+      } else {
+        // No text selected - generate content based on suggestion
+        if (aiService.hasApiKey()) {
+          const generatedContent = await aiService.generateContentFromSuggestion(suggestion.text, suggestion.type);
+          
+          // Show diff preview with empty original
+          setDiffPreview({
+            originalText: "[Cursor position - new content will be inserted here]",
+            newText: generatedContent,
+            suggestion,
+            isDocumentRewrite: false,
+            apply: () => {
+              editor.chain().focus().insertContent(generatedContent).run();
+              setNotification({
+                message: `Generated and inserted ${suggestion.type} content`,
+                type: 'success',
+                timestamp: Date.now()
+              });
+              removeSuggestion(suggestion.id);
+              setDiffPreview(null);
+              setTimeout(() => setNotification(null), 3000);
+            }
+          });
+        } else {
+          // Fallback: just insert the raw suggestion
+          editor.chain().focus().insertContent(` ${suggestion.text}`).run();
+          setNotification({
+            message: 'Inserted suggestion (API key required for content generation)',
+            type: 'warning',
+            timestamp: Date.now()
+          });
+          removeSuggestion(suggestion.id);
+          setTimeout(() => setNotification(null), 3000);
         }
-        currentPos = paragraphEnd + 2; // +2 for \n\n
       }
-
-      if (targetParagraphIndex === -1) targetParagraphIndex = 0;
-
-      // Calculate the actual document positions for the context block (±2 paragraphs)
-      const startIndex = Math.max(0, targetParagraphIndex - 2);
-      const endIndex = Math.min(paragraphs.length - 1, targetParagraphIndex + 2);
-      
-      // Calculate document positions
-      let blockStart = 0;
-      for (let i = 0; i < startIndex; i++) {
-        blockStart += paragraphs[i].length + 2; // +2 for \n\n
-      }
-      
-      let blockEnd = blockStart;
-      for (let i = startIndex; i <= endIndex; i++) {
-        blockEnd += paragraphs[i].length;
-        if (i < endIndex) blockEnd += 2; // +2 for \n\n
-      }
-
-      // Replace the entire context block with the rewritten version
-      editor.chain()
-        .focus()
-        .deleteRange({ from: blockStart, to: blockEnd })
-        .insertContent(mergeResponse.mergedText)
-        .run();
-
-      // Show notification
-      setNotification({
-        message: `Applied ${suggestion.type} suggestion with block rewrite`,
-        type: 'success',
-        timestamp: Date.now()
-      });
-
-      // Remove only this applied suggestion
-      removeSuggestion(suggestion.id);
-
-      // Clear notification after 3 seconds
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
-
     } catch (error) {
-      console.error('Error applying block rewrite:', error);
+      console.error('Error processing suggestion:', error);
       
-      // Fallback to simple insertion if AI service fails
-      const { from, to } = editor.state.selection;
-      const isSelection = from !== to;
-      
-      if (isSelection) {
+      // Fallback handling
+      if (from !== to) {
         const selectedText = editor.state.doc.textBetween(from, to);
         const mergedText = `${selectedText} ${suggestion.text}`;
         editor.chain().focus().deleteRange({ from, to }).insertContent(mergedText).run();
       } else {
         editor.chain().focus().insertContent(` ${suggestion.text}`).run();
       }
-
+      
       setNotification({
-        message: 'Applied suggestion with simple insertion (AI service unavailable)',
+        message: `Applied suggestion with fallback (AI error: ${error instanceof Error ? error.message : 'Unknown'})`,
         type: 'warning',
         timestamp: Date.now()
       });
       
-      // Still remove the suggestion even if fallback was used
       removeSuggestion(suggestion.id);
-      
-             setTimeout(() => {
-         setNotification(null);
-       }, 3000);
-     }
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
   // Keyboard handlers
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === 'Meta') setIsMetaPressed(true); };
-    const up = (e: KeyboardEvent) => { if (e.key === 'Meta') setIsMetaPressed(false); };
+    const down = (e: KeyboardEvent) => { 
+      if (e.key === 'Meta' || e.key === 'Control') setIsModifierPressed(true); 
+    };
+    const up = (e: KeyboardEvent) => { 
+      if (e.key === 'Meta' || e.key === 'Control') setIsModifierPressed(false); 
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => {
@@ -889,7 +1203,7 @@ function ImmerseContent({
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'i') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
         setShowSuggestions((prev: boolean) => !prev);
         e.preventDefault();
       }
@@ -1139,7 +1453,7 @@ function ImmerseContent({
                       </p>
                     ) : (
                       <p className="text-text-quaternary text-xs">
-                        Press <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+K</kbd> to attune your quantum key, then <kbd className="px-2 py-1 text-xs bg-white/10 rounded">Cmd+J</kbd> to receive ethereal guidance
+                       
                       </p>
                     )}
                   </div>
@@ -1176,19 +1490,33 @@ function ImmerseContent({
               )}
             </div>
             
-                                      {/* Enhanced Instructions */}
+                                      {/* Simple Instructions */}
             <div className={`mt-8 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-opacity duration-300 ${
               activeHoverSuggestion || dragState.draggedSuggestion ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}>
-              <p className="text-xs text-text-quaternary text-center leading-relaxed">
-                ⌨️ <strong className="text-text-secondary">Cmd+J</strong> to commune with Elysara's wisdom<br/>
-                ✨ <strong className="text-text-secondary">Click starlight bubbles</strong> for cosmic consciousness fusion<br/>
-                🎨 <strong className="text-text-secondary">Drag ethereal fragments</strong> to preview temporal harmony<br/>
-                📝 <strong className="text-text-secondary">Focus your intent</strong> where enhancement flows<br/>
-                🔑 <strong className="text-text-secondary">Cmd+K</strong> to attune your quantum key<br/>
-                💫 <strong className="text-text-secondary">Applied wisdom ascends</strong> beyond mortal sight<br/>
-                ⌨️ <strong className="text-text-secondary">Cmd+I</strong> to veil/unveil the oracle's counsel
-              </p>
+              <div className="text-xs text-text-quaternary text-left leading-relaxed space-y-1">
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+J</strong> to generate AI suggestions
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ✨ <strong className="text-text-secondary">Highlight text + Click bubble</strong> → Infuse into highlighted text only
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ✨ <strong className="text-text-secondary">Click bubble</strong> →  Appends to cursor position.
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  🎨 <strong className="text-text-secondary">Drag bubble to editor</strong> → Infuse into entire document
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  📝 <strong className="text-text-secondary">Cmd/Ctrl+Enter / Cmd/Ctrl+P</strong> → Create logbook or dream entry
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  🔑 <strong className="text-text-secondary">Cmd/Ctrl+K</strong> to set your Gemini API key
+                </div>
+                <div className="pl-6" style={{ textIndent: '-1.5rem' }}>
+                  ⌨️ <strong className="text-text-secondary">Cmd/Ctrl+I</strong> to show/hide suggestions
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -1215,16 +1543,19 @@ function ImmerseContent({
             </div>
           </div>
         )}
+
+
       </div>
 
-      {/* Enhanced Content Preview Modal */}
-      {contentPreview && (
-        <EnhancedContentPreview
-          originalContent={contentPreview.originalContent}
-          mergeResponse={contentPreview.mergeResponse}
-          suggestion={contentPreview.suggestion}
-          onApply={contentPreview.apply}
-          onCancel={() => setContentPreview(null)}
+      {/* Diff Preview Modal */}
+      {diffPreview && (
+        <DiffPreview
+          originalText={diffPreview.originalText}
+          newText={diffPreview.newText}
+          suggestion={diffPreview.suggestion}
+          isDocumentRewrite={diffPreview.isDocumentRewrite}
+          onApply={diffPreview.apply}
+          onCancel={() => setDiffPreview(null)}
         />
       )}
 
