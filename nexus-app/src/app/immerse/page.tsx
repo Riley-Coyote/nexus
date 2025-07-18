@@ -46,6 +46,10 @@ export default function ImmersePage() {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showNav, setShowNav] = useState(false);
   const navRef = useRef<HTMLDivElement | null>(null);
+  
+  // Mobile detection and handling
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileNotification, setShowMobileNotification] = useState(false);
   const [enhancedSuggestions, setEnhancedSuggestions] = useState<EnhancedSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,6 +194,36 @@ export default function ImmersePage() {
     }
   };
 
+  // Mobile detection and handling
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
+      
+      if (isMobileDevice) {
+        // Check where user came from
+        const referrer = document.referrer;
+        
+        // If coming from logbook or dream entry, show notification but stay
+        if (referrer.includes('/logbook') || referrer.includes('/dream')) {
+          setShowMobileNotification(true);
+          return;
+        }
+        
+        // In all other cases (feed, direct link, external, etc.) - redirect to feed
+        router.push('/feed');
+        return;
+      }
+    };
+
+    // Initial check
+    checkMobile();
+    
+    // Listen for window resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [router]);
+
   return (
     <>
       {/* Edge-reveal Navigation Bar */}
@@ -294,6 +328,33 @@ export default function ImmersePage() {
           currentContent={content}
           user={user}
         />
+      )}
+
+      {/* Mobile Not Supported Notification */}
+      {showMobileNotification && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-sm mx-4">
+          <div className="px-6 py-4 rounded-lg shadow-lg backdrop-blur-xl border bg-orange-500/20 border-orange-400/30 text-orange-200 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                📱
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-medium mb-2">
+                  Immerse Mode Not Supported on Mobile
+                </div>
+                <div className="text-xs text-orange-200/80 mb-3">
+                  The immersive writing experience requires a desktop or tablet. Please use a larger screen for the full experience.
+                </div>
+                <button
+                  onClick={() => setShowMobileNotification(false)}
+                  className="text-xs text-orange-300 hover:text-orange-200 underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
@@ -1457,6 +1518,8 @@ function ImmerseContent({
             </div>
           </div>
         )}
+
+
       </div>
 
       {/* Diff Preview Modal */}
